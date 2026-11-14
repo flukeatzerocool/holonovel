@@ -14,10 +14,6 @@
 
 ## Trust-core contract remediation (P1)
 
-- Ruleset search badge filtering: give index entries a declared `badge_scope`
-  (an extension of REQ-210c) and filter search hits and the reported match
-  total for Player/Observer, so a GM-only catalogue entry is neither
-  retrievable nor countable (REQ-002c1, REQ-445; F-P1-17).
 - Authorization surface: gate badge class in the dispatcher, and make
   `tools/list`, `prompts/list`, and `resources/list` the read-only subset for
   Observer (REQ-031a, REQ-032a, REQ-137b; F-P1-7, F-P1-8, F-P1-9).

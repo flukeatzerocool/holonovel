@@ -64,6 +64,10 @@ export interface RulesetIndexEntry {
   content: string;
   category: string;
   confidence: string;
+  // REQ-210d — the index entry inherits the extracted entry's declared
+  // `badge_scope`; absent means `shared`, so a package built before the field
+  // existed keeps its current visibility.
+  badge_scope?: "game_master" | "shared";
 }
 
 // REQ-578 / Appendix T.3 — the host-owned intent taxonomy. Keep in step with
@@ -653,12 +657,18 @@ export class RulesetManager {
 
   // Full-text search over the hydrated index. Simple normalized substring
   // scoring across id/anchor/content/category.
-  search(slug: string, query: string, maxResults: number = 10): RulesetIndexEntry[] {
+  // REQ-210d — `visible` is the badge-visibility seam. The host passes a
+  // predicate so an entry the caller's badge cannot see is dropped before the
+  // result limit and before any total count, including on the blank-query
+  // path below; the library form (no predicate) is the unfiltered one, for
+  // GM-only callers.
+  search(slug: string, query: string, maxResults: number = 10, visible?: (entry: RulesetIndexEntry) => boolean): RulesetIndexEntry[] {
     const pkg = this.hydrate(slug);
+    const allowed = visible ? pkg.index.filter(visible) : pkg.index;
     const q = query.trim().toLowerCase();
-    if (!q) return pkg.index.slice(0, maxResults);
+    if (!q) return allowed.slice(0, maxResults);
     const scored: { entry: RulesetIndexEntry; score: number }[] = [];
-    for (const entry of pkg.index) {
+    for (const entry of allowed) {
       const hay = `${entry.id} ${entry.anchor} ${entry.category} ${entry.content}`.toLowerCase();
       let score = 0;
       if (hay.includes(q)) score += 10;

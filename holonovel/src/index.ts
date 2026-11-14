@@ -64,7 +64,7 @@ import {
 import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom, bareName } from "./world/parser.js";
 import {
   RulesetManager, rollDice, computeContentHash, APPENDIX_U_LICENSES,
-  RulesetToolSchema, RulesetPrompt, rulesetAnnotations,
+  RulesetToolSchema, RulesetPrompt, RulesetIndexEntry, rulesetAnnotations,
 } from "./rulesets.js";
 import { conformanceReport, type ToolDefinition } from "./core/tdqs.js";
 import { ToolRegistry, bindMcp, type RegisteredTool, type ToolAnnotations } from "./tool-registry.js";
@@ -2266,6 +2266,24 @@ function visibleRulesetCollection(raw: unknown, badge: Badge): Record<string, an
   return out;
 }
 
+// REQ-210d — a search-index entry carries the same declared `badge_scope` as
+// the model entry it indexes, and the legacy `category` refusal (REQ-381b) is
+// preserved as a second signal so a package built before the field existed
+// never widens its visibility. The composed rule is a floor: an entry is
+// visible only when both signals admit it.
+function visibleIndexEntry(entry: any, badge: Badge): boolean {
+  if (!rulesetEntryVisible(entry, badge)) return false;
+  if (badge === "game_master" || badge === "none") return true;
+  return !["gm", "game_master"].includes(String(entry?.category ?? "").toLowerCase());
+}
+
+// REQ-210d/REQ-002c1/REQ-445 — every host search surface goes through this
+// helper: hits and the reported match total are both post-filter, and an
+// all-invisible result set is indistinguishable from no match.
+function searchIndexVisible(slug: string, query: string, maxResults: number, badge: Badge): RulesetIndexEntry[] {
+  return rulesets.search(slug, query, maxResults, (entry) => visibleIndexEntry(entry, badge));
+}
+
 // Generic ruleset tool handlers. Tools are expressed as data (REQ-389); the
 // host dispatches on the tool's `kind` so a package's tools serve without the
 // host re-parsing source Markdown.
@@ -2340,11 +2358,13 @@ function gatedRulesetTool(slug: string, schema: RulesetToolSchema, toolName: str
       }
       case "search": {
         const q = String(args.query ?? "");
-        const hits = rulesets.search(slug, q, args.max_results ?? 10);
+        // REQ-210d — hits and the reported total are both badge-filtered; a
+        // blank query takes the same filter.
+        const hits = searchIndexVisible(slug, q, args.max_results ?? 10, getBadge());
         if (hits.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${q}'.`);
         const body = hits.map((h: any) => JSON.stringify({ ...h, ...sourceAnchor(h) }, null, 2)).join("\n");
         // REQ-113 — total match count vs returned count.
-        const total = rulesets.search(slug, q, 100000).length;
+        const total = searchIndexVisible(slug, q, 100000, getBadge()).length;
         return raw(body + countReport(hits.length, total));
       }
       case "roll": {
@@ -13696,9 +13716,10 @@ server.registerTool("manage_ruleset", {
         return adventureBody + body + countReport(returned + adventureRendered.length, total + adventureRendered.length);
       };
       if (slug && rulesets.isInstalled(slug)) {
-        const hits = rulesets.search(slug, String(args.query), args.max_results ?? 10);
+        // REQ-210d — hits and the reported total are both badge-filtered.
+        const hits = searchIndexVisible(slug, String(args.query), args.max_results ?? 10, getBadge());
         if (hits.length === 0 && adventureRendered.length === 0) return err("NOT_FOUND", `No ruleset entry matches '${args.query}'.`);
-        const total = hits.length === 0 ? 0 : rulesets.search(slug, String(args.query), 100000).length;
+        const total = hits.length === 0 ? 0 : searchIndexVisible(slug, String(args.query), 100000, getBadge()).length;
         // REQ-588 — bound the context one search returns; report suppressed
         // results and truncate an oversized passage with a resource pointer.
         const budget = searchMaxTokens();
@@ -14992,16 +15013,16 @@ server.registerResource("ruleset-entry", new ResourceTemplate("ruleset://{slug}/
   const plain = (text: string) => ({ contents: [{ uri: uri.href, text, mimeType: "text/plain" }] });
   if (!rulesets.isInstalled(slug)) return plain(`[ERROR] [NOT_FOUND] Ruleset '${slug}' is not installed.`);
   const entries = rulesets.indexForReport(slug) as any[];
-  const hit = entries.find((e) => e.id === anchor || e.anchor === anchor)
-    ?? entries.find((e) => String(e.id ?? "").toLowerCase() === anchor.toLowerCase()
+  // REQ-210d/REQ-381b — the resource applies the same composed visibility test
+  // as search, and filters *before* the anchor lookup so a shared sibling still
+  // resolves when a badge-invisible entry shares its anchor case-insensitively.
+  const visible = entries.filter((e) => visibleIndexEntry(e, getBadge()));
+  const hit = visible.find((e) => e.id === anchor || e.anchor === anchor)
+    ?? visible.find((e) => String(e.id ?? "").toLowerCase() === anchor.toLowerCase()
       || String(e.anchor ?? "").toLowerCase() === anchor.toLowerCase());
+  // REQ-445 — a badge-invisible entry is indistinguishable from an absent one:
+  // the reply names neither the entry nor its scope.
   if (!hit) return plain(`[ERROR] [NOT_FOUND] No ruleset entry '${anchor}' in '${slug}'.`);
-  // REQ-381b — resources that draw from a ruleset model badge-filter their
-  // output; a GM-scoped category is not served to a Player.
-  const isGM = getBadge() === "game_master" || getBadge() === "none";
-  if (!isGM && ["gm", "game_master"].includes(String(hit.category ?? "").toLowerCase())) {
-    return plain(`[ERROR] [FORBIDDEN] Entry '${anchor}' is Game Master only.`);
-  }
   return { contents: [{ uri: uri.href, text: JSON.stringify(hit, null, 2), mimeType: "application/json" }] };
 });
 

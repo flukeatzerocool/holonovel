@@ -51,11 +51,30 @@ function assertNotContains(hay: string, needle: string, ctx = ""): void {
 }
 
 // ── Synthetic package fixture (REQ-389 six-file format) ───────────────
-function installFixture(): void {
-  const index = [
+// `slug` lets one run install a second package (the legacy variant below). A
+// package's tools are registered as `${slug}_${tool.name}`
+// (src/index.ts:2462) and resolved by `startsWith(slug + "_")`
+// (src/index.ts:2071-2073), so the install slugs must not be `_`-prefix
+// related — and `isSafeSlug` (src/rulesets.ts:688) forbids `_` in a slug, so
+// the constraint is structural. Keep the pair distinct anyway.
+const LEGACY_SLUG = `${DEFAULT_SLUG}legacy`;
+function installFixture(opts: { slug?: string; legacy?: boolean } = {}): string {
+  const slug = opts.slug ?? SLUG;
+  // REQ-210d — three index entries carry the model's declared `badge_scope`.
+  // `legacy` strips the field and marks the GM entry by `category` only, the
+  // shape a package built before REQ-210d ships.
+  const scoped = !opts.legacy;
+  const index: any[] = [
     { id: "the-thing-2", anchor: "The Thing", source_file: "fixture.md", content: "A thing.", category: "concepts", confidence: "HIGH" },
     { id: "random-hit-location", anchor: "Random Hit Location", source_file: "fixture.md", content: "Roll d100.", category: "tables", confidence: "HIGH" },
+    { id: "shared-lore", anchor: "Shared Lore", source_file: "fixture.md", content: "A shared thing about the thing.", category: "concepts", confidence: "HIGH", badge_scope: "shared" },
+    { id: "gm-secret-thing", anchor: "GM Secret Thing", source_file: "fixture.md", content: "hidden gm thing", category: scoped ? "concepts" : "gm", confidence: "HIGH" },
+    { id: "core_mechanic", anchor: "Fixture resolution", source_file: "fixture.md", content: "percentile die resolution", category: scoped ? "concepts" : "gm", confidence: "HIGH" },
   ];
+  if (scoped) {
+    index[3].badge_scope = "game_master";
+    index[4].badge_scope = "game_master";
+  }
   const model = {
     concepts: {},
     things: { "the-thing-2": { name: "Big Thing", aliases: ["Huge Thing"], content: "A big thing.", source_file: "fixture.md" }, "gm-secret-thing": { name: "GM Secret Thing", aliases: ["Forbidden Alias"], content: "hidden gm thing", badge_scope: "game_master", source_file: "fixture.md" } },
@@ -76,19 +95,20 @@ function installFixture(): void {
   const resources: any[] = [];
   const prompts: any[] = [];
   const manifest = {
-    slug: SLUG,
-    name: "No-Novel Fixture (REQ-558)",
+    slug,
+    name: opts.legacy ? "No-Novel Legacy Fixture (REQ-210d)" : "No-Novel Fixture (REQ-558)",
     host_version: "0.0.0",
     package_format: PACKAGE_FORMAT,
     content_hash: computeContentHash(index, model, tools, resources, prompts),
     built_at: new Date().toISOString(),
     counts: {},
   };
-  const dir = join(DATA_DIR, "rulesets", SLUG);
+  const dir = join(DATA_DIR, "rulesets", slug);
   mkdirSync(dir, { recursive: true });
   for (const [name, obj] of Object.entries({ "manifest.json": manifest, "index.json": index, "model.json": model, "tools.json": tools, "resources.json": resources, "prompts.json": prompts })) {
     writeFileSync(join(dir, name), JSON.stringify(obj, null, 2) + "\n");
   }
+  return slug;
 }
 
 // REQ-560 — replay an emitted package supplied with `--package`.
@@ -212,6 +232,8 @@ async function main() {
 
   console.log("=== Ruleset no-Novel access (REQ-558 / T651) ===\n");
   installFixture();
+  // REQ-210d — the legacy variant ships no `badge_scope` on its index entries.
+  installFixture({ slug: LEGACY_SLUG, legacy: true });
 
   await test("T651/REQ-558: tools serve with no active Novel", async () => {
     const p = await boot();
@@ -297,6 +319,68 @@ async function main() {
     assertContains(gmMissing, "GM Secret Thing", "GM enumeration lists the GM-only name");
     const gmInfo = await call(p, `${SLUG}_core_mechanic`, {});
     assertContains(gmInfo, "percentile die", "GM sees the info entry");
+    await kill(p);
+  });
+
+  await test("T784/REQ-210d: index-backed search and the entry resource honor badge scope", async () => {
+    const p = await boot();
+    const readResource = async (uri: string): Promise<string> => {
+      const resp = await send(p, { method: "resources/read", params: { uri } });
+      return (resp.result?.contents ?? []).map((c: any) => c?.text ?? "").join("\n");
+    };
+    await call(p, "manage_novel", { action: "create", name: "t784", ruleset: SLUG });
+
+    // 1 — hits and the reported total are both filtered; `max_results` is a
+    // host-search parameter, so the total assertion drives `manage_ruleset`.
+    await call(p, "set_badge", { badge: "player" });
+    const playerHits = await call(p, `${SLUG}_search_rules`, { query: "thing" });
+    assertNotContains(playerHits, "gm-secret-thing", "player search omits the GM-only hit");
+    const playerTotal = await call(p, "manage_ruleset", { action: "search", query: "thing", max_results: 1 });
+    assertContains(playerTotal, "[1 of 2 results]", "player total counts visible matches only");
+    // 2 — a query matching only GM entries is indistinguishable from no match.
+    const onlyGm = await call(p, `${SLUG}_search_rules`, { query: "hidden gm" });
+    assertContains(onlyGm, "[ERROR] [NOT_FOUND]", "player query matching only GM entries is absent");
+    assertNotContains(onlyGm, "hidden gm thing", "no content disclosure");
+    // 3 — the blank/whitespace query path takes the same filter.
+    const blank = await call(p, `${SLUG}_search_rules`, { query: "" });
+    assertNotContains(blank, "hidden gm thing", "blank query discloses no GM content");
+    const spaced = await call(p, "manage_ruleset", { action: "search", query: " " });
+    assertNotContains(spaced, "hidden gm thing", "whitespace query discloses no GM content");
+    // 4 — Observer behaves as Player.
+    await call(p, "set_badge", { badge: "observer" });
+    const observer = await call(p, `${SLUG}_search_rules`, { query: "thing" });
+    assertNotContains(observer, "gm-secret-thing", "observer search omits the GM-only hit");
+    const observerTotal = await call(p, "manage_ruleset", { action: "search", query: "thing", max_results: 1 });
+    assertContains(observerTotal, "[1 of 2 results]", "observer total is filtered");
+    // 5 — Editor sees every entry.
+    await call(p, "set_badge", { badge: "none" });
+    const editorTotal = await call(p, "manage_ruleset", { action: "search", query: "thing", max_results: 1 });
+    assertContains(editorTotal, "[1 of 3 results]", "editor total includes every entry");
+    // 6 — Game Master sees and reads it.
+    await call(p, "set_badge", { badge: "game_master" });
+    const gmTotal = await call(p, "manage_ruleset", { action: "search", query: "thing", max_results: 1 });
+    assertContains(gmTotal, "[1 of 3 results]", "GM total includes the GM-only entry");
+    const gmRead = await readResource(`ruleset://${SLUG}/gm-secret-thing`);
+    assertContains(gmRead, "hidden gm thing", "GM can read the entry resource");
+    // 7 — the resource read is non-disclosing for Player.
+    await call(p, "set_badge", { badge: "player" });
+    const denied = await readResource(`ruleset://${SLUG}/gm-secret-thing`);
+    assertContains(denied, "[ERROR] [NOT_FOUND]", "player entry read is absent");
+    assertNotContains(denied, "hidden gm thing", "no content disclosure");
+    assertNotContains(denied, "Game Master only", "no scope confirmation");
+
+    // 8 — a package with no declared scope keeps its legacy category refusal.
+    await call(p, "manage_novel", { action: "create", name: "t784-legacy", ruleset: LEGACY_SLUG });
+    await call(p, "set_badge", { badge: "player" });
+    const legacy = await call(p, `${LEGACY_SLUG}_search_rules`, { query: "thing" });
+    assertNotContains(legacy, "hidden gm thing", "legacy category:gm entry is withheld from search");
+    const legacyHost = await call(p, "manage_ruleset", { action: "search", slug: LEGACY_SLUG, query: "thing" });
+    assertNotContains(legacyHost, "hidden gm thing", "host search withholds the legacy entry");
+    const legacyRead = await readResource(`ruleset://${LEGACY_SLUG}/gm-secret-thing`);
+    assertContains(legacyRead, "[ERROR] [NOT_FOUND]", "legacy entry resource is withheld");
+    await call(p, "set_badge", { badge: "game_master" });
+    const legacyGm = await call(p, `${LEGACY_SLUG}_search_rules`, { query: "hidden gm thing" });
+    assertContains(legacyGm, "hidden gm thing", "GM sees the legacy entry");
     await kill(p);
   });
 

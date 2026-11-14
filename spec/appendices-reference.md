@@ -187,6 +187,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-210a | Extraction categories (Part a) | 2026-08-11 |
 | REQ-210b | Extraction categories (Part b) | 2026-08-11 |
 | REQ-210c | Extraction badge scope (Part c) | 2026-11-14 |
+| REQ-210d | Indexed search badge scope (Part d) | 2026-11-14 |
 | REQ-215a | Table content extraction (Part a) | 2026-08-11 |
 | REQ-215b | Table content extraction (Part b) | 2026-08-11 |
 | REQ-215c | Table content extraction (Part c) | 2026-08-11 |
@@ -2130,6 +2131,7 @@ diet.
 | T780 | Automated | Window-aware displaced verdict: a claim superseded by a later disagreeing claim reports `displaced`; an agreeing successor stays `confirmed`; two checks of unchanged state agree and the event-log cursor is unchanged. | REQ-656 |
 | T781 | Automated | Comparable recall benchmark: the harness renders the top 5 and top 10 records at an unbounded budget over the committed synthetic fixture and reports `recall@5` and `recall@10`; a deliberately broken retriever scores zero; two runs agree; the result is reported alongside `recall@budget`. | REQ-658 |
 | T782 | Automated | COF NPC import: a committed `.cof` fixture imports as an NPC with provenance and one subjective memory carrying the mapped gist, salience, origin, and disclosure; a non-COF file and an oversized or traversal archive are refused. | REQ-075j |
+| T784 | Automated | Index-backed search badge scope: with a package whose search index declares one `badge_scope: game_master` entry beside shared entries, call a package search tool and `manage_ruleset (action: search)` as Player — assert the GM-only entry is absent, the reported total excludes it, and a query matching only it returns `[NOT_FOUND]`; repeat with a blank and a whitespace query — assert no GM-only content; repeat as Observer — identical; as Editor and Game Master — assert the entry and the full total. Read the GM-only anchor through `ruleset://` as Player — assert `[NOT_FOUND]` with no content and no scope confirmation; as Game Master — assert its content. Install a second package whose index omits `badge_scope` and marks the entry `category: gm` — assert Player search and the resource still withhold it. | REQ-210d |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

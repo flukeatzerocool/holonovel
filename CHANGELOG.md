@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-14 — Ruleset search badge scope: index entries carry `badge_scope`, and every index-backed read filters on it
+
+- Index visibility: `RulesetIndexEntry` gains an optional `badge_scope`, and
+  `RulesetSearch.search` takes a visibility predicate applied on both return
+  paths — the blank-query slice and the scored path — so the result limit and
+  the reported match total are both post-filter. An entry with no declared
+  scope is `shared`, and the legacy `category: gm` refusal is preserved as a
+  second signal, so no installed package widens (REQ-210d, new;
+  F-P1-17).
+- Host reads: `searchIndexVisible` composes `visibleIndexEntry` over
+  `rulesetEntryVisible` for the package search kind and `manage_ruleset
+  (action: search)`, and the `ruleset://` entry resource filters candidates
+  before the anchor lookup, answering `[NOT_FOUND]` rather than a
+  scope-confirming `[FORBIDDEN]` (REQ-002c1, REQ-445).
+- Harnesses: T784 covers Player, Observer, Editor, and Game Master on both
+  search surfaces and the entry resource, a blank/whitespace query, and a
+  second package whose index predates the field.
+
 ## 2026-11-14 — Trust-core output channel: byte-accurate truncation on every prose result, badge-scoped output:// payloads
 
 - Output channel: truncation moves from six ruleset-surface call sites into the

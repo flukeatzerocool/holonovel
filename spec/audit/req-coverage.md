@@ -185,7 +185,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-207 | Core-mechanic identification (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-208 | Pattern Buffer convergence metric mapping (Part a) (2 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-209 | Cross-format consistency | 5.2 Extraction and Confidence | E | — | — |
-| REQ-210 | Extraction categories (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T179 | — |
+| REQ-210 | Extraction categories (Part a) (4 sub-parts) | 5.2 Extraction and Confidence | E | T179, T784 | — |
 | REQ-211 | Evidence record field contract (Part a) (3 sub-parts) | 5.5 Badges and Access | E | S22 | — |
 | REQ-212 | Generation table rolling (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-213 | Weighted table result mapping (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T254 | — |

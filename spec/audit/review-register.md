@@ -122,6 +122,30 @@ re-confirmed before the change and re-cited at its post-change line.
   (`test-ruleset-nonovel.ts:271`). The index-backed `search` surface carries
   no badge data and is scheduled as F-P1-17.
 
+### 2026-11-14 ruleset search badge scope
+
+F-P1-17 of the 2026-11-09 chunk-P1 sweep was resolved in the ruleset search
+badge scope increment (plan
+`docs/plans/2026-11-14-ruleset-search-badge-scope/`). The predicate was
+re-confirmed at `ddd0e48` before the change and re-cited at its post-change
+lines; T784 exercises every surface.
+
+- **F-P1-17 — index-backed ruleset search disclosed GM-only entries. Resolved
+  (2026-11-14).** Predicate was `rulesets.ts:656-673` (a search with no
+  visibility filter) feeding `index.ts:2343`/`:2347` and `:13699`/`:13701`, plus
+  the `category`-only resource proxy (`:15001-15004`). `RulesetIndexEntry` now
+  declares `badge_scope?` (`rulesets.ts:60-69`) and `search` filters through a
+  predicate on both return paths, blank query included (`:665-682`). The host
+  composes `visibleIndexEntry` with `rulesetEntryVisible`
+  (`index.ts:2274-2281`) through `searchIndexVisible` (`:2283-2285`), so hits
+  and the reported match total are both post-filter and an all-invisible query
+  returns `[NOT_FOUND]` with no entry and no count. The `ruleset://` read
+  filters its candidates before the anchor lookup and answers `[NOT_FOUND]`
+  instead of a scope-confirming `[FORBIDDEN]` (`:15010-15023`). REQ-002c1,
+  REQ-210c, new REQ-210d, REQ-445. Asserted by T784
+  (`test-ruleset-nonovel.ts:325`), including the blank-query and legacy-package
+  legs.
+
 ### 2026-11-13 §5.4 remediation
 
 The four implementation findings of the 2026-11-09 chunk-P3 sweep were
@@ -2492,15 +2516,6 @@ currently asserts these contracts — that is the finding).
   `index.ts:3996-4009` returns `[OK] Active badge: player` while `getBadge()`
   still resolves `none` (Editor), so the next call runs with full access.
   REQ-030 and REQ-066b. Predicate: `index.ts:3996`.
-- **F-P1-17 — index-backed ruleset search still discloses GM-only entries
-  (scheduled, 2026-11-14):** `rulesets.search` returns `RulesetIndexEntry`
-  rows with `id`/`anchor`/`category`/`content` and no `badge_scope`
-  (`rulesets.ts:656-672`), rendered raw by the package `search` kind
-  (`index.ts:2341-2351`) and by `manage_ruleset (action: search)`
-  (`index.ts:13611-13637`); the reported match total comes from a second,
-  unfiltered query (`index.ts:2347`). A Player badge can therefore retrieve
-  and count catalogue entries whose `badge_scope` is `game_master`.
-  REQ-002c1, REQ-445. Predicate: `index.ts:2341-2351`, `:13611-13637`.
 - **F-S1 — four §5.1/§5.5 REQs cite automated tests no harness implements
   (scheduled):** REQ-032b → T44, REQ-109f → T109/T110, REQ-286c → T336,
   REQ-306e → T350. (REQ-001b2 → T180 is resolved by the trust-core error
