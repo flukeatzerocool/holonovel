@@ -16,7 +16,8 @@ condition — not a gate's emitted message; a message alone is not evidence.
 The four implementation findings of the 2026-11-09 chunk-P3 sweep were
 resolved in the §5.4 remediation increment (plan
 `docs/plans/2026-11-13-s5-4-remediation/`). Each predicate was re-confirmed at
-`842a71e` before the change.
+`842a71e` before the change. The one remaining citation finding of that sweep
+(F-P3-8) is closed in the next subsection.
 
 - **F-P3-5 — end-Novel disposal is not recorded in the audit log. Resolved.**
   Predicate was `holonovel/src/core/state.ts:1939` (`endNovel` moved the file
@@ -44,6 +45,22 @@ resolved in the §5.4 remediation increment (plan
   build). The whole compute block now runs before the drain, and the shipped
   fixture package supplies the ruleset-backed creation the harness breaks.
   REQ-190, REQ-399b. Asserted by T468.
+
+### 2026-11-13 §5.4 citation repair
+
+- **F-P3-8 — REQ-104c cites Automated T103 with no harness. Resolved.**
+  Predicate was `scripts/validate.ts:1439-1441` (`gatherExercisedIds` collects
+  IDs only from an executed `test("…")` call) with no harness title carrying
+  `T103`. Four `T103/REQ-104c` assertions now run in
+  `holonovel/scripts/test-workflow.ts`: quick-create undo removes the character
+  and leaves the roster unchanged, step-by-step undo does the same, undo is
+  refused while a creation decision is pending, and a drained stack returns
+  `[STATE_CONFLICT] Nothing to undo`. Writing the assertion exposed a real
+  defect — both ruleset-free creation paths mutated without a snapshot, so the
+  first two assertions failed at `554a446` — fixed at
+  `holonovel/src/index.ts:4813` (quick) and `:4263` (workflow completion).
+  REQ-041, REQ-104c. Coverage register refreshed; T103 now appears on the
+  REQ-104 row. Plan `docs/plans/2026-11-13-s5-4-citation-repair/`.
 
 ### 2026-11-13 server-suite red baseline
 
@@ -2332,19 +2349,6 @@ Probe status: the 2026-11-09 assertion-repair session ran the Appendix F rows
 against live harnesses. Four rows now pass and are committed (T136, T94, T144,
 T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
-
-
-
-### 2026-11-09 full-review sweep — chunk P3 (§5.4 decision workflows)
-
-The four implementation findings were resolved in the 2026-11-13 §5.4
-remediation increment (plan `docs/plans/2026-11-13-s5-4-remediation/`) and are
-recorded under `## Resolved`. One citation finding remains.
-
-- **F-P3-8 — REQ-104c cites Automated T103 with no harness:** Appendix F
-  catalogues T103 (`spec/appendices-reference.md:1564`); no `holonovel/scripts`
-  harness carries the token. REQ-104c. Scheduled under `ROADMAP.md` § *§5.4
-  citation repair (P1)*.
 
 ### 2026-11-09 full-review sweep — chunk P1 (trust core, §5.1/§5.5)
 

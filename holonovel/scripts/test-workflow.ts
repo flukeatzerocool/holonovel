@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Workflow-lifecycle conformance harness (REQ-042, REQ-193, REQ-224, P50). [gate]
 // Exercises T138 (raise/freeze/cancel-restore/resolve), T157 (restart survival),
-// and T266 (staleness auto-cancel) against a real server process, including
-// spawn/kill/respawn cycles against a shared data directory.
+// T266 (staleness auto-cancel), and T103 (character-creation undo, REQ-104c)
+// against a real server process, including spawn/kill/respawn cycles against a
+// shared data directory.
 
 import { spawn, ChildProcess } from "node:child_process";
 import { mkdtempSync, rmSync, mkdirSync } from "node:fs";
@@ -180,6 +181,59 @@ async function main() {
       const second = await call(proc, "respond_decision", { decision: "-present_choices-", option: "a" });
       assertContains(second, "[STATE_CONFLICT]");
       if (second.includes("[NOT_FOUND]")) throw new Error("drained respond should be STATE_CONFLICT, not NOT_FOUND");
+    });
+
+    await kill(proc);
+  }
+
+  // ── T103: character creation undo (REQ-104c) ─────────────────────
+  // Undo must reach a creation performed through either mode, be refused while
+  // a creation decision is pending, and report STATE_CONFLICT on an empty
+  // stack. This Novel takes exactly two snapshots (the two creations), each
+  // popped by its own test, so the drained-stack assertion is exact.
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create",  name: "workflow-t103" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    const rosterBefore = await call(proc, "manage_character", { action: "roster_list" });
+
+    await test("T103/REQ-104c: undo after quick creation removes the character and leaves the roster unchanged", async () => {
+      const created = await call(proc, "manage_character", { action: "create",  name: "Quick T103", species: "Human" });
+      const id = created.match(/Entity id (\S+?)\./)?.[1];
+      if (!id) throw new Error(`could not parse entity id from: ${created.slice(0, 200)}`);
+      assertContains(await call(proc, "manage_history", { action: "undo" }), "[OK]");
+      assertContains(await call(proc, "manage_character", { action: "sheet", entity_id: id }), "[NOT_FOUND]");
+      const rosterAfter = await call(proc, "manage_character", { action: "roster_list" });
+      if (rosterAfter !== rosterBefore) throw new Error(`roster changed across create+undo: ${rosterAfter.slice(0, 300)}`);
+    });
+
+    await test("T103/REQ-104c: undo after step-by-step creation removes the character", async () => {
+      assertContains(await call(proc, "manage_character", { action: "create" }), "[NEED_INPUT]");
+      const answers = ["Step T103", "Human", "Warrior 1", "10 10 10", "Perception", "Sword"];
+      let last = "";
+      for (const option of answers) {
+        if (last.startsWith("[OK]")) break;
+        last = await call(proc, "respond_decision", { decision: "character_creation", option });
+      }
+      if (!last.startsWith("[OK]")) throw new Error(`creation did not complete: ${last.slice(0, 200)}`);
+      const id = last.match(/created as (\S+?) \(/)?.[1] ?? last.match(/created as (\S+?)\./)?.[1];
+      if (!id) throw new Error(`could not parse entity id from: ${last.slice(0, 200)}`);
+      assertContains(await call(proc, "manage_history", { action: "undo" }), "[OK]");
+      assertContains(await call(proc, "manage_character", { action: "sheet", entity_id: id }), "[NOT_FOUND]");
+      const rosterAfter = await call(proc, "manage_character", { action: "roster_list" });
+      if (rosterAfter !== rosterBefore) throw new Error(`roster changed across create+undo: ${rosterAfter.slice(0, 300)}`);
+    });
+
+    await test("T103/REQ-104c: undo is refused while a creation decision is pending", async () => {
+      assertContains(await call(proc, "manage_character", { action: "create" }), "[NEED_INPUT]");
+      assertContains(await call(proc, "manage_history", { action: "undo" }), "[STATE_CONFLICT]");
+      assertContains(await call(proc, "respond_decision", { decision: "character_creation", option: "cancel" }), "cancelled");
+    });
+
+    await test("T103/REQ-104c: undo on the drained creation stack returns STATE_CONFLICT", async () => {
+      const undo = await call(proc, "manage_history", { action: "undo" });
+      assertContains(undo, "[STATE_CONFLICT]");
+      assertContains(undo, "Nothing to undo");
     });
 
     await kill(proc);

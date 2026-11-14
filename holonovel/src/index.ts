@@ -4260,6 +4260,7 @@ server.registerTool("respond_decision", {
     if (!rules) {
       // Ruleset-free workflow completed — profile-only entity.
       novel.pending_workflow = null;
+      novelSnapshot();
       const name = wf.answers.name ?? "Unnamed";
       const species = wf.answers.species;
       const entity = state.createEntity(novel, name, undefined, species ? { species } : undefined);
@@ -4809,6 +4810,7 @@ server.registerTool("manage_character", {
           return err("INVALID_INPUT", "This Novel has no character-creation rules. Bind a ruleset whose package defines character creation to use classes or mechanical stats.");
         }
         const profileStats = species && !hasPersonality ? { species } : undefined;
+        novelSnapshot();
         const entity = state.createEntity(novel, name, hasPersonality ? personality : undefined, profileStats);
         state.addEntity(novel, entity);
         if (stage_to_roster) state.addToRoster(entity, novel.ruleset ?? null);

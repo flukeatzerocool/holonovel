@@ -34,7 +34,7 @@ const ANNOTATION_KEYS = ["readOnlyHint", "destructiveHint", "idempotentHint", "o
 // rests on rather than a gate message.
 const PREDICATE_TOOLS = anchor("holonovel/src/index.ts", 189, "TOOL_ANNOTATIONS");
 const PREDICATE_RESOURCES = anchor("holonovel/src/index.ts", 2443, "registerResource");
-const PREDICATE_PROMPTS = anchor("holonovel/src/index.ts", 16760, "prompt");
+const PREDICATE_PROMPTS = anchor("holonovel/src/index.ts", 16762, "prompt");
 
 export async function runConformance(opts: { serverDir: string; artifactPath?: string; dataDir?: string }): Promise<TierResult> {
   const artifactPath = opts.artifactPath ?? join(opts.serverDir, "tool-definitions.json");

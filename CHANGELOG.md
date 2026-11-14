@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-13 — §5.4 citation repair: T103 creation-undo assertions and profile-only snapshot fix
+
+- `manage_character (action: create)` now takes a pre-mutation snapshot on both
+  ruleset-free paths — quick create and step-by-step completion — so a
+  profile-only character is undoable like a ruleset-backed one; before this,
+  `manage_history (action: undo)` returned `[STATE_CONFLICT] Nothing to undo`
+  and the character survived (REQ-041).
+- Harnesses: `test-workflow.ts` gains four `T103/REQ-104c` assertions —
+  quick-create undo removes the character and leaves the roster unchanged,
+  step-by-step undo does the same, undo is refused while a creation decision is
+  pending, and a drained stack returns `[STATE_CONFLICT] Nothing to undo`. The
+  citation now resolves for REQ-104c, whose `_Check:_` already named T103.
+- Tooling: the four Holosuite anchor sets are repointed to the shifted
+  `holonovel/src/index.ts` lines (`holosuite-novel`, `-adversarial`,
+  `-conformance`, `-invariants`); the shift was +1 for recorded lines below the
+  workflow insertion and +2 below the create insertion.
+- Registers: F-P3-8 is `Resolved`; the coverage register lists T103 on the
+  REQ-104 row. The *§5.4 citation repair* ROADMAP section is closed.
+
 ## 2026-11-13 — §5.4 remediation: disposal audit record, equipment provenance, named creation errors
 
 - `respond_decision` now records `end_novel` before the Novel file moves, plus

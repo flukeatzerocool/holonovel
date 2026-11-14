@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.4 citation repair (P1)
-
-- Write the T103 assertion (character creation undo: step-by-step and quick
-  creation, undo blockage during a pending `[NEED_INPUT]`, empty-stack
-  `[STATE_CONFLICT]`) or re-point REQ-104c to the harness that exercises it;
-  then refresh the coverage register.
-
-**Trigger:** the next citation-remediation session, or the next session that
-takes decision-workflow work; closes when REQ-104c's citation resolves to an
-exercised harness and F-P3-8 is `Resolved`.
-
-
 ## Trust-core contract remediation (P1)
 
 - Error envelope normalization: refusals return `[ERROR] [FORBIDDEN]` with a

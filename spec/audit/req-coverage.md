@@ -28,7 +28,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
 | REQ-032 | Server-side gating (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T59, T62, T63, T64, T65, T66, T67, T68, T70, T71, T75, T76, T79, T80, T81, T82, T90, T91, T100, T101, T104, T110, T112, T118, T119, T127, T128, T129, T133, T134, T135, T139, T142, T148, T151, T221, T261, T284, T285, T286, T326, S6 | — |
 | REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T8, T70, T100, T203, T147 | — |
-| REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T10, T76, T79, T90, T91, T121, T138, T261, S22 | — |
+| REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T10, T76, T79, T90, T91, T103, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
 | REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T47, T56, T90, T91, T110, T131, T161, T162, T287 | — |
 | REQ-044 | Ruleset hash recording | 5.6 State, Lifecycle, Entities, and Adventure Content | E | S17 | — |
@@ -84,7 +84,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-101 | Assumption audit trail (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | E | — | — |
 | REQ-102 | Source conversion contract (Part a) (3 sub-parts) | 5.2 Extraction and Confidence | E | T93 | — |
 | REQ-103 | Synthesis reversion (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T94, T125, T144, T321, T324 | — |
-| REQ-104 | Character creation workflow (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T32, T468, T141 | — |
+| REQ-104 | Character creation workflow (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T32, T468, T103, T141 | — |
 | REQ-105 | Spec resource | 5.3 Tools, Resources, and Lookups | C | T104 | — |
 | REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | C | T105 | — |
 | REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
