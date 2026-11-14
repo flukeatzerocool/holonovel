@@ -1296,6 +1296,16 @@ wraps the MCP SDK's ListTools handler and filters the catalog by the active
 badge (Game Master and no-badge see all; Player and Observer see un-gated and
 Player-only tools). T151 asserts the table and the filtered output agree.
 
+Badge and audit gating are derived, not a fourth class: the Observer's
+read-only subset and the audit-capacity preflight both read the committed
+surface registry's `mutation_class` (`holonovel/tool-surface-registry.json`,
+REQ-567) plus the shared `MUTATING_READ_ACTIONS` set, and the dispatcher
+enforces both before a handler runs. The capacity gate admits the compaction
+corrective action (`manage_diagnostics (action: compact)` and its
+`compress_audit:` confirmation) because it frees space before its own entry is
+written, and it refuses before mutating so a capped log never leaves a
+persisted mutation behind (REQ-447, REQ-040a). T533 and T786 assert it.
+
 | Tool name | Gate | Badge visibility |
 |-----------|------|------------------|
 | `set_badge` | un-gated | Player, Game Master |

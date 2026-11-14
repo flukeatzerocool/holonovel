@@ -24,10 +24,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-023 | Prompts (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T26, T49, T50, T155, T480 | — |
 | REQ-024 | Tool documentation (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39, T49, T509, T488, T642 | — |
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T480, T93, T195, T204, T171, T488 | — |
-| REQ-030 | Single-user connection | 5.5 Badges and Access | C | S6, S17 | — |
+| REQ-030 | Single-user connection | 5.5 Badges and Access | C | T785, S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
 | REQ-032 | Server-side gating (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T50, T53, T57, T59, T62, T63, T64, T65, T66, T67, T68, T70, T71, T75, T76, T79, T80, T81, T82, T90, T91, T100, T101, T104, T110, T112, T118, T119, T127, T128, T129, T133, T134, T135, T139, T142, T148, T151, T221, T261, T284, T285, T286, T326, S6, T16, T349 | — |
-| REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T8, T70, T100, T203, T147 | — |
+| REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T8, T70, T100, T203, T147, T786 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T10, T76, T79, T90, T91, T103, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
 | REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T47, T56, T90, T91, T110, T131, T161, T162, T287 | — |
@@ -47,7 +47,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-063 | Connection introduction (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T49, T50, T124, T259 | — |
 | REQ-064 | Badge behavioral boundaries (Part a) (6 sub-parts) | 5.1 Output and Error Contracts | C | T461 | — |
 | REQ-065 | Build fingerprint (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T224, T77, T125, S17 | — |
-| REQ-066 | set_badge tool (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T138, S6 | — |
+| REQ-066 | set_badge tool (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T138, S6, T785 | — |
 | REQ-067 | Help and tool discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T62, T118, T636 | — |
 | REQ-069 | Player feedback signal (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T142, T313, T314, T450 | — |
 | REQ-070 | Anti-slop guidance (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
@@ -413,7 +413,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-444 | Import-channel inertness | 5.7 Determinism, Safety, and Performance | C | T530 | — |
 | REQ-445 | Error-value disclosure control | 5.7 Determinism, Safety, and Performance | C | T531, S6 | — |
 | REQ-446 | Ruleset package provenance | 5.7 Determinism, Safety, and Performance | C | T532 | — |
-| REQ-447 | Audit-log growth cap | 5.7 Determinism, Safety, and Performance | C | T533 | — |
+| REQ-447 | Audit-log growth cap | 5.7 Determinism, Safety, and Performance | C | T533, T786 | — |
 | REQ-448 | Security-event audit completeness | 5.7 Determinism, Safety, and Performance | C | T534, S6 | — |
 | REQ-449 | Excessive-agency mutation ceiling | 5.7 Determinism, Safety, and Performance | C | T535, S22 | — |
 | REQ-450 | TDQS-conformant tool definitions | 5.3 Tools, Resources, and Lookups | C | T536 | — |

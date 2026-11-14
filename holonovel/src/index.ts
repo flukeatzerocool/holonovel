@@ -30,12 +30,14 @@ import {
 import {
   PROMPT_GATE,
   RESOURCE_GATE,
+  actionKey,
   badgeRefusalFor,
   promptAllowed,
   promptRefusalFor,
   resourceAllowed,
   toolObserverVisible,
 } from "./core/badge-gate.js";
+import { AUDIT_APPEND_HEADROOM, AUDIT_CAP_EXEMPT_ACTIONS, appendsAuditEntry, capacityRefusal } from "./core/audit-gate.js";
 import { StateManager, AUDIT_CAP_CORRECTIVE, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment, autoMigrateEnabled } from "./core/state.js";
 import { personalityFieldsFor, hasPersonalityData, voiceExamplesFor, renderPersonalityBlock, renderVoiceExample, normalizeVoiceExamples, npcRole, avoidLine } from "./core/personality.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
@@ -310,7 +312,7 @@ export function normalizeToolSchema(schema: any): any {
 server.registerTool = ((name: string, config: any, handler: any) => {
   const annotations = config.annotations ?? TOOL_ANNOTATIONS[name];
   if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
-  const audited = withForbiddenAudit(normalizeRefusal(ensureStructured(truncateHandler(name, handler))), name) as any;
+  const audited = withForbiddenAudit(normalizeRefusal(withCapacityAbort(ensureStructured(truncateHandler(name, handler)), name)), name) as any;
   // REQ-336 — every completed tool call advances the session pacing counter,
   // mutating or not. A refusal envelope still completes; a thrown error does
   // not. A converted refusal keeps that parity: `isError` results are the
@@ -2032,9 +2034,58 @@ function guardToolCall(name: unknown, callArgs: Record<string, any>): GuardRefus
     state.auditForbidden(getBadge(), toolName, callArgs);
     return dispatcherRefusal("FORBIDDEN", badgeDenial);
   }
+  // REQ-447 — the audit cap is enforced before the handler runs, so a refused
+  // call cannot persist a mutation whose entry the chain cannot hold.
+  const atCapacity = capacityRefusalFor(toolName, callArgs);
+  if (atCapacity) return dispatcherRefusal("STATE_CONFLICT", atCapacity);
   const refusal = surfaceGuard(toolName, callArgs);
   if (refusal) return dispatcherRefusal("STATE_CONFLICT", refusal);
   return null;
+}
+
+// REQ-447/REQ-040a — audit durability: a call that cannot record its audit
+// entry must not run. At capacity the dispatcher refuses an audit-appending
+// call before the handler mutates; the compaction path is exempt because it is
+// the corrective action and appends nothing before freeing space.
+function capacityRefusalFor(name: string, args: Record<string, any>): string | null {
+  const novel = state.activeNovel;
+  if (!novel || !state.auditLogAtCapacity(novel)) return null;
+  const annotations = toolRegistry.get(name)?.config.annotations;
+  if (!appendsAuditEntry(surfaceRegistry(), name, args, annotations)) return null;
+  if (AUDIT_CAP_EXEMPT_ACTIONS.has(actionKey(name, args))) return null;
+  if (name === "respond_decision" && (novel.pending_workflow?.decision ?? "").startsWith("compress_audit:")) return null;
+  return capacityRefusal(state.auditLogCapacity(), AUDIT_CAP_CORRECTIVE);
+}
+
+// REQ-447/REQ-040a — a call can still cross the cap mid-handler (a first call
+// also writes the REQ-237 session-boundary marker; a confirmation workflow
+// appends several entries). The pre-call capture is restored so a refusal
+// never leaves a persisted mutation behind.
+function withCapacityAbort(handler: any, name: string) {
+  return async (...handlerArgs: any[]) => {
+    const novel = state.activeNovel;
+    const args = handlerArgs[0] ?? {};
+    // The capture costs one interchange serialization, so it is taken only
+    // while the call could actually cross the cap (REQ-447).
+    const cap = state.auditLogCapacity();
+    const nearCap = novel && cap > 0 && cap - novel.audit_log.length <= AUDIT_APPEND_HEADROOM;
+    const capture = nearCap && appendsAuditEntry(surfaceRegistry(), name, args, toolRegistry.get(name)?.config.annotations)
+      ? JSON.stringify(exportNovelJSON(novel))
+      : null;
+    try {
+      return await handler(...handlerArgs);
+    } catch (e: any) {
+      if (!novel || !capture || !/Audit log at capacity/.test(String(e?.message ?? ""))) throw e;
+      const restored = importNovelJSON(JSON.parse(capture));
+      // `replace` keeps the live undo/redo stacks (an import must not lose
+      // them), so the refused call's snapshot push is reverted explicitly.
+      applyNovelState(novel, restored, "replace");
+      novel.undo_stacks = restored.undo_stacks;
+      novel.redo_stacks = restored.redo_stacks;
+      state.saveNovel(novel);
+      throw e;
+    }
+  };
 }
 
 function installSurfaceGuards(): void {
@@ -4126,17 +4177,21 @@ server.registerTool("set_badge", {
   inputSchema: { badge: z.enum(["player", "game_master", "observer", "none"]).describe("The badge to activate: player, game_master, observer, or none (Editor).") },
 }, async ({ badge }) => {
   const novel = state.activeNovel;
-  if (novel) {
-    if (novel.pending_workflow) {
-      return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before switching badges.");
-    }
-    // REQ-040c — record the old and new badge; REQ-040a — persist the entry
-    // with the switch, so the audit does not depend on a later save.
-    const previous = novel.badge;
-    novel.badge = badge;
-    audit("set_badge", { from: previous, to: badge });
-    state.saveNovel(novel);
+  // REQ-030/REQ-066b — the badge is Novel-scoped, so with no active Novel
+  // there is nothing to hold it. Reporting success would tell the caller it
+  // holds a narrower badge while every call still runs at Editor access.
+  if (!novel) {
+    return err("STATE_CONFLICT", "No active Novel for a badge switch; the active badge is Novel-scoped.", "Open a Novel first with open_session, or create one with manage_novel (action: create).");
   }
+  if (novel.pending_workflow) {
+    return err("STATE_CONFLICT", "A workflow decision is pending. Resolve it with respond before switching badges.");
+  }
+  // REQ-040c — record the old and new badge; REQ-040a — persist the entry
+  // with the switch, so the audit does not depend on a later save.
+  const previous = novel.badge;
+  novel.badge = badge;
+  audit("set_badge", { from: previous, to: badge });
+  state.saveNovel(novel);
   if (badge === "none") return ok("Active badge: Editor — full access");
   if (badge === "observer") return ok("Active badge: observer — read-only spectator mode");
   return ok(`Active badge: ${badge}`);
@@ -4517,9 +4572,16 @@ Character '${entity.name}' created as ${entity.id} with derived statistics.`);
   if (kind.startsWith("compress_audit:")) {
     const keep = Number(pw.payload?.keep ?? 3);
     const result = state.compactAuditLog(novel, keep);
+    // REQ-447 — a compaction that frees nothing cannot append its own entry;
+    // refuse before saving rather than report a partial result.
+    if (result.sessions === 0) {
+      novel.pending_workflow = null;
+      state.saveNovel(novel);
+      return err("STATE_CONFLICT", `Audit log compaction archived nothing at the current retention (${keep} sessions); the log is unchanged.`, AUDIT_CAP_CORRECTIVE.replace(/^Corrective action: /, ""));
+    }
     novel.pending_workflow = null;
-    state.saveNovel(novel);
     audit("compress_audit", { sessions: result.sessions, entries: result.entries });
+    state.saveNovel(novel);
     return ok(`Audit log compacted: ${result.sessions} session(s), ${result.entries} entries archived into audit_archive.`);
   }
   // REQ-140 — End-Novel confirmation dispatch: a mismatched decision against an
@@ -17731,7 +17793,7 @@ server.registerTool("open_session", {
   if (resumeSlug && novelTool?.rawHandler) {
     parts.push(toolResultText(await novelTool.rawHandler({ action: "resume", slug: resumeSlug }, undefined)));
   }
-  if (args.badge && badgeTool?.rawHandler) {
+  if (args.badge && badgeTool?.rawHandler && state.activeNovel) {
     parts.push(toolResultText(await badgeTool.rawHandler({ badge: args.badge }, undefined)));
   }
   if (sessionTool?.rawHandler) {

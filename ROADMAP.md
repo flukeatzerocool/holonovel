@@ -12,17 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Trust-core contract remediation (P1)
-
-- Audit durability and badge truth: refuse before mutating when the log is at
-  capacity, and make `set_badge` fail when no Novel is active instead of
-  reporting success (REQ-040a, REQ-040c, REQ-447, REQ-030, REQ-066b; F-P1-4,
-  F-P1-13).
-
-**Trigger:** the first session that takes remediation work instead of a review
-chunk; closes when F-P1-4 and F-P1-13 in `spec/audit/review-register.md` are
-`Resolved` and their assertions run in a harness.
-
 ## Trust-core citation repair (P1)
 
 - Four §5.1/§5.5 REQs cite `Automated` tests that no harness implements

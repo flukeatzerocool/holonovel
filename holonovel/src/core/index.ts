@@ -12,6 +12,7 @@ export type {
   AuditEntry,
 } from "./state.js";
 export {
+  MUTATING_READ_ACTIONS,
   OBSERVER_DENY_ACTIONS,
   PROMPT_GATE,
   RESOURCE_GATE,
@@ -24,6 +25,11 @@ export {
   toolObserverVisible,
 } from "./badge-gate.js";
 export type { BadgeLike, ToolAnnotationsLike } from "./badge-gate.js";
+export {
+  AUDIT_CAP_EXEMPT_ACTIONS,
+  appendsAuditEntry,
+  capacityRefusal,
+} from "./audit-gate.js";
 export {
   initServer,
   getBadge,

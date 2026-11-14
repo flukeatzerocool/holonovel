@@ -249,6 +249,32 @@ async function main(): Promise<void> {
       assert(seen.includes("scene_transition"), `live engine received no scene_transition (${seen.length} events)`);
     });
 
+    await test("T786/REQ-447/REQ-040a: a mid-call capacity abort leaves no persisted mutation", async () => {
+      const { readFileSync } = await import("node:fs");
+      await engine.tools.call("manage_novel", { action: "create", name: "t786" });
+      await engine.tools.call("set_badge", { badge: "game_master" });
+      await engine.tools.call("manage_scene", { action: "set", description: "original scene" });
+      const file = join(DATA_DIR, "novels", "t786.json");
+      const before = JSON.parse(readFileSync(file, "utf-8"));
+      const savedSession = process.env.TTRPG_SESSION_ID;
+      const savedCap = process.env.TTRPG_AUDIT_MAX_ENTRIES;
+      // One free slot plus a session change: the call passes the dispatcher
+      // preflight, then needs two entries (boundary marker + scene entry).
+      process.env.TTRPG_SESSION_ID = "t786-rollback-session";
+      process.env.TTRPG_AUDIT_MAX_ENTRIES = String(before.audit_log.length + 1);
+      try {
+        const refused = await engine.tools.call("manage_scene", { action: "set", description: "must not persist" });
+        assert(refused?.isError === true && textOf(refused).includes("capacity"), `T786 expected a capacity refusal, got ${textOf(refused).slice(0, 200)}`);
+        const after = JSON.parse(readFileSync(file, "utf-8"));
+        assert(after.scene_description === before.scene_description, `T786 the refused mutation persisted: ${JSON.stringify(after.scene_description)}`);
+        assert(after.audit_log.length === before.audit_log.length, "T786 the audit log moved on a refused call");
+        assert(after.metadata.state_hash === before.metadata.state_hash, "T786 the persisted state hash changed on a refused call");
+      } finally {
+        if (savedSession === undefined) delete process.env.TTRPG_SESSION_ID; else process.env.TTRPG_SESSION_ID = savedSession;
+        if (savedCap === undefined) delete process.env.TTRPG_AUDIT_MAX_ENTRIES; else process.env.TTRPG_AUDIT_MAX_ENTRIES = savedCap;
+      }
+    });
+
     await test("importing the library does not start a transport", async () => {
       await skipAutostartCheck();
     });

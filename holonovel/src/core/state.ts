@@ -2279,13 +2279,18 @@ export class StateManager {
   audit(novel: NovelState, badge: Badge, tool: string, args: any, output_prefix?: string): void {
     // REQ-447 — refuse to append once the audit log is at capacity; the
     // caller surfaces [STATE_CONFLICT] before mutating (see index.ts audit()).
-    if (this.auditLogAtCapacity(novel)) {
-      throw new Error(`[ERROR] [STATE_CONFLICT] Audit log at capacity (${this.auditLogCapacity()} entries). ${AUDIT_CAP_CORRECTIVE}`);
+    // A first call after a session change also writes the REQ-237 boundary
+    // marker, so the check reserves both entries rather than letting the
+    // marker consume the last slot.
+    const sessionId = process.env.TTRPG_SESSION_ID ?? `session-${novel.metadata.session_count + 1}`;
+    const needed = novel.active_session_id !== sessionId ? 2 : 1;
+    const cap = this.auditLogCapacity();
+    if (cap > 0 && novel.audit_log.length + needed > cap) {
+      throw new Error(`[ERROR] [STATE_CONFLICT] Audit log at capacity (${cap} entries). ${AUDIT_CAP_CORRECTIVE}`);
     }
     // REQ-237 — session segmentation: when the session id changes (first
     // mutating call after start/resume, or a new TTRPG_SESSION_ID), emit a
     // `[session-boundary]` marker entry and open a new session record.
-    const sessionId = process.env.TTRPG_SESSION_ID ?? `session-${novel.metadata.session_count + 1}`;
     if (novel.active_session_id !== sessionId) {
       const prev = novel.active_session_id;
       const now = new Date().toISOString();
@@ -2350,6 +2355,10 @@ export class StateManager {
   auditForbidden(badge: Badge, tool: string, args: any): void {
     const novel = this.activeNovel;
     if (!novel) return;
+    // REQ-447/REQ-448 — the cap is absolute: at capacity the boundary entry
+    // cannot be written. The refusal still surfaces, and
+    // `spec_health.audit_at_capacity` reports the state.
+    if (this.auditLogAtCapacity(novel)) return;
     const prevHash = novel.audit_log.length > 0 ? novel.audit_log[novel.audit_log.length - 1].hash : "00000000";
     const entry: AuditEntry & { violation_type?: string } = {
       timestamp: new Date().toISOString(),

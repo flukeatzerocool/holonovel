@@ -1,5 +1,29 @@
 # Changelog
 
+## 2026-11-14 — Trust-core audit durability and badge truth: capacity refusal before mutation, set_badge no-Novel refusal
+
+- Audit durability: `guardToolCall` refuses an audit-appending call at
+  `TTRPG_AUDIT_MAX_ENTRIES` before the handler runs, using the surface registry
+  `mutation_class` plus the shared mutating-read set (`src/core/audit-gate.ts`),
+  so a capped log never leaves a persisted mutation behind (REQ-040a, REQ-447;
+  F-P1-4). A pre-call capture is restored when a call crosses the cap mid-way
+  (a first call also writes the REQ-237 boundary marker); `state.audit` now
+  reserves the marker slot, and `auditForbidden` stops appending at capacity so
+  REQ-448's at-capacity exception is stated (REQ-448).
+- Compaction escape: `manage_diagnostics (action: compact)` stays callable at
+  capacity and its confirmation refuses — instead of appending — when it
+  archives nothing (REQ-239c, REQ-447).
+- Badge truth: `set_badge` returns `[ERROR] [STATE_CONFLICT]` naming
+  `open_session` and `manage_novel (action: create)` when no Novel is active,
+  rather than reporting a badge the server is not honouring, and `open_session`
+  runs the badge step only with an active Novel (REQ-030, REQ-066b; F-P1-13).
+- Spec and registers: REQ-447, REQ-066b, and REQ-448 state the new clauses;
+  Appendix F adds T785/T786 and extends T533; F-P1-7/8/9 move out of
+  `Scheduled-roadmap` into a dated `Resolved` section (a pre-existing strict
+  `check-registers` failure), F-P1-4/F-P1-13 are `Resolved` with recomputed
+  predicates, the roadmap section is retired, and the coverage register is
+  regenerated. `holonovel/DECISIONS.md` records the derived dispatch gate.
+
 ## 2026-11-14 — Trust-core authorization surface: dispatcher badge gate and badge-filtered metadata
 
 - Dispatcher gate: `guardToolCall` now refuses a badged call before the handler

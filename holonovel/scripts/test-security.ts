@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 import { initServer, withForbiddenAudit } from "../src/core/server.js";
 import {
+  MUTATING_READ_ACTIONS,
   OBSERVER_DENY_ACTIONS,
   RESOURCE_GATE,
   badgeRefusalFor,
@@ -22,6 +23,7 @@ import {
   resourceAllowed,
   toolObserverVisible,
 } from "../src/core/badge-gate.js";
+import { appendsAuditEntry, capacityRefusal } from "../src/core/audit-gate.js";
 import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 installHarnessGuard();
@@ -146,16 +148,40 @@ async function main() {
   });
 
   // ── T533: audit-log growth cap (REQ-447) ─────────────────────────────
-  await test("T533/REQ-447: audit-log cap refusal", async () => {
+  await test("T533/REQ-447/REQ-040a: audit-log cap refuses before mutation", async () => {
     const p = await boot({ TTRPG_AUDIT_MAX_ENTRIES: "4" });
     await call(p, "manage_novel", { action: "create", name: "s4" });
     await call(p, "set_badge", { badge: "game_master" });
-    let hit = false;
+    let hit = "";
     for (let i = 0; i < 8 && !hit; i++) {
       const res = await call(p, "manage_scene", { action: "set", description: `scene ${i}` });
-      if (res.includes("capacity")) hit = true;
+      if (res.includes("capacity")) hit = res;
     }
-    assert(hit, "T533 no capacity refusal observed");
+    assert(hit.includes("STATE_CONFLICT") && hit.includes("4 entries"), "T533 refusal must name the cap: " + hit.slice(0, 200));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    assert(health.audit_at_capacity === true, "T533 spec_health.audit_at_capacity not reported");
+    const listing = await call(p, "manage_novel", { action: "list" });
+    assert(listing.length > 0, "T533 a read call must stay available at capacity");
+    // REQ-447 — the compaction corrective action stays reachable at capacity,
+    // and it refuses (rather than appending) when it frees nothing.
+    const compact = await call(p, "manage_diagnostics", { action: "compact" });
+    assert(compact.includes("NEED_INPUT") || compact.includes("Decision:"), "T533 compaction not admitted at capacity: " + compact.slice(0, 200));
+    const confirmed = await call(p, "respond_decision", { decision: "compact audit log", option: "yes" });
+    assert(confirmed.includes("STATE_CONFLICT") && confirmed.includes("archived nothing"), "T533 compaction must refuse when it frees nothing: " + confirmed.slice(0, 200));
+    await kill(p);
+  });
+
+  // ── T785: set_badge with no active Novel (REQ-030/REQ-066b) ──────────
+  await test("T785/REQ-030/REQ-066b: set_badge refuses with no active Novel", async () => {
+    const p = await boot();
+    const res = await call(p, "set_badge", { badge: "player" });
+    assert(res.includes("[ERROR] [STATE_CONFLICT]"), "T785 expected STATE_CONFLICT: " + res.slice(0, 200));
+    assert(res.includes("open_session") && res.includes("manage_novel"), "T785 corrective must name both open paths: " + res.slice(0, 260));
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    assert(health.active_badge == null, `T785 active_badge must stay unset, got ${JSON.stringify(health.active_badge)}`);
+    await call(p, "manage_novel", { action: "create", name: "t785" });
+    const okRes = await call(p, "set_badge", { badge: "player" });
+    assert(okRes.includes("[OK] Active badge: player"), "T785 badge switch failed once a Novel is active: " + okRes.slice(0, 200));
     await kill(p);
   });
 
@@ -372,6 +398,19 @@ async function main() {
     assert(observed === "[FORBIDDEN] Observer mode is read-only. Corrective action: switch badges with set_badge to interact.", `observer refusal text drift: ${observed}`);
     const player = badgeRefusalFor("player", "manage_world", {}, registry, undefined, true);
     assert(player === "[FORBIDDEN] This tool is Game Master only. Corrective action: use set_badge to switch.", `player refusal text drift: ${player}`);
+    // REQ-447 — the audit-capacity classifier reads the same classes.
+    assert(appendsAuditEntry(registry, "manage_scene", { action: "set" }), "write action must append");
+    assert(!appendsAuditEntry(registry, "manage_context", { action: "discover" }), "read action must not append");
+    assert(!appendsAuditEntry(registry, "take_turn", {}), "take_turn must not append");
+    assert(appendsAuditEntry(registry, "manage_vow", { action: "resolve" }), "mutating read must append");
+    assert(appendsAuditEntry(registry, "resolve_mechanic", { action: "roll" }), "generation read must append");
+    assert(appendsAuditEntry(registry, "set_badge", {}), "bare-key write must append");
+    assert(appendsAuditEntry(registry, "unknown_tool", { action: "x" }), "unregistered unannotated action must fail closed");
+    assert(!appendsAuditEntry(registry, "rule_lookup", {}, annotations), "read-only annotation must not append");
+    assert(appendsAuditEntry(registry, "rule_roll", {}, { readOnlyHint: false }), "mutating annotation must append");
+    assert(!appendsAuditEntry(null, "rule_lookup", {}, annotations), "absent registry must fall back to the annotation");
+    assert(appendsAuditEntry(null, "rule_roll", {}, { readOnlyHint: false }), "absent registry must not drop a mutation");
+    assert(capacityRefusal(9, "Corrective action: raise it.") === "[ERROR] [STATE_CONFLICT] Audit log at capacity (9 entries). Corrective action: raise it.", "capacity refusal text drift");
     assert(badgeRefusalFor("game_master", "manage_world", {}, registry, undefined, true) === null, "GM was refused");
     assert(badgeRefusalFor("none", "manage_world", {}, registry, undefined, true) === null, "Editor was refused");
     assert(badgeRefusalFor("observer", "set_badge", { badge: "player" }, registry, undefined, false) === null, "set_badge was gated");

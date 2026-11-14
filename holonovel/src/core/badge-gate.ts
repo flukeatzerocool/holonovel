@@ -31,8 +31,9 @@ export interface ToolAnnotationsLike {
 // resolve: dice rolls persist and audit, visibility_check writes an audit entry
 // and saves the Novel, and the two writes above mutate state. Everything else
 // mislabelled is caught by the handler-local guards (which refuse the Observer
-// before mutating).
-export const OBSERVER_DENY_ACTIONS: ReadonlySet<string> = new Set([
+// before mutating). The dispatcher's audit-capacity gate reads the same set
+// (REQ-447), so one list serves both rules.
+export const MUTATING_READ_ACTIONS: ReadonlySet<string> = new Set([
   "resolve_fate.roll",
   "resolve_mechanic.roll",
   "resolve_mechanic.fate_roll",
@@ -41,6 +42,10 @@ export const OBSERVER_DENY_ACTIONS: ReadonlySet<string> = new Set([
   "manage_lore.corpus_access",
   "manage_corpus.corpus_access",
 ]);
+
+/** Retained name for the Observer predicate's call sites; the set is shared
+ *  with the audit-capacity gate. */
+export const OBSERVER_DENY_ACTIONS = MUTATING_READ_ACTIONS;
 
 // Always callable under any badge (REQ-066a: set_badge is NEVER badge-gated, so
 // the Observer can leave spectator mode).
@@ -91,7 +96,7 @@ export function observerActionAllowed(registry: SurfaceRegistryLike | null, key:
   if (!registry) return true; // documented degradation: gate inert
   const decl = registry.actions[key];
   if (!decl) return false; // unknown key under Observer fails closed
-  return decl.mutation_class === "read" && !OBSERVER_DENY_ACTIONS.has(key);
+  return decl.mutation_class === "read" && !MUTATING_READ_ACTIONS.has(key);
 }
 
 /** REQ-032c — a tool is listed for the Observer iff it holds at least one
@@ -132,7 +137,7 @@ export function badgeRefusalFor(
     // (action: state)); the handler guard decides those. A mutating action on
     // a GM-only tool is refused here.
     const key = actionKey(name, args);
-    if (registry?.actions[key]?.mutation_class === "read" && !OBSERVER_DENY_ACTIONS.has(key)) return null;
+    if (registry?.actions[key]?.mutation_class === "read" && !MUTATING_READ_ACTIONS.has(key)) return null;
     return "[FORBIDDEN] This tool is Game Master only. Corrective action: use set_badge to switch.";
   }
   // Observer: registry keys are classified per action; an unregistered tool

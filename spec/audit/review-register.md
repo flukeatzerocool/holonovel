@@ -2465,6 +2465,48 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
   asserts the weapon-damage mutation against a target's HP in the same harness,
   backed by `manage_combat (action: damage)`. REQ-043f.
 
+## Resolved — 2026-11-14 trust-core audit durability and badge truth
+
+- **F-P1-7 — dispatcher badge gate (resolved 2026-11-14):**
+  `guardToolCall` now calls `badgeRefusalFor` before `surfaceGuard`
+  (`index.ts:2021-2033`, `core/badge-gate.ts:117`), refusing a GM-only Player
+  call and any non-state-reading Observer call, and recording the refusal as a
+  boundary entry itself (REQ-133a). Handler-local guards remain the backstop.
+  T349 asserts the Observer refusal plus its `[BOUNDARY_VIOLATION]` entry; the
+  classifier unit test in `test-security.ts` asserts the rule. REQ-032a,
+  REQ-032c, REQ-137b. Predicate: `index.ts:2021`.
+
+- **F-P1-8 — Observer `tools/list` read-only subset (resolved 2026-11-14):**
+  `toolsVisibleToBadge` (`index.ts:357-368`) routes the Observer branch through
+  `toolObserverVisible`, which lists a tool only when it holds a permitted
+  state-reading action (or, for an unregistered package tool, its annotation is
+  read-only) plus `set_badge`. T151 asserts the subset and the registry
+  agreement. REQ-032a, REQ-032c. Predicate: `index.ts:357`.
+
+- **F-P1-9 — `prompts/list` and `resources/list` badge filtering (resolved
+  2026-11-14):** the prompt wrapper (`index.ts:18045`) now filters the host and
+  package lists through `promptAllowed(PROMPT_GATE, …)`, the new resource
+  wrapper (`index.ts:18090`) filters GM-only entries for the Player through
+  `resourceAllowed(RESOURCE_GATE, …)`, and `run_workflow` composes from
+  badge-visible tools. T16/T104 assert the filtered lists and T349 the prompt
+  parity. REQ-031a, REQ-032a, REQ-032c. Predicate: `index.ts:18045`.
+
+- **F-P1-4 — audit at capacity aborts after the mutation is saved (resolved
+  2026-11-14):** `guardToolCall` refuses an audit-appending call at capacity
+  before the handler runs (`index.ts:2039`, `core/audit-gate.ts`), `state.audit`
+  reserves the REQ-237 marker slot (`core/state.ts:2286`), and a call that
+  crosses the cap mid-handler is rolled back from the pre-call capture
+  (`index.ts:2064`) so no persisted mutation survives. `auditForbidden` stops
+  appending at capacity (`core/state.ts:2361`). Violates REQ-040a/REQ-447
+  (refuse *before* mutating) when unguarded. T533, T786. Predicate:
+  `index.ts:2039`, `core/state.ts:2286`.
+
+- **F-P1-13 — `set_badge` succeeds with no active Novel (resolved
+  2026-11-14):** the handler returns `[ERROR] [STATE_CONFLICT]` naming
+  `open_session` and `manage_novel (action: create)` (`index.ts:4180`), and
+  `open_session` invokes the badge step only when a Novel is active. REQ-030,
+  REQ-066b. T785. Predicate: `index.ts:4180`.
+
 ## Scheduled-roadmap
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
@@ -2485,47 +2527,14 @@ against live harnesses. Four rows now pass and are committed (T136, T94, T144,
 T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
 
-### 2026-11-09 full-review sweep — chunk P1 (trust core, §5.1/§5.5)
-
 Scheduled under `ROADMAP.md` § *Trust-core contract remediation (P1)* and
 § *Trust-core citation repair (P1)*. Each finding cites the predicate that
 carries it; none is derived from a gate message or a test failure (no gate
 currently asserts these contracts — that is the finding).
 
-- **F-P1-4 — audit at capacity aborts after the mutation is saved
-  (scheduled):** `index.ts:4196-4197` saves the Novel then calls `audit()`,
-  which throws at `state.ts:2283`; the write persists while the caller sees a
-  failure and the audit chain has a gap. Violates REQ-040a/REQ-447 (refuse
-  *before* mutating). Predicate: `index.ts:4196`, `state.ts:2283`.
-- **F-P1-7 — dispatcher badge gate (resolved 2026-11-14):**
-  `guardToolCall` now calls `badgeRefusalFor` before `surfaceGuard`
-  (`index.ts:2021-2033`, `core/badge-gate.ts:117`), refusing a GM-only Player
-  call and any non-state-reading Observer call, and recording the refusal as a
-  boundary entry itself (REQ-133a). Handler-local guards remain the backstop.
-  T349 asserts the Observer refusal plus its `[BOUNDARY_VIOLATION]` entry; the
-  classifier unit test in `test-security.ts` asserts the rule. REQ-032a,
-  REQ-032c, REQ-137b. Predicate: `index.ts:2021`.
-- **F-P1-8 — Observer `tools/list` read-only subset (resolved 2026-11-14):**
-  `toolsVisibleToBadge` (`index.ts:357-368`) routes the Observer branch through
-  `toolObserverVisible`, which lists a tool only when it holds a permitted
-  state-reading action (or, for an unregistered package tool, its annotation is
-  read-only) plus `set_badge`. T151 asserts the subset and the registry
-  agreement. REQ-032a, REQ-032c. Predicate: `index.ts:357`.
-- **F-P1-9 — `prompts/list` and `resources/list` badge filtering (resolved
-  2026-11-14):** the prompt wrapper (`index.ts:18045`) now filters the host and
-  package lists through `promptAllowed(PROMPT_GATE, …)`, the new resource
-  wrapper (`index.ts:18090`) filters GM-only entries for the Player through
-  `resourceAllowed(RESOURCE_GATE, …)`, and `run_workflow` composes from
-  badge-visible tools. T16/T104 assert the filtered lists and T349 the prompt
-  parity. REQ-031a, REQ-032a, REQ-032c. Predicate: `index.ts:18045`.
-- **F-P1-13 — `set_badge` succeeds with no active Novel (scheduled):**
-  `index.ts:3996-4009` returns `[OK] Active badge: player` while `getBadge()`
-  still resolves `none` (Editor), so the next call runs with full access.
-  REQ-030 and REQ-066b. Predicate: `index.ts:3996`.
 - **F-S1 — four §5.1/§5.5 REQs cite automated tests no harness implements
   (scheduled):** REQ-032b → T44, REQ-109f → T109/T110, REQ-286c → T336,
-  REQ-306e → T350. (REQ-001b2 → T180 is resolved by the trust-core error
-  envelope increment.) Each test is defined `Automated` in Appendix F and
+  REQ-306e → T350. Each test is defined `Automated` in Appendix F and
   absent from every `holonovel/scripts` harness. Either the assertion is
   written or the citation is re-pointed to the test that does exercise the
   behaviour. Predicate: `spec/02-requirements.md` Check lines for those REQs;

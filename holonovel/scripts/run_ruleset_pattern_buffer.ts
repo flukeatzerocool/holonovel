@@ -195,8 +195,8 @@ function capture(key: string, pattern: RegExp): (r: string) => void {
 // ── §6.6 sub-workflow register ─────────────────────────────────────
 
 const S30_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-supp" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "import supplementary Wisdom", action: T("manage_ruleset", { action: "import_supplementary", slug: "pb-supp", wisdom: [{ content: "PB supplementary guidance" }] }), assert: (r) => assertContains(r, "Wisdom-only", "supp-import ") },
   { label: "supplementary Wisdom listed in synthesis", action: T("manage_synthesis", { action: "list" }), assert: (r) => assertContains(r, "supplementary:pb-supp", "supp-list ") },
   { label: "spec_health reports the supplementary import", action: T("manage_diagnostics", { action: "health" }), assert: (r) => assertContains(r, "pb-supp", "supp-health ") },
@@ -204,8 +204,8 @@ const S30_STEPS: PBStep[] = [
 ];
 
 const S31_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-supp-waiver" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "import registers no tools under the waiver", action: T("manage_ruleset", { action: "import_supplementary", slug: "pb-waiver", wisdom: [{ content: "no tools" }] }), assert: (r) => assertContains(r, "no new tools", "waiver-import ") },
   { label: "supplementary Wisdom remains listed", action: T("manage_synthesis", { action: "list" }), assert: (r) => assertContains(r, "supplementary:pb-waiver", "waiver-list ") },
   { label: "remove waivered supplementary ruleset", action: T("manage_ruleset", { action: "remove_supplementary", slug: "pb-waiver" }), assert: (r) => assertContains(r, "Removed", "waiver-remove ") },
@@ -263,8 +263,8 @@ function buildRegister(): PBSubworkflow[] {
 // ── Executed sub-workflow steps ────────────────────────────────────
 
 const S1_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-tool-sweep" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "session health (spec_health read)", action: T("manage_diagnostics", { action: "health" }), assert: (r) => assertContains(r, "spec_version", "health ") },
   { label: "world://kinds resource", action: R("world://kinds"), assert: (r) => assertContains(r, "Kind Hierarchy", "kinds ") },
   { label: "badge_briefing prompt", action: P("badge_briefing", { badge: "game_master" }), assert: (r) => assertContains(r, "Briefing", "briefing ") },
@@ -276,8 +276,8 @@ const S1_STEPS: PBStep[] = [
 ];
 
 const S6_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-crossbadge" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "create_room (GM ok)", action: T("manage_world", { action: "create_room", name: "CB Room", description: "CB." }), assert: assertOK },
   { label: "set_badge player", action: T("set_badge", { badge: "player" }), assert: assertOK },
   { label: "world create_room as player → FORBIDDEN", action: T("manage_world", { action: "create_room", name: "Leak Room" }), assert: (r) => assertContains(r, "FORBIDDEN", "GM-world ") },
@@ -285,8 +285,8 @@ const S6_STEPS: PBStep[] = [
 ];
 
 const S13_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel A", action: T("manage_novel", { action: "create", name: "pb-isol-A" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "create_room in A", action: T("manage_world", { action: "create_room", name: "isolated-room-A", description: "A only." }), assert: assertOK },
   { label: "character in A", action: T("manage_character", { action: "create", name: "ISO-HERO-A" }), assert: assertOK },
   { label: "novel B (switches active)", action: T("manage_novel", { action: "create", name: "pb-isol-B" }), assert: assertOK },
@@ -298,8 +298,8 @@ const S13_STEPS: PBStep[] = [
 ];
 
 const S17_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-lifecycle" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "mutate (create_room)", action: T("manage_world", { action: "create_room", name: "Life Room", description: "Lifecycle." }), assert: assertOK },
   { label: "switch to second novel", action: T("manage_novel", { action: "create", name: "pb-life-other" }), assert: assertOK },
   { label: "switch back (resume)", action: T("manage_novel", { action: "resume", slug: "pb-lifecycle" }), assert: assertOK },
@@ -310,8 +310,8 @@ const S17_STEPS: PBStep[] = [
 ];
 
 const S12_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-roster" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "character create + stage_to_roster", action: T("manage_character", { action: "create", name: "Roster Hero", stage_to_roster: true }), assert: (r) => { assertContains(r, "created", "roster-create "); capture("rosterId", /Staged to roster as (\S+?)\./)(r); } },
   { label: "roster_list shows baseline", action: T("manage_character", { action: "roster_list" }), assert: (r) => assertContains(r, "Roster Hero", "roster-baseline ") },
   { label: "import reproduces fresh copy", action: T("manage_character", () => ({ action: "import", roster_id: captured.rosterId })), assert: (r) => assertContains(r, "imported", "roster-import ") },
@@ -320,8 +320,8 @@ const S12_STEPS: PBStep[] = [
 ];
 
 const S16_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-narrative" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "scene set", action: T("manage_scene", { action: "set", description: "A quiet keep under storm.", scene_type: "exploration" }), assert: assertOK },
   { label: "npc create", action: T("manage_npc", { action: "create", name: "Caretaker" }), assert: (r) => assertContains(r, "created", "npc ") },
   { label: "countdown set", action: T("manage_countdown", { action: "set", name: "The Storm", ticks: 3 }), assert: (r) => assertContains(r, "tick", "countdown ") },
@@ -332,8 +332,8 @@ const S16_STEPS: PBStep[] = [
 ];
 
 const S18_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-adventure" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "adventure generate (novel+codex)", action: T("manage_adventure", { action: "generate", premise: "A smuggler's delivery across the bay", target: "both" }), assert: (r) => assertContains(r, "generated", "adventure-gen ") },
   { label: "regenerate replaces prior", action: T("manage_adventure", { action: "generate", premise: "A caravan guarded at dawn", target: "both" }), assert: (r) => { assertContains(r, "caravan", "adventure-regen "); assertContains(r, "scaffold stored", "adventure-regen-store "); } },
   { label: "generate_encounter (batch state)", action: T("manage_adventure", { action: "generate_encounter", context: "an ambush at the ford" }), assert: (r) => assertContains(r, "undo", "encounter-batch ") },
@@ -352,8 +352,8 @@ const S19_STEPS: PBStep[] = [
 ];
 
 const S20_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-lorebook" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "lore set", action: T("manage_lore", { action: "set", key: "artifact", content: "The Shard glows in moonlight.", group: "items" }), assert: assertOK },
   { label: "lore export", action: T("manage_lore", { action: "export" }), assert: (r) => assertContains(r, "artifact", "lore-export ") },
   { label: "import dry-run (no side effects)", action: T("manage_lore", { action: "import", data: "[{\"key\":\"artifact\",\"content\":\"The Shard glows in moonlight.\"}]", mode: "dry-run" }), assert: (r) => assertContains(r, "dry-run", "lore-dryrun ") },
@@ -364,8 +364,8 @@ const S20_STEPS: PBStep[] = [
 ];
 
 const S28_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-brieforder" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "briefing_order known order", action: T("manage_context", { action: "briefing_order", sections: ["scene_state", "entities", "lore"] }), assert: (r) => assertContains(r, "Briefing order set", "order ") },
   { label: "briefing_order unknown token → INVALID_INPUT", action: T("manage_context", { action: "briefing_order", sections: ["bogus"] }), assert: (r) => assertContains(r, "INVALID_INPUT", "order-bad ") },
   { label: "briefing_order reset", action: T("manage_context", { action: "briefing_order", sections: [] }), assert: (r) => assertContains(r, "Briefing order set", "order-reset ") },
@@ -376,8 +376,8 @@ const S28_STEPS: PBStep[] = [
 ];
 
 const S29_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-interchange" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "mutate (scene)", action: T("manage_scene", { action: "set", description: "The treasury vault." }), assert: assertOK },
   { label: "export json", action: T("manage_archive", { action: "export", format: "json" }), assert: (r) => assertContains(r, "format_version", "export-json ") },
   { label: "export lore-only scope", action: T("manage_archive", { action: "export", format: "json", scope: "lore" }), assert: (r) => assertContains(r, "lore", "export-lore ") },
@@ -519,8 +519,8 @@ const S15_STEPS: PBStep[] = [
   { label: "corrupt the Novel file", action: { kind: "file", op: "corrupt", path: () => novelFile("pb-stress") }, assert: (r) => assertContains(r, "corrupted", "corrupt ") },
   { label: "restart (no resume)", action: RS(), assert: assertOK },
   { label: "spec_health reports the corruption", action: T("manage_diagnostics", { action: "health" }), assert: (r) => assertContains(r, "corrupt", "corruption-warning ") },
-  { label: "set_badge GM after restart", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "server still serves a fresh Novel", action: T("manage_novel", { action: "create", name: "pb-stress-recovered" }), assert: assertOK },
+  { label: "set_badge GM after restart", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "recovered entity A", action: T("manage_character", { action: "create", name: "Recovered A" }), assert: (r) => { assertOK(r, "ra "); capture("stressA2", /Entity id (\S+?)\./)(r); } },
   { label: "recovered entity B", action: T("manage_character", { action: "create", name: "Recovered B" }), assert: (r) => { assertOK(r, "rb "); capture("stressB2", /Entity id (\S+?)\./)(r); } },
   { label: "combat init (2 entities + 2 dangers)", action: T("manage_combat", () => ({ action: "init", participants: [captured.stressA2, captured.stressB2], dangers: [{ name: "Brute", hp: 9, ac: 12 }, { name: "Shade", hp: 7, ac: 11 }], seed: "s15" })), assert: (r) => assertContains(r, "Combat started", "combat-init ") },
@@ -602,8 +602,8 @@ const S24_STEPS: PBStep[] = [
 // S25 — State durability: backups, checkpoints, clones (blocking).
 const S25_STEPS: PBStep[] = [
   { label: "restart with backup count 3", action: RS(undefined, { TTRPG_NOVEL_BACKUP_COUNT: "3" }), assert: assertOK },
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-durable" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   ...repeat(10, (i) => ({ label: `durability mutation ${i + 1}`, action: T("manage_scene", { action: "set", description: `Durability mutation ${i + 1}.` }), assert: assertOK })),
   { label: "three rotated backups exist", action: { kind: "file", op: "count", path: () => `${novelFile("pb-durable")}.bak`, pattern: ".bak." }, assert: (r) => { if (Number(r) < 3) throw new Error(`expected >=3 backups, got ${r}`); } },
   { label: "checkpoint set", action: T("manage_archive", { action: "checkpoint_set", label: "a" }), assert: assertOK },
@@ -633,8 +633,8 @@ const synthesisAvailable = async (): Promise<string | null> => {
   }
 };
 const S27_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-synthesis" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "synthesis status reports modules", action: R("synthesis://status"), assert: (r) => assertContains(r, "Synthesis activated", "synth-status ") },
   { label: "synthesis list", action: T("manage_synthesis", { action: "list" }), assert: assertOK },
   { label: "revert community synthesis", action: T("manage_synthesis", { action: "revert" }), assert: assertOK },
@@ -643,8 +643,8 @@ const S27_STEPS: PBStep[] = [
 
 // S33 — Wisdom mechanical enactment (blocking; prerequisite-gated).
 const S33_STEPS: PBStep[] = [
-  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "novel create", action: T("manage_novel", { action: "create", name: "pb-wisdom" }), assert: assertOK },
+  { label: "set_badge GM", action: T("set_badge", { badge: "game_master" }), assert: assertOK },
   { label: "npc create under active Wisdom", action: T("manage_npc", { action: "create", name: "Wisdom Npc" }), assert: (r) => assertContains(r, "created", "wisdom-npc ") },
   { label: "countdown set", action: T("manage_countdown", { action: "set", name: "Wisdom Clock", ticks: 2, on_scene_transition: true }), assert: (r) => assertContains(r, "tick", "wisdom-cd ") },
   { label: "scene transition auto-applies", action: T("manage_scene", { action: "set", description: "The Wisdom engine stirs." }), assert: assertOK },
