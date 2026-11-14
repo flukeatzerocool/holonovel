@@ -1866,8 +1866,25 @@ async function main() {
     await call(p, "set_badge", { badge: "game_master" });
     const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
     if (!Array.isArray(health.section_tokens) || health.section_tokens.length === 0) throw new Error("REQ-185/186 section_tokens missing");
+    for (const row of health.section_tokens) {
+      if (typeof row.token !== "string" || typeof row.group !== "string" || typeof row.has_content !== "boolean") {
+        throw new Error(`REQ-186a section_tokens row is missing a field: ${JSON.stringify(row)}`);
+      }
+    }
+    const tokens: string[] = health.section_tokens.map((row: any) => row.token);
+    if (!tokens.includes("scene_state") || !tokens.includes("narrative_threads") || !tokens.includes("countdowns")) {
+      throw new Error(`REQ-185a token set incomplete: ${tokens.join(", ")}`);
+    }
     const bad = await call(p, "manage_context", { action: "briefing_order",  sections: ["not_a_token"] });
     assertContains(bad, "[INVALID_INPUT]", "REQ-082 unknown token");
+    const enumerated = (bad.match(/Valid tokens: (.*?)\./) ?? [])[1] ?? "";
+    if (enumerated !== tokens.join(", ")) throw new Error("REQ-186b enumeration does not match spec_health.section_tokens");
+    for (const query of ["briefing", "section ordering"]) {
+      const found = await call(p, "manage_context", { action: "discover",  query });
+      for (const token of tokens) {
+        if (!found.includes(token)) throw new Error(`REQ-186a discover('${query}') omitted ${token}`);
+      }
+    }
     passed++;
     await kill(p);
   });
@@ -2891,10 +2908,35 @@ async function main() {
   await test("T149/REQ-135: badge briefing size budget", async () => {
     const p = await boot({ TTRPG_MAX_BRIEFING_TOKENS: "600" });
     await call(p, "manage_novel", { action: "create",  name: "w1t" });
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_character", { action: "create",  name: "Budgeted" });
+    await call(p, "manage_lore", { action: "set",  key: "budget-lore", content: "A long-forgotten sigil marks the door", triggers: ["sigil"], visibility: "shared" });
+    await call(p, "manage_scene", { action: "set",  description: "The sigil glows" });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "[truncated", "REQ-135 truncation marker at small budget");
     assertContains(brief, "Confine tool use and responses to the current Novel", "REQ-135 badge boundary never truncated");
+    // REQ-063/REQ-118 — the intro pointer is appended after the budget pass.
+    assertContains(brief, "Use the intro prompt to get started", "REQ-063 intro pointer was truncated");
     await kill(p);
+    // REQ-109e — at a budget that fits the decision-critical layer, only
+    // supplementary sections truncate.
+    const pl = await boot({ TTRPG_MAX_BRIEFING_TOKENS: "2500" });
+    await call(pl, "manage_novel", { action: "create",  name: "w1t-layer" });
+    await call(pl, "set_badge", { badge: "game_master" });
+    await call(pl, "manage_character", { action: "create",  name: "Budgeted" });
+    await call(pl, "manage_lore", { action: "set",  key: "budget-lore", content: "A long-forgotten sigil marks the door", triggers: ["sigil"], visibility: "shared" });
+    await call(pl, "manage_scene", { action: "set",  description: "The sigil glows" });
+    const layered = await proto(pl, "prompts/get", { name: "badge_briefing" });
+    assertContains(layered, "[truncated", "REQ-109e no truncation at the layer budget");
+    const truncatedHeadings = [...layered.matchAll(/^#{2,3} ([^\n]*?) \[truncated/gm)].map((m) => m[1].toLowerCase());
+    if (truncatedHeadings.length === 0) throw new Error("REQ-109e no truncated section to inspect");
+    for (const critical of ["point of view", "party", "narrative threads", "combat", "npcs (depth)", "lore",
+      "knowledge state", "state persistence", "state_ledger", "available actions (available_actions)", "story journal"]) {
+      if (truncatedHeadings.includes(critical)) throw new Error(`decision-critical section ${critical} was truncated before supplementary ones`);
+    }
+    const supplementary = ["autonomy", "novel setup", "personality", "gm state", "anti-slop guidance"];
+    if (!supplementary.some((h) => truncatedHeadings.includes(h))) throw new Error(`no supplementary section truncated: ${truncatedHeadings.join(", ")}`);
+    await kill(pl);
     const p2 = await boot({ TTRPG_MAX_BRIEFING_TOKENS: "1000000" });
     await call(p2, "manage_novel", { action: "create",  name: "w1t2" });
     const brief2 = await proto(p2, "prompts/get", { name: "badge_briefing" });

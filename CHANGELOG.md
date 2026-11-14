@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-11-14 — Briefing section ordering and a live `briefing_order`
+
+- `badge_briefing` now leads with what a narrator needs to make a decision —
+  scene, point of view, party, unresolved threads, combat, NPCs, lore, memory,
+  state ledger, and available actions — before orientation and reference
+  material. The two requirements that disagreed about that order were corrected
+  so the placement is determinate. (REQ-109d, REQ-109e)
+- The Game Master's saved section order now actually reorders the briefing:
+  naming sections renders those in that order, an empty list restores the
+  default, and an unknown name is refused with the complete list. Asking
+  `manage_context` to discover "briefing" returns that list too. (REQ-082a,
+  REQ-082b, REQ-186a)
+- A tight briefing budget can no longer cut the intro pointer or the
+  consistency footer, and orientation material now gives way before the
+  tactical state does. (REQ-063, REQ-118, REQ-135)
+- The Player badge still receives no narrative-threads section; the gap in the
+  Player-facing half of that contract is recorded and scheduled rather than
+  widened in this change. (REQ-281b)
+
 ## 2026-11-14 — Trust-core contract and citation repair: safety, register, pause
 
 - The autonomy `safety` tier now scales consequence severity at the single

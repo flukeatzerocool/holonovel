@@ -26,15 +26,15 @@ import type { TierResult } from "./eval-schema.js";
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
 const P_ENVELOPE = anchor("holonovel/src/world/parser.ts", 38, "dispatchCommand");
-const P_VALIDATION = anchor("holonovel/src/index.ts", 6558, "create_room");
+const P_VALIDATION = anchor("holonovel/src/index.ts", 6560, "create_room");
 const P_PROTOCOL = anchor("holonovel/src/index.ts", 12, "CallToolRequestSchema");
-const P_DIAGNOSTICS = anchor("holonovel/src/index.ts", 11474, "verify");
+const P_DIAGNOSTICS = anchor("holonovel/src/index.ts", 11476, "verify");
 const P_READONLY = anchor("holonovel/src/core/server.ts", 30, "requireNotObserver");
-const P_ARTIFACT = anchor("holonovel/src/index.ts", 14106, "inboxSourcePath");
-const P_SHARE = anchor("holonovel/src/index.ts", 13177, "share");
-const P_RECAP = anchor("holonovel/src/index.ts", 12033, "recap");
+const P_ARTIFACT = anchor("holonovel/src/index.ts", 14114, "inboxSourcePath");
+const P_SHARE = anchor("holonovel/src/index.ts", 13185, "share");
+const P_RECAP = anchor("holonovel/src/index.ts", 12041, "recap");
 const P_PROVENANCE = anchor("holonovel/src/core/adventure-provenance.ts", 50, "verifyAdventureProvenance");
-const P_IMPORT_INTEGRITY = anchor("holonovel/src/index.ts", 13377, "strictMode");
+const P_IMPORT_INTEGRITY = anchor("holonovel/src/index.ts", 13385, "strictMode");
 const NOVEL_NAME = "Holosuite Adversarial";
 
 interface Probe {

@@ -27,6 +27,80 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### Briefing section registry, ordering, and token vocabulary — 2026-11-14
+
+- **One registry drives composition, the override, and the token set.**
+  `BRIEFING_SECTIONS` in `holonovel/src/index.ts` is the only ordering source:
+  the `badge_briefing` composer walks it, `manage_context (action:
+  briefing_order)` validates and permutes it, and `spec_health.section_tokens`
+  reports it. The token set can no longer drift from the rendered set (REQ-082a,
+  REQ-185a, REQ-186a). An empty array restores the default; a non-empty array
+  renders exactly the named tokens in the given order, so an absent token omits
+  its group (REQ-082a).
+- **The default order is the decision-critical layer first.** REQ-109d's
+  enumeration order is read as the *within-layer* order (amended 2026-11-14);
+  cross-layer placement follows REQ-109e. REQ-281b fixes `narrative_threads`
+  after entities and before combat state, overriding the order in which REQ-109e
+  happens to list its membership. The who-they-are summary heads the
+  supplementary layer (REQ-109c2, amended 2026-11-14).
+- **`countdowns` is a view token, not a section.** REQ-281c requires countdowns
+  inside narrative threads, so the token selects that sub-block; omitting it
+  suppresses the countdown lines and leaves the rest of the thread list.
+- **Truncation follows the layer order.** `applyPromptBudget` keeps sections in
+  emission order, so a tight budget now truncates supplementary sections and
+  preserves decision-critical ones. The never-truncated tier keeps its members
+  (REQ-400, REQ-401, REQ-407); the intro pointer and the consistency footer are
+  appended after the budget pass, so neither can be truncated (REQ-063,
+  REQ-118).
+- **Prominence branching is deferred.** `TTRPG_WORLD_PROMINENCE` defaults to
+  `visible` and B12 is skipped in the ruleset-free build, so this build records
+  no tier and the static order above is its correct default. A ruleset build
+  must branch the default order on the recorded tier (REQ-082b); that is
+  scheduled when such a build records one.
+
+| # | Token | REQ-109 group | Layer |
+|---|---|---|---|
+| 1 | `scene_state` | current scene state | critical |
+| 2 | `point_of_view` | narrative POV directive | critical |
+| 3 | `entities` | active entities | critical |
+| 4 | `narrative_threads` | narrative threads | critical |
+| 5 | `countdowns` | active countdowns (renders inside narrative threads, REQ-281c) | critical |
+| 6 | `combat_state` | active combat state | critical |
+| 7 | `npcs` | active NPCs | critical |
+| 8 | `lore` | active lore entries | critical |
+| 9 | `campaign_memory` | campaign memory | critical |
+| 10 | `subjective_memory` | subjective memory | critical |
+| 11 | `knowledge_state` | knowledge state | critical |
+| 12 | `state_persistence` | state persistence directive | critical |
+| 13 | `state_ledger` | state ledger | critical |
+| 14 | `world_in_motion` | world in motion | critical |
+| 15 | `available_actions` | proactive available actions | critical |
+| 16 | `story_journal` | story journal | critical |
+| 17 | `who_they_are` | who-they-are identity summary | supplementary |
+| 18 | `play_loop` | badge foundations | supplementary |
+| 19 | `anti_slop` | anti-slop guidance | supplementary |
+| 20 | `narrative_tone` | narrative tone samples | supplementary |
+| 21 | `badge_boundary` | badge behavioral boundary directive | supplementary |
+| 22 | `personality` | entity personality fields | supplementary |
+| 23 | `narrative_directive` | narrative directive | supplementary |
+| 24 | `narration_contract` | narration contract | supplementary |
+| 25 | `adventure` | active adventure content | supplementary |
+| 26 | `player_tools` | registered tools | supplementary |
+| 27 | `gm_state` | GM state and navigation | supplementary |
+| 28 | `persistence_tools` | persistence tools | supplementary |
+| 29 | `world_state` | world-model room context | supplementary |
+| 30 | `vehicle` | vehicle traversal | supplementary |
+| 31 | `player_signals` | player signals | supplementary |
+| 32 | `boundaries` | player boundaries | supplementary |
+| 33 | `autonomy` | autonomy state | supplementary |
+| 34 | `novel_setup` | Novel setup metadata | supplementary |
+| 35 | `player_intent` | player intent | supplementary |
+| 36 | `story_beats` | story beats | supplementary |
+| 37 | `synthesis` | synthesis and Ruleset Wisdom | supplementary |
+| 38 | `server_guidance` | server guidance notes | supplementary |
+| 39 | `notes` | Novel notes | supplementary |
+| 40 | `turn_handoff` | turn handoff directive | supplementary |
+
 ### Trust-core autonomy, register, and safety semantics — 2026-11-14
 
 - **The autonomy safety tier governs death on an overkill axis.** `safe` (the

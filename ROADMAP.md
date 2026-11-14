@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Briefing section ordering (P1)
-
-- Reorder `composeBadgeBriefing` so the decision-critical groups (scene state,
-  POV, entities, combat, triggered lore, active NPCs, countdowns, narrative
-  threads, available actions) precede the supplementary groups, per REQ-109d
-  and REQ-109e; the observed order puts `Point of view` (REQ-220) and
-  `Narrative threads` after orientation and navigation sections. Then extend T109
-  with the ordering assertion now recorded as review-register F-S3.
-
-**Trigger:** the next briefing-rendering session; closes when F-S3 is
-`Resolved` and T109 asserts the ordering.
-
 ## §5.3 citation repair (P1)
 
 - Write the T22 prompt-registration assertion (REQ-023a/REQ-023b) and the T35
@@ -38,6 +26,18 @@
 **Trigger:** the next session that takes citation-remediation work; closes when
 every §5.3 Check citation resolves to an exercised harness and
 `spec/audit/review-register.md` marks F-P2-1–F-P2-3 `Resolved`.
+
+## Player narrative threads (P1)
+
+- Render `### Narrative threads` for the Player badge with badge-filtered
+  content — own-entity bonds, `shared`-scope entries, and visible countdowns —
+  per REQ-281b, and extend T330 or add a harness that asserts the Player path
+  (review-register F-S4).
+- Keep the decision-critical ordering already asserted by T109; the section's
+  position does not change, only its badge reach.
+
+**Trigger:** the next narrative-surface session; closes when F-S4 is `Resolved`
+and a harness asserts the Player threads content.
 
 ## Unscoped-surface review sweep (P2)
 

@@ -3763,8 +3763,10 @@ const briefingBudget = (): number =>
   configInt("TTRPG_MAX_BRIEFING_TOKENS", configInt("TTRPG_PROMPT_BUDGET", 16000));
 // REQ-135 — sections that always render in full. REQ-400 (State-Persistence
 // Directive), REQ-401 (state_ledger token), and REQ-407 (Persistence tools)
-// each name the never-truncated tier explicitly.
-const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "play loop", "intro", "state persistence", "state_ledger", "persistence tools", "player signals"]);
+// each name the never-truncated tier explicitly. The intro pointer (REQ-063)
+// and the consistency footer are appended after the budget pass, so they need
+// no member here.
+const NEVER_TRUNCATED = new Set(["badge boundary", "turn handoff", "play loop", "state persistence", "state_ledger", "persistence tools", "player signals"]);
 // REQ-118 — every prompts/get result stays within the per-prompt budget.
 // Sections are truncated lowest-priority first, preserving headers and the
 // never-truncated contract elements. Prefer the deepest heading level present
@@ -11965,6 +11967,11 @@ const handleContextTool = async (args: any): Promise<any> => {
       if (detail === "schema" && !args.query) {
         return err("INVALID_INPUT", "detail 'schema' requires a query.");
       }
+      // REQ-186a — a briefing or section-ordering query enumerates the valid
+      // section-token set without triggering an error.
+      if (detail === "summary" && args.query && /briefing|section\s+ordering/i.test(args.query)) {
+        return ok(`Briefing section tokens: ${BRIEFING_TOKENS.map((row) => `${row.token} (${row.group})`).join(", ")}`);
+      }
       return toolDiscovery(args.query, detail);
     }
     case "category": {
@@ -11977,10 +11984,11 @@ const handleContextTool = async (args: any): Promise<any> => {
     case "briefing_order": {
       requireGM();
       const novel = requireNovel();
-      const VALID_TOKENS = ["scene_state", "entities", "combat_state", "available_actions", "npcs", "countdowns", "lore", "narrative_threads", "campaign_memory", "world_state", "story_journal", "notes"];
+      // REQ-082a/REQ-186b — the valid token set is the briefing registry, so the
+      // error enumeration and `spec_health.section_tokens` cannot disagree.
       if (args.sections.length > 0) {
-        const unknown = args.sections.filter((s: string) => !VALID_TOKENS.includes(s));
-        if (unknown.length > 0) return err("INVALID_INPUT", `Unknown section token(s): ${unknown.join(", ")}. Valid tokens: ${VALID_TOKENS.join(", ")}.`);
+        const unknown = args.sections.filter((s: string) => !VALID_BRIEFING_TOKENS.includes(s));
+        if (unknown.length > 0) return err("INVALID_INPUT", `Unknown section token(s): ${unknown.join(", ")}. Valid tokens: ${VALID_BRIEFING_TOKENS.join(", ")}.`);
       }
       novel.briefing_order = args.sections;
       state.saveNovel(novel);
@@ -15103,20 +15111,11 @@ function buildSpecHealth(): Record<string, unknown> {
     description_mode: effectiveRoomDescriptionMode(),
     // REQ-185 section token vocabulary + REQ-186 discoverability: valid tokens with
     // their REQ-109 groups and whether the group currently has runtime content.
-    section_tokens: [
-      { token: "scene_state", group: "current scene state", has_content: !!(novel?.scene_description) },
-      { token: "entities", group: "active entities", has_content: !!(novel && novel.entities.size > 0) },
-      { token: "combat_state", group: "active combat state", has_content: !!(novel?.combat?.active) },
-      { token: "available_actions", group: "proactive available actions", has_content: !!(novel) },
-      { token: "npcs", group: "active NPCs", has_content: !!(novel && novel.npcs.size > 0) },
-      { token: "countdowns", group: "active countdowns", has_content: !!(novel && novel.countdowns.size > 0) },
-      { token: "lore", group: "active lore entries", has_content: !!(novel && novel.lore.size > 0) },
-      { token: "narrative_threads", group: "narrative threads", has_content: true },
-      { token: "campaign_memory", group: "campaign memory", has_content: !!(novel && (novel.campaign_memory ?? []).length > 0) },
-      { token: "world_state", group: "world-model room context", has_content: !!(novel && novel.world.rooms.size > 0) },
-      { token: "story_journal", group: "story journal", has_content: !!(novel && novel.story_journal.length > 0) },
-      { token: "notes", group: "novel notes", has_content: !!(novel && novel.notes.length > 0) },
-    ],
+    section_tokens: BRIEFING_TOKENS.map((row) => ({
+      token: row.token,
+      group: row.group,
+      has_content: novel ? row.hasContent(novel) : false,
+    })),
     // REQ-263 — synthesis auto-trigger threshold (visible).
     synthesis_auto_trigger: process.env.TTRPG_SYNTHESIS_AUTO_TRIGGER ?? "off",
     // REQ-266 — last synthesis run timestamp.
@@ -17141,365 +17140,492 @@ function composePersonalityGroup(novel: NovelState, badge: string): string {
   return `\n\n### Personality\n${blocks.join("\n\n")}`;
 }
 
-function composeBadgeBriefing(novel: NovelState | null | undefined, opts: { mutate: boolean }): string {
-  // REQ-136 — Editor-badge briefing: with no active Novel, return setup-oriented
-  // content — available Novels, the active Novel name if any, intro pointer.
-  if (!novel) {
-    const novels = [...state.novels.entries()].map(([slug, n]) => `- ${n.name} (${slug})`);
-    const list = novels.length > 0 ? `\nAvailable Novels:\n${novels.join("\n")}` : "\nNo Novels yet — create one to begin.";
-    return `## Editor Briefing${list}\n\nUse the intro prompt to get started, or manage_novel (action: create) to set up a new campaign.`;
-  }
+// ── Badge-briefing section registry ────────────────────────────────────
+// REQ-082a/REQ-109d/REQ-109e — one ordered registry drives composition,
+// `manage_context (action: briefing_order)` ordering and inclusion, and
+// `spec_health.section_tokens`, so the token set cannot drift from the
+// rendered set. REQ-185a — every REQ-109 group with a runtime representation
+// carries a stable snake_case token; the token-to-group mapping is recorded in
+// DECISIONS.md (REQ-082b).
+type BriefingCtx = {
+  novel: NovelState;
+  badge: any;
+  entity: any;
+  mutate: boolean;
+  orientation: string;
+  orientationBadge: string;
+  includeCountdowns: boolean;
+};
 
-  const badge = novel.badge;
-  const entity = state.getActiveEntity();
-  // REQ-412a — play-loop orientation token: the act-resolve-narrate order,
-  // adapted to the AI's narrative role (REQ-304, resolved by REQ-598), and
-  // rendered in the never-truncated tier (REQ-135b) beside the badge
-  // foundations.
-  const loopRole = narrativeRole(novel) ?? "game_master";
-  const profile = guidanceProfile();
-  const orientation = composeBadgeOrientation(profile, loopRole);
+type BriefingSection = {
+  token: string;
+  group: string;
+  layer: "critical" | "supplementary";
+  badges?: string[];
+  empty: "marker" | "omit";
+  hasContent: (ctx: BriefingCtx) => boolean;
+  render: (ctx: BriefingCtx) => string;
+};
 
-  // REQ-336/351 — the pacing counter advances in the tool-registry wrapper.
-  // Rendering the briefing reads the signal and commits one autonomy cycle when
-  // the window has been exceeded.
-  if (opts.mutate) triggerPacingAutonomy(novel);
+const GM_OR_OBSERVER = ["game_master", "observer"];
+const GM_ONLY = ["game_master"];
 
-  let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
-**Novel:** ${novel.name} (${novel.slug})
-${novel.scene_description ? `**Scene:** ${novel.scene_description}` : ""}${novel.scene_description ? ` (${novel.scene_type.join(", ")})` : ""}
+// REQ-109e — resolved default order: the decision-critical layer first
+// (REQ-109d places the enumeration order inside each layer; REQ-281b fixes
+// narrative threads after entities and before combat state), then the
+// supplementary layer headed by the who-they-are summary (REQ-109c2).
+const BRIEFING_SECTIONS: BriefingSection[] = [
+  {
+    // REQ-109c1, REQ-076, REQ-335 — scene state, surface settings, current beat.
+    token: "scene_state",
+    group: "current scene state",
+    layer: "critical",
+    empty: "marker",
+    hasContent: (c) => !!c.novel.scene_description,
+    render: (c) => `${c.novel.scene_description ? `\n**Scene:** ${c.novel.scene_description} (${c.novel.scene_type.join(", ")})` : ""}
 **Player-Detail:** ${detailLevel}
 **Player-Register:** ${playerRegister}
-
-### Play loop
-${orientation}`;
-
-  // REQ-250 — adventure scene waypoint: surface the adventure scene as a
-  // distinct labeled block alongside the current scene state, with adjacent
-  // scenes listed as nearby.
-  if (novel.adventure_scene_waypoint) {
-    const wp = novel.adventure_scene_waypoint;
-    const idx = novel.adventure_index;
-    const scenes = (idx?.locations ?? []).map((l: any) => l.name);
-    const i = scenes.indexOf(wp);
-    const nearby = [i > 0 ? `prev: ${scenes[i - 1]}` : "", i < scenes.length - 1 ? `next: ${scenes[i + 1]}` : ""].filter(Boolean).join(", ");
-    briefing += `\nAdventure Scene (${novel.adventure_slug ?? "generated"} § ${wp}): ${idx?.locations?.find((l: any) => l.name === wp)?.description ?? ""}${nearby ? ` — nearby: ${nearby}` : ""}`;
-  }
-
-  // REQ-079f/132c — the active adventure's hook, current location, and the
-  // current room's visible contents; indexed first, generated second.
-  if (novel.adventure_set) {
-    const adventureGM = badge === "game_master" || badge === "none";
-    const idx = novel.adventure_index;
-    if (idx && novel.adventure_slug) {
-      const hook = idx.hooks?.[0] ?? "";
-      if (hook || adventureGM) {
-        const location = novel.adventure_scene_waypoint ?? novel.scene_location ?? "";
-        briefing += `\n\n## Adventure\n**Adventure:** ${novel.adventure_slug}`;
-        briefing += hook ? `\n**Hook:** ${hook}` : `\n**Overview:** ${idx.premise}`;
-        briefing += `\n**Current location:** ${location || "(none)"}`;
-        const room = location
-          ? [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === location.toLowerCase())
-          : undefined;
-        if (room) {
-          const things = [...novel.world.things.values()]
-            .filter((t) => String((t as any).location ?? "").toLowerCase() === room.name.toLowerCase())
-            .map((t) => t.name);
-          briefing += `\n**Room:** ${room.name}${things.length > 0 ? ` — ${things.join(", ")}` : ""}`;
+**Beat:** ${currentBeat(c.novel)}`,
+  },
+  {
+    // REQ-220/REQ-223 — narrative point of view directive.
+    token: "point_of_view",
+    group: "narrative POV directive",
+    layer: "critical",
+    badges: ["game_master", "player"],
+    empty: "marker",
+    hasContent: (c) => !!c.novel.pov_mode,
+    render: (c) => {
+      if (c.novel.pov_mode === "character" && c.entity) {
+        return `\n\n### Point of view\nDescribe the scene through ${c.entity.name}'s eyes — what they see, hear, and feel.`;
+      }
+      return "\n\n### Point of view\nPOV: none — narration is omniscient.";
+    },
+  },
+  {
+    // REQ-074b/REQ-307b — party listing and the non-GM active-entity line.
+    token: "entities",
+    group: "active entities",
+    layer: "critical",
+    empty: "omit",
+    hasContent: (c) => c.novel.entities.size > 0 || !!c.entity,
+    render: (c) => {
+      let out = "";
+      if (c.novel.entities.size > 0) {
+        const ids = presentEntityIds(c.novel);
+        const lines = [...c.novel.entities.values()].map((e: any) => {
+          const present = ids === null || ids.has(e.id);
+          const hp = entityHp(e);
+          const bits: string[] = [e.id === c.novel.active_entity_id ? `**${e.name}** (active)` : e.name];
+          if (hp.hp !== undefined) bits.push(hp.max_hp !== undefined ? `HP ${hp.hp}/${hp.max_hp}` : `HP ${hp.hp}`);
+          if ((e.conditions ?? []).length > 0) bits.push(e.conditions.join(", "));
+          if (!present) bits.push(`[not present]${e.current_room ? ` (last seen: ${e.current_room})` : ""}`);
+          else if (e.current_room) bits.push(`at ${e.current_room}`);
+          return `- ${bits.join(" — ")}`;
+        });
+        out += `\n\n### Party\n${lines.join("\n")}`;
+      }
+      if (c.entity && c.badge !== "game_master") {
+        out += `\n**Active entity:** ${c.entity.name}`;
+        if (c.entity.current_room) out += ` — ${c.entity.current_room}`;
+        if (c.entity.inventory.length > 0) out += ` — holding: ${c.entity.inventory.join(", ")}`;
+      }
+      return out;
+    },
+  },
+  {
+    // REQ-281/REQ-073a1 — narrative threads. REQ-281b fixes this section after
+    // entities and before combat state (the countdown sub-block is REQ-281c).
+    token: "narrative_threads",
+    group: "narrative threads",
+    layer: "critical",
+    badges: GM_OR_OBSERVER,
+    empty: "marker",
+    hasContent: () => true,
+    render: (c) => {
+      const threadLines: string[] = [];
+      const pacing = pacingSignalText(c.novel);
+      if (pacing) threadLines.push(pacing);
+      // REQ-236b — relationship-change markers for the current scene.
+      threadLines.push(...relationshipMarkerLines(c.novel, c.badge, c.entity?.id));
+      const unresolvedDecisions = c.novel.story_journal.filter((s: any) => s.type === "decision" && !c.novel.story_journal.some((x: any) => x.type === "consequence" && x.scene_anchor === s.scene_anchor));
+      for (const s of unresolvedDecisions.slice(-3)) threadLines.push(`Unresolved: ${s.entry}`);
+      const openBonds = c.novel.story_journal.filter((s: any) => s.type === "bond" && !c.novel.story_journal.some((x: any) => x.type === "consequence" && x.entry === s.entry));
+      for (const s of openBonds.slice(-3)) threadLines.push(`Promise: ${s.entry}`);
+      for (const v of c.novel.vows) {
+        if (v.state === "active") {
+          const description = v.description ? ` — ${v.description}` : "";
+          const parties = (v.parties ?? []).length > 0 ? ` (parties: ${v.parties.join(", ")})` : "";
+          threadLines.push(`Vow: ${v.name}${description}${parties} (${v.difficulty}, ${v.milestones}/${v.rank_track} milestones)`);
         }
       }
-    }
-    const generated: any = novel.generated_adventure;
-    if (generated) {
-      briefing += `\n\n## Generated Adventure\n**Adventure:** generated`;
-      if (generated.hook) briefing += `\n**Hook:** ${generated.hook}`;
-      const generatedLocations = ((generated.locations ?? []) as any[]).map((l) => l.heading).filter(Boolean);
-      if (generatedLocations.length > 0) briefing += `\n**Locations:** ${generatedLocations.join(", ")}`;
-    }
-  }
-
-  // REQ-074b/REQ-307b — party listing: every imported entity with its derived
-  // HP, conditions, and presence marker. A non-present entity shows
-  // `[not present]` with its last known location instead of its current one.
-  if (novel.entities.size > 0) {
-    const ids = presentEntityIds(novel);
-    const lines = [...novel.entities.values()].map((e) => {
-      const present = ids === null || ids.has(e.id);
-      const hp = entityHp(e);
-      const bits: string[] = [e.id === novel.active_entity_id ? `**${e.name}** (active)` : e.name];
-      if (hp.hp !== undefined) bits.push(hp.max_hp !== undefined ? `HP ${hp.hp}/${hp.max_hp}` : `HP ${hp.hp}`);
-      if ((e.conditions ?? []).length > 0) bits.push(e.conditions.join(", "));
-      if (!present) bits.push(`[not present]${e.current_room ? ` (last seen: ${e.current_room})` : ""}`);
-      else if (e.current_room) bits.push(`at ${e.current_room}`);
-      return `- ${bits.join(" — ")}`;
-    });
-    briefing += `\n\n### Party\n${lines.join("\n")}`;
-  }
-
-  // REQ-043e — active combat group: round, turn order, and current participant.
-  // The Player badge sees entity positions only (REQ-043e redaction); the whole
-  // group is omitted when no combat is active (REQ-043f).
-  if (novel.combat?.active) {
-    briefing += `\n\n### Combat\n${state.combatReport(novel, badge).trim()}`;
-  }
-
-  // REQ-075c/d — the NPC depth listing: each NPC with its disposition, location
-  // and depth marker. Appearance metadata is maintained here when the briefing
-  // is a mutating render, and by the scene-set path when a scene places an NPC.
-  if ((badge === "game_master" || badge === "observer") && novel.npcs.size > 0) {
-    const sceneLoc = novel.scene_location?.toLowerCase();
-    const lines: string[] = [];
-    for (const [, npc] of novel.npcs) {
-      // REQ-075c — an NPC present in the current scene has appeared; an NPC the
-      // listing merely carries does not refresh last_seen, or [distant] could
-      // never fire for a listed character (REQ-075d).
-      const inScene = !sceneLoc || (npc.location && npc.location.toLowerCase() === sceneLoc);
-      if (opts.mutate && inScene) recordNpcAppearance(novel, npc);
-      const bits: string[] = [npc.name];
-      const facts: string[] = [];
-      if (npc.disposition) facts.push(npc.disposition);
-      if (npc.location) facts.push(`at ${npc.location}`);
-      if (!inScene) facts.push("[not present]");
-      if (facts.length > 0) bits.push(facts.join(", "));
-      lines.push(`- ${bits.join(" — ")}${npcDepthMarker(novel, npc)}`);
-    }
-    briefing += `\n\n### NPCs (depth)\n${lines.join("\n")}`;
-  }
-
-  // REQ-310 — campaign memory: decision-critical group after scene state,
-  // before entities; prioritized by relevance, capped by config.
-  briefing += composeCampaignMemorySection(novel, badge);
-  briefing += composeSubjectiveMemorySection(novel, badge);
-
-  // REQ-335 — current beat surfaces immediately after the scene type tag.
-  briefing += `\n**Beat:** ${currentBeat(novel)}`;
-
-  if (entity && badge !== "game_master") {
-    briefing += `\n**Active entity:** ${entity.name}`;
-    if (entity.current_room) briefing += ` — ${entity.current_room}`;
-    if (entity.inventory.length > 0) briefing += ` — holding: ${entity.inventory.join(", ")}`;
-  }
-
-  // REQ-317d — vehicle traversal surfaces in the briefing's narrative context:
-  // the aboard vehicle, then the recent entry/exit moments.
-  const aboardName = (entity as any)?.in_vehicle ? String((entity as any).in_vehicle) : null;
-  const vehicleMoments = novel.story_journal
-    .filter((s) => typeof s.entry === "string" && (s.entry.startsWith("[vehicle-entry]") || s.entry.startsWith("[vehicle-exit]")))
-    .slice(-5);
-  if (aboardName || vehicleMoments.length > 0) {
-    const lines: string[] = [];
-    if (aboardName) {
-      const aboard = novel.world.things.get(aboardName.toLowerCase());
-      if (aboard) lines.push(`- Aboard: ${aboard.name} (parked in ${aboard.location ?? "unknown"}) — ${aboard.vehicleInterior || aboard.description || "no interior description"}`);
-    }
-    for (const m of vehicleMoments) lines.push(`- ${m.entry}`);
-    if (lines.length > 0) briefing += `\n\n### Vehicle\n${lines.join("\n")}`;
-  }
-
-  // REQ-084a1/a2 — proactive Available Actions section (token: available_actions).
-  const availableActions = availableActionsSection(novel);
-  if (availableActions.length > 0) {
-    briefing += `\n\n### Available Actions (available_actions)\n${availableActions.map((a) => `- ${a}`).join("\n")}`;
-  }
-
-  // REQ-320 — Player Intent: recent narrative-intent verbs surfaced for the GM.
-  if (badge === "game_master" && (novel as any).player_intents?.length) {
-    const recent = (novel as any).player_intents.slice(-5).map((p: any) => `${p.warning ? "[WARNING]" : "[OK]"} ${p.intent}`);
-    briefing += `\n\n### Player Intent\n${recent.join("\n")}`;
-  }
-
-  // REQ-412 — turn-handoff directive. The variant follows the AI's narrative
-  // role (REQ-304, resolved by narrativeRole per REQ-598), gated by REQ-412's
-  // badge condition: the narrator invites the player's next action when the AI
-  // narrates as Game Master and a Player or Observer badge is active; under an
-  // AI-Player role it hands initiative back to the human Game Master. The
-  // Editor badge (badge "none") carries no directive.
-  if (badge !== "none") {
-    const handoffRole = narrativeRole(novel);
-    if (handoffRole === "game_master" && (badge === "player" || badge === "observer")) {
-      briefing += `\n\n### Turn handoff
-Close each narrated turn by inviting the player's next action — ask what they do, where they look, or what they say next. Never end a turn with a tool signature or a parameter list; use a plain-English question or prompt to act.`;
-    } else if (handoffRole === "player") {
-      briefing += `\n\n### Turn handoff
-You inhabit a player character. Close each in-character turn with an offer that hands initiative back to the human Game Master to describe the outcome or advance the scene.`;
-    }
-  }
-
-  // REQ-304 — Counterpart AI role: the AI's narrative role is the counterpart
-  // of the active badge by default; `TTRPG_AI_ROLE` (counterpart | game_master |
-  // player) locks the orientation. Orientation content (boundary, anti-slop,
-  // tone) follows the AI role; the active badge controls state/tool surfaces.
-  const aiRole = process.env.TTRPG_AI_ROLE ?? "counterpart";
-  const orientationRole = aiRole === "counterpart"
-    ? (badge === "game_master" ? "player" : "game_master")
-    : aiRole;
-  const orientationBadge = orientationRole === "player" ? "player" : orientationRole === "game_master" ? "game_master" : "none";
-
-  // REQ-064 — badge behavioral boundary directive (orientation layer, after
-  // badge foundations and before anti-slop guidance; never truncated).
-  briefing += `\n\n### Badge boundary
-You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call set_badge("none").`;
-
-  // REQ-070 — anti-slop guidance (orientation-filtered Appendix J synopsis),
-  // after foundations, before scene state.
-  const antiSlop = antiSlopFor(orientationBadge);
-  if (antiSlop) briefing += `\n\n### Anti-slop guidance\n${antiSlop}`;
-
-  // REQ-071 — narrative tone samples: ruleset-extracted prose demonstrating the
-  // narrative voice. Ruleset-free builds provide a ruleset-agnostic sample.
-  briefing += `\n\n### Narrative tone\n${composeNarrativeTone(promptInputsFor(novel))}`;
-
-  // REQ-081/598 — the Novel's standing narrative directive and the narrator
-  // contract must reach the GM even when the host drives tools directly and
-  // never fetches the `narrate` prompt.
-  if (orientationBadge === "game_master") {
-    if (novel.narrative_directive) {
-      briefing += `\n\n### Narrative directive\n${novel.narrative_directive}`;
-    }
-    briefing += `\n\n### Narration contract\n${NARRATION_CONTRACT}`;
-  }
-
-  // REQ-159/265 — active synthesis and Ruleset Wisdom content, gated by module
-  // toggle, per-item activation, and badge scope. Rendered with provenance tag,
-  // confidence, and source. No empty section when nothing is active (REQ-265b).
+      // REQ-073a1 — a linked chain renders as an indented tree: parents first.
+      if (c.includeCountdowns) {
+        const clockLines: string[] = [];
+        for (const [name, cd] of c.novel.countdowns) {
+          if (cd.linked_parent) continue;
+          if (cd.ticks > 0 || cd.clock_type === "mission") clockLines.push(`Countdown: ${name} (${countdownDisplay(cd)})`);
+          for (const [childName, child] of c.novel.countdowns) {
+            if (child.linked_parent !== name) continue;
+            clockLines.push(`  Countdown: ${childName} (${countdownDisplay(child)})`);
+          }
+        }
+        threadLines.push(...clockLines);
+      }
+      if (c.badge === "game_master") {
+        for (const [, npc] of c.novel.npcs) {
+          if (npc.disposition && npc.disposition !== "neutral") threadLines.push(`${npc.name} (${npc.disposition})`);
+        }
+      }
+      threadLines.push(...collectCouplingAdvisories(c.novel, c.entity));
+      // REQ-322 — vow-countdown coupling suggestion surfaced in narrative_threads.
+      if (c.novel.pending_vow_countdown_suggestion) {
+        const s = c.novel.pending_vow_countdown_suggestion;
+        threadLines.push(`Vow countdown suggestion: create '${s.countdown_name}' (${s.tick_count} ticks, mission) tied to vow '${s.vow_name}' — respond \`accept\` or \`decline\`.`);
+      }
+      return threadLines.length > 0
+        ? `\n\n### Narrative threads\n${threadLines.join("\n")}`
+        : "\n\n### Narrative threads\n[No unresolved threads.]";
+    },
+  },
   {
-    const synthLines: string[] = [];
-    const renderItems = (label: string, items: any[], pick: (i: any) => string): void => {
-      if (items.length === 0) return;
-      synthLines.push(`${label}:`);
-      const rank = (i: any): number => (i?.confidence === "LOW" ? 2 : i?.confidence === "MEDIUM" ? 1 : 0);
-      [...items].sort((a, b) => rank(a) - rank(b)).slice(0, 5).forEach((i: any) => {
-        const conf = i.confidence ? ` [${i.confidence}]` : "";
-        const src = i.source_url ? ` (${i.source_url})` : "";
-        synthLines.push(`- ${wisdomTag(i)}${conf} ${pick(i)}${src}`);
+    // REQ-043e/f — active combat group; omitted when no combat is active.
+    token: "combat_state",
+    group: "active combat state",
+    layer: "critical",
+    empty: "omit",
+    hasContent: (c) => !!c.novel.combat?.active,
+    render: (c) => c.novel.combat?.active ? `\n\n### Combat\n${state.combatReport(c.novel, c.badge).trim()}` : "",
+  },
+  {
+    // REQ-075c/d — NPC depth listing (appearance metadata maintained here on a
+    // mutating render, and by the scene-set path when a scene places an NPC).
+    token: "npcs",
+    group: "active NPCs",
+    layer: "critical",
+    badges: GM_OR_OBSERVER,
+    empty: "omit",
+    hasContent: (c) => c.novel.npcs.size > 0,
+    render: (c) => {
+      if (c.novel.npcs.size === 0) return "";
+      const sceneLoc = c.novel.scene_location?.toLowerCase();
+      const lines: string[] = [];
+      for (const [, npc] of c.novel.npcs) {
+        // REQ-075d — a listed-but-absent NPC must not refresh last_seen.
+        const inScene = !sceneLoc || (npc.location && npc.location.toLowerCase() === sceneLoc);
+        if (c.mutate && inScene) recordNpcAppearance(c.novel, npc);
+        const bits: string[] = [npc.name];
+        const facts: string[] = [];
+        if (npc.disposition) facts.push(npc.disposition);
+        if (npc.location) facts.push(`at ${npc.location}`);
+        if (!inScene) facts.push("[not present]");
+        if (facts.length > 0) bits.push(facts.join(", "));
+        lines.push(`- ${bits.join(" — ")}${npcDepthMarker(c.novel, npc)}`);
+      }
+      return `\n\n### NPCs (depth)\n${lines.join("\n")}`;
+    },
+  },
+  {
+    // REQ-083f/REQ-155/REQ-328b — triggered lore (every badge).
+    token: "lore",
+    group: "active lore entries",
+    layer: "critical",
+    empty: "omit",
+    hasContent: (c) => c.novel.lore.size > 0,
+    render: (c) => composeLoreSection(c.novel, c.badge),
+  },
+  {
+    // REQ-310 — campaign memory, decision-critical, before the entity surface.
+    token: "campaign_memory",
+    group: "campaign memory",
+    layer: "critical",
+    empty: "omit",
+    hasContent: (c) => (c.novel.campaign_memory ?? []).length > 0,
+    render: (c) => composeCampaignMemorySection(c.novel, c.badge),
+  },
+  {
+    // REQ-626/REQ-634 — subjective memory records per badge.
+    token: "subjective_memory",
+    group: "subjective memory",
+    layer: "critical",
+    empty: "omit",
+    hasContent: (c) => !!c.novel.subjective_memory && Object.keys(c.novel.subjective_memory).length > 0,
+    render: (c) => composeSubjectiveMemorySection(c.novel, c.badge),
+  },
+  {
+    // REQ-286 — knowledge state (decision-critical for every badge with an entity).
+    token: "knowledge_state",
+    group: "knowledge state",
+    layer: "critical",
+    empty: "marker",
+    hasContent: (c) => !!c.entity,
+    render: (c) => composeKnowledgeState(c.novel, c.entity, c.badge),
+  },
+  {
+    // REQ-400 — State-Persistence Directive (never-truncated tier).
+    token: "state_persistence",
+    group: "state persistence directive",
+    layer: "critical",
+    badges: GM_ONLY,
+    empty: "omit",
+    hasContent: () => true,
+    render: () => {
+      const categoryTokens = PERSISTENCE_CATEGORY_TOKENS
+        .map((row) => `${row.category} (${row.directive})`)
+        .join(", ");
+      return `\n\n### State persistence
+Commit every narratable change to state in the same turn you narrate it — scene changes (scene, action: set), mechanical outcomes (countdown, condition), disposition shifts (npc, action: update), story beats (story, action: record), base-capability outcomes (fate, ironsworn, forged), and the remaining state categories: ${categoryTokens}.`;
+    },
+  },
+  {
+    // REQ-401 — state_ledger decision-critical token (never-truncated).
+    token: "state_ledger",
+    group: "state ledger",
+    layer: "critical",
+    badges: GM_ONLY,
+    empty: "omit",
+    hasContent: () => true,
+    render: (c) => {
+      const ledgerLines = [
+        `Last state mutation: ${c.novel.last_mutation_at ? new Date(c.novel.last_mutation_at).toISOString() : "none this session"}`,
+      ];
+      for (const [group, count] of Object.entries(c.novel.mutation_counts_by_group)) {
+        if (count > 0) ledgerLines.push(`  ${group}: ${count}`);
+      }
+      if (state.stateDriftActive(c.novel)) ledgerLines.push(`  [state-drift] GM context saved after last mutation — narration may be uncommitted.`);
+      if (c.novel.state_regression) ledgerLines.push(`  [state-regression] restored from backup (audit gap ${c.novel.state_regression.audit_gap}).`);
+      return `\n\n### state_ledger\n${ledgerLines.join("\n")}`;
+    },
+  },
+  {
+    // REQ-339/REQ-233a — World in Motion: goal-pursuit and world-change
+    // suggestions. The reactivity cycle runs only while world reactivity is on.
+    token: "world_in_motion",
+    group: "world in motion",
+    layer: "critical",
+    badges: GM_ONLY,
+    empty: "omit",
+    // The reactivity cycle can create its own suggestions during a mutating
+    // render, so content presence is decided by the renderer, not before it.
+    hasContent: () => worldReactivityOn(),
+    render: (c) => {
+      if (!worldReactivityOn()) return "";
+      if (c.mutate && npcAutonomyOn()) {
+        for (const [, npc] of c.novel.npcs) {
+          const goal = npc.personality?.goals;
+          if (!goal) continue;
+          const prevSuggestion = c.novel.npc_goal_suggestions.find((s: any) => s.npc_id === npc.id);
+          if (prevSuggestion?.state === "dismissed" || prevSuggestion?.state === "accepted") continue;
+          ensureGoalSuggestion(c.novel, npc.id, npc.name, goal);
+        }
+      }
+      // REQ-339e — session-boundary beats, once per session, derived from the
+      // audit log. Default off; requires NPC autonomy.
+      if (c.mutate && npcAutonomyOn() && npcProactiveBoundaryOn() && !boundaryBeatFiredThisSession(c.novel)) {
+        const surfaced: string[] = [];
+        for (const [, npc] of c.novel.npcs) {
+          const goal = npc.personality?.goals;
+          if (!goal) continue;
+          const prev = c.novel.npc_goal_suggestions.find((s: any) => s.npc_id === npc.id);
+          if (prev?.state === "dismissed" || prev?.state === "accepted") continue;
+          ensureGoalSuggestion(c.novel, npc.id, npc.name, goal);
+          surfaced.push(npc.id);
+        }
+        if (surfaced.length > 0) audit("npc-boundary-beat", { npcs: surfaced });
+      }
+      const active = c.novel.npc_goal_suggestions.filter((s: any) => s.state !== "dismissed" && s.state !== "accepted");
+      const npcLines = active.map((s: any) => {
+        // REQ-339d — the auto-apply option surfaces only for NPCs carrying a
+        // populated mind directive when TTRPG_NPC_MIND=on.
+        const npc = c.novel.npcs.get(s.npc_id);
+        const choices = npcMindOn() && npc?.mind?.directive
+          ? "`accept`, `defer`, `dismiss`, or `auto-apply`"
+          : "`accept`, `defer`, or `dismiss`";
+        return `${s.text}\n   — respond ${choices} (suggestion ${s.npc_id})`;
       });
-    };
-    renderItems("Supplementary guidance", effectiveWisdomItems("supplementary_guidance").filter(badgeCanSeeWisdom), (i) => i.content);
-    renderItems("Lore templates", effectiveWisdomItems("lore_templates").filter(badgeCanSeeWisdom), (i) => i.content);
-    renderItems("Voice examples", effectiveWisdomItems("voice_examples").filter(badgeCanSeeWisdom), (i) => i.content);
-    renderItems("Narrative voices", effectiveWisdomItems("narrative_voices").filter(badgeCanSeeWisdom), (i) => i.description ? `${i.name} — ${String(i.description).slice(0, 240)}` : i.name);
-    renderItems("Action patterns", effectiveWisdomItems("action_patterns").filter(badgeCanSeeWisdom), (i) => i.intent);
-    if (novel.adventure_set || novel.adventure_slug) {
-      renderItems("Adventure advice", effectiveWisdomItems("adventure_advice").filter(badgeCanSeeWisdom), (i) => i.content);
-    }
-    // REQ-372 — supplementary imports surface as Wisdom even before synthesis.
-    const imported = (novel.supplementary_rulesets ?? [])
-      .flatMap((s: any) => (s.wisdom ?? []).map((w: any) => ({ ...w, tag: "supplementary" })))
-      .filter((i: any) => isModuleEnabled(i.module) && badgeCanSeeWisdom(i));
-    renderItems("Imported Wisdom", imported, (i) => i.content);
-    // REQ-261 — player-authored items, active unless deactivated, badge-filtered.
-    const playerItems = Object.entries(novel.player_synthesis ?? {}).flatMap(([m, items]) =>
-      (items as any[])
-        .filter((i: any) => i.active !== false && isModuleEnabled(m) && badgeCanSeeWisdom(i))
-        .map((i: any) => `- [player] ${m}: ${i.key}`));
-    synthLines.push(...playerItems);
-    if (synthLines.length > 0) {
-      briefing += `\n\n### Synthesis\n${synthLines.join("\n")}`;
-    }
-  }
-
-  // REQ-365a — tagged server notes (GM/Editor only) surface as supplementary
-  // guidance next to synthesis; untagged notes stay resource-only
-  // (REQ-365a/REQ-365b/REQ-365c). Sorted by key for deterministic bytes; a
-  // note with an empty body is skipped so no blank bullet renders.
-  if (badge === "game_master" || badge === "none") {
-    const noteLines = [...state.serverNotes.entries()]
-      .filter(([, note]) => !!note.narrative_tag && !!note.content)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-      .map(([, note]) => `- [${String(note.narrative_tag).replace(/_/g, "-")}] ${note.content}`);
-    if (noteLines.length > 0) {
-      briefing += `\n\n### Server guidance\n${noteLines.join("\n")}`;
-    }
-  }
-
-  // REQ-109 — boundaries (GM only): persisted persistent player boundaries,
-  // never trimmed. Each is an absolute do-not-narrate directive.
-  if (badge === "game_master") {
-    const boundary = novel.player_signals.boundary?.value;
-    if (boundary) {
-      briefing += `\n\n### Boundaries
-The player has set these topics as off-limits for the entire story:
-- ${boundary}
-
-Do not narrate, imply, or introduce content that evokes these topics. They are
-kept out of every scene, every scene description, and every choice.`;
-    }
-  }
-
-  // REQ-128 — signal briefing surface: player signals (tone, difficulty, pace,
-  // focus, boundary) surface with their values and age; empty signals show an
-  // empty-state marker. GM-only.
-  if (badge === "game_master") {
-    const signals = Object.entries(novel.player_signals ?? {});
-    if (signals.length > 0) {
-      const age = (entry: any): string => {
-        if (typeof entry?.connection_counter !== "number") return "unknown";
-        const delta = (novel.connection_counter ?? 0) - entry.connection_counter;
-        if (delta <= 0) return "set this connection";
-        return delta === 1 ? "set 1 connection ago" : `set ${delta} connections ago`;
-      };
-      briefing += `\n\n### Player signals\n${signals.map(([k, entry]) => `${k}: ${entry.value} (${age(entry)})`).join("\n")}`;
-    } else {
-      briefing += `\n\n### Player signals\n[No player signals set.]`;
-    }
-  }
-
-  // REQ-109 — novel-setup progress markers (surface wizard completion state).
-  const setupMark = (done: boolean) => (done ? "[✓]" : "[ ]");
-  briefing += `\n\n### Novel Setup
-Characters: ${setupMark(novel.characters_present)} | Story source: ${setupMark(novel.adventure_set)} | Session zero: ${setupMark(novel.session_zero_completed)}`;
-  if (!novel.session_zero_completed) {
-    briefing += `\nA session zero has not been completed yet — run the session zero guide before play begins.`;
-  }
-
-  // REQ-109 — POV directive (character-perspective anchor, GM + Player).
-  // REQ-220 — narrative point of view: directive names the active entity, locks
-  // narration to their senses, and renders an omniscient empty-state marker when
-  // none is set. REQ-223 — POV mode control: `pov` mode is Novel-scoped state.
-  if (badge === "game_master" || badge === "player") {
-    if (novel.pov_mode === "character" && entity) {
-      briefing += `\n\n### Point of view
-Describe the scene through ${entity.name}'s eyes — what they see, hear, and feel.`;
-    } else {
-      briefing += `\n\n### Point of view
-POV: none — narration is omniscient.`;
-    }
-  }
-
-  // REQ-642 — deterministic who-they-are section for the active entity,
-  // immediately after the POV directive (REQ-109c2) and before the entity
-  // personality group. Reads the compiled kernel, so secret facets are absent.
-  if ((badge === "game_master" || badge === "player") && novel.active_entity_id) {
-    const identity = identityFor(novel.active_entity_id);
-    if (identity) {
-      const log = novel.event_log ?? [];
+      // REQ-233a2 — pending world changes carry source, summary, and labels.
+      const changeLines = c.novel.world_in_motion
+        .filter((ch: any) => ch.state === "pending" || ch.state === "deferred")
+        .map((ch: any) => {
+          const affects = ch.targets.length > 0 ? `; affects: ${ch.targets.join(", ")}` : "";
+          return `${ch.summary}\n   — source: ${ch.source}${affects}; respond \`accept\`, \`modify\`, or \`defer\` (change ${ch.id})`;
+        });
+      const wimLines = [...npcLines, ...changeLines];
+      if (wimLines.length === 0) return "";
+      if (c.mutate) state.saveNovel(c.novel);
+      return `\n\n## World in Motion\n${wimLines.join("\n")}`;
+    },
+  },
+  {
+    // REQ-084a1/a2 — proactive available actions (token: available_actions).
+    token: "available_actions",
+    group: "proactive available actions",
+    layer: "critical",
+    empty: "omit",
+    hasContent: (c) => availableActionsSection(c.novel).length > 0,
+    render: (c) => {
+      const actions = availableActionsSection(c.novel);
+      return actions.length > 0 ? `\n\n### Available Actions (available_actions)\n${actions.map((a: string) => `- ${a}`).join("\n")}` : "";
+    },
+  },
+  {
+    // REQ-246 — story journal (GM): recent decision/bond/moment entries.
+    token: "story_journal",
+    group: "story journal",
+    layer: "critical",
+    badges: GM_ONLY,
+    empty: "omit",
+    hasContent: (c) => c.novel.story_journal.length > 0,
+    render: (c) => {
+      const storyItems = c.novel.story_journal.slice(-3).map((s: any) => `${s.discovered ? "[discovered] " : ""}[${s.type}] ${s.entry}`).join("\n");
+      return storyItems ? `\n\n### Story journal\n${storyItems}` : "";
+    },
+  },
+  {
+    // REQ-642/REQ-109c2 — who-they-are summary, heading the supplementary layer.
+    token: "who_they_are",
+    group: "who-they-are identity summary",
+    layer: "supplementary",
+    badges: ["game_master", "player"],
+    empty: "omit",
+    hasContent: (c) => !!(c.novel.active_entity_id && identityFor(c.novel.active_entity_id)),
+    render: (c) => {
+      if (!c.novel.active_entity_id) return "";
+      const identity = identityFor(c.novel.active_entity_id);
+      if (!identity) return "";
+      const log = c.novel.event_log ?? [];
       const at = log.length > 0 ? log[log.length - 1].at : null;
-      const body = renderWhoTheyAre(compileKernel(identity), { badge: badge === "player" ? "player" : "game_master", at });
-      briefing += `\n\n### Who They Are\n${body}`;
-    }
-  }
-
-  // REQ-166/REQ-282 — entity personality group (voice examples before traits,
-  // NPC marker, badge-filtered NPC blocks and voice directives).
-  briefing += composePersonalityGroup(novel, badge);
-
-  // REQ-109 — autonomy state (GM only): AI decision delegation sliders.
-  if (badge === "game_master") {
-    const a = novel.autonomy;
-    briefing += `\n\n### Autonomy
-Level: ${a.level} | Confirmation: ${a.confirmation} | Safety: ${a.safety} | Creativity: ${a.creativity}`;
-    // REQ-306c — at mechanical_prompt the AI must pause at ruleset-derived
-    // mechanical decisions and present them through the decision surface.
-    if (a.level === "mechanical_prompt") {
-      briefing += `\nMechanical decisions pause: before resolving a ruleset-derived mechanic, call manage_scene (action: choices) with [NEED_INPUT] and act on the human's respond_decision answer.`;
-    }
-  }
-
-  if (badge === "player") {
-    // REQ-134 — minimum Player tool surface: dice, lookups, sheet, suggestions,
-    // player signals, help, undo/redo, badge switching all callable by Player.
-    briefing += `\n\n### Player Tools
-${novel.ruleset
+      const body = renderWhoTheyAre(compileKernel(identity), { badge: c.badge === "player" ? "player" : "game_master", at });
+      return `\n\n### Who They Are\n${body}`;
+    },
+  },
+  {
+    // REQ-062/REQ-412a — play-loop orientation (never-truncated).
+    token: "play_loop",
+    group: "badge foundations",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: () => true,
+    render: (c) => `\n\n### Play loop\n${c.orientation}`,
+  },
+  {
+    // REQ-070 — anti-slop guidance (orientation-filtered Appendix J synopsis).
+    token: "anti_slop",
+    group: "anti-slop guidance",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: (c) => !!antiSlopFor(c.orientationBadge),
+    render: (c) => {
+      const antiSlop = antiSlopFor(c.orientationBadge);
+      return antiSlop ? `\n\n### Anti-slop guidance\n${antiSlop}` : "";
+    },
+  },
+  {
+    // REQ-071 — narrative tone samples.
+    token: "narrative_tone",
+    group: "narrative tone samples",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: () => true,
+    render: (c) => `\n\n### Narrative tone\n${composeNarrativeTone(promptInputsFor(c.novel))}`,
+  },
+  {
+    // REQ-064 — badge behavioral boundary directive (never-truncated).
+    token: "badge_boundary",
+    group: "badge behavioral boundary directive",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: () => true,
+    render: () => `\n\n### Badge boundary
+You are in the story. Confine tool use and responses to the current Novel. To step away from the table, call set_badge("none").`,
+  },
+  {
+    // REQ-166/REQ-282 — entity personality group.
+    token: "personality",
+    group: "entity personality fields",
+    layer: "supplementary",
+    empty: "marker",
+    hasContent: (c) => c.novel.entities.size > 0 || c.novel.npcs.size > 0,
+    render: (c) => composePersonalityGroup(c.novel, c.badge),
+  },
+  {
+    // REQ-081/REQ-598 — standing narrative directive (narrative role, not badge).
+    token: "narrative_directive",
+    group: "narrative directive",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: (c) => c.orientationBadge === "game_master" && !!c.novel.narrative_directive,
+    render: (c) => c.orientationBadge === "game_master" && c.novel.narrative_directive ? `\n\n### Narrative directive\n${c.novel.narrative_directive}` : "",
+  },
+  {
+    // REQ-598 — the narrator contract reaches the GM even without the prompt.
+    token: "narration_contract",
+    group: "narration contract",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: (c) => c.orientationBadge === "game_master",
+    render: (c) => c.orientationBadge === "game_master" ? `\n\n### Narration contract\n${NARRATION_CONTRACT}` : "",
+  },
+  {
+    // REQ-079f/REQ-132c/REQ-250 — adventure content: waypoint, hook, location,
+    // room, generated adventure.
+    token: "adventure",
+    group: "active adventure content",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: (c) => !!(c.novel.adventure_set || c.novel.generated_adventure),
+    render: (c) => {
+      let out = "";
+      if (c.novel.adventure_scene_waypoint) {
+        const wp = c.novel.adventure_scene_waypoint;
+        const idx = c.novel.adventure_index;
+        const scenes = (idx?.locations ?? []).map((l: any) => l.name);
+        const i = scenes.indexOf(wp);
+        const nearby = [i > 0 ? `prev: ${scenes[i - 1]}` : "", i < scenes.length - 1 ? `next: ${scenes[i + 1]}` : ""].filter(Boolean).join(", ");
+        out += `\nAdventure Scene (${c.novel.adventure_slug ?? "generated"} § ${wp}): ${idx?.locations?.find((l: any) => l.name === wp)?.description ?? ""}${nearby ? ` — nearby: ${nearby}` : ""}`;
+      }
+      if (c.novel.adventure_set) {
+        const adventureGM = c.badge === "game_master" || c.badge === "none";
+        const idx = c.novel.adventure_index;
+        if (idx && c.novel.adventure_slug) {
+          const hook = idx.hooks?.[0] ?? "";
+          if (hook || adventureGM) {
+            const location = c.novel.adventure_scene_waypoint ?? c.novel.scene_location ?? "";
+            out += `\n\n## Adventure\n**Adventure:** ${c.novel.adventure_slug}`;
+            out += hook ? `\n**Hook:** ${hook}` : `\n**Overview:** ${idx.premise}`;
+            out += `\n**Current location:** ${location || "(none)"}`;
+            const room = location
+              ? [...c.novel.world.rooms.values()].find((r: any) => r.name.toLowerCase() === location.toLowerCase())
+              : undefined;
+            if (room) {
+              const things = [...c.novel.world.things.values()]
+                .filter((t: any) => String(t.location ?? "").toLowerCase() === room.name.toLowerCase())
+                .map((t: any) => t.name);
+              out += `\n**Room:** ${room.name}${things.length > 0 ? ` — ${things.join(", ")}` : ""}`;
+            }
+          }
+        }
+        const generated: any = c.novel.generated_adventure;
+        if (generated) {
+          out += `\n\n## Generated Adventure\n**Adventure:** generated`;
+          if (generated.hook) out += `\n**Hook:** ${generated.hook}`;
+          const generatedLocations = ((generated.locations ?? []) as any[]).map((l: any) => l.heading).filter(Boolean);
+          if (generatedLocations.length > 0) out += `\n**Locations:** ${generatedLocations.join(", ")}`;
+        }
+      }
+      return out;
+    },
+  },
+  {
+    // REQ-134 — minimum Player tool surface.
+    token: "player_tools",
+    group: "registered tools",
+    layer: "supplementary",
+    badges: ["player"],
+    empty: "omit",
+    hasContent: () => true,
+    render: (c) => `\n\n### Player Tools
+${c.novel.ruleset
   ? "Declare your character's actions in narrative — the GM/narrator resolves them through the world parser."
   : "You run the parser directly (ruleset-free Novel). Use run_command (action: execute, \"<command>\") to look, go, examine, take, open, unlock."}
 Player-callable tools:
@@ -17510,229 +17636,416 @@ Player-callable tools:
 - manage_character (action: signal) — pacing, tone, or boundary feedback
 - manage_history (action: undo) — undo your last mutation
 - manage_context (action: discover) — discover tools
-- set_badge — switch badges`;
-
-    // REQ-341 — player-facing spatial surface (no internal IDs).
-    if (novel.world.rooms.size > 0) {
+- set_badge — switch badges`,
+  },
+  {
+    // REQ-087/REQ-109 — GM navigation surface, NPC memory, observer directive.
+    token: "gm_state",
+    group: "GM state and navigation",
+    layer: "supplementary",
+    badges: GM_OR_OBSERVER,
+    empty: "omit",
+    hasContent: () => true,
+    render: (c) => {
+      let out = `\n\n### GM State
+**World model:** ${c.novel.world.rooms.size} rooms, ${c.novel.world.things.size} things
+**NPCs:** ${c.novel.npcs.size} | **Lore entries:** ${c.novel.lore.size} | **Countdowns:** ${c.novel.countdowns.size}
+**Scene tick:** ${c.novel.scene_tick} (GM only — resets on a scene transition, advances on a full combat round)`;
+      // REQ-311 — NPC memory for NPCs present in the current scene.
+      if (c.badge === "game_master" && c.novel.npcs.size > 0) {
+        const sceneLoc = c.novel.scene_location?.toLowerCase();
+        for (const [, npc] of c.novel.npcs) {
+          const npcPresent = !sceneLoc || (npc.location && npc.location.toLowerCase() === sceneLoc);
+          const hasIdentity = (identityFor(npc.id)?.facets.length ?? 0) > 0;
+          if (npcPresent && (npc.memory || npc.mind?.identity_core || npc.mind?.shared_notes || hasIdentity)) out += composeNpcMemorySection(c.novel, npc);
+        }
+      }
+      // REQ-366 — observer omniscient orientation directive.
+      if (c.badge === "observer") {
+        out += `\n\n### Observer Mode
+You are both Game Master and Player. The human is observing. Narrate scenes, make decisions for all player characters, advance combat, play the Novel. Narrate from an omniscient perspective — you see all entity percepts, presence markers, and knowledge, but never GM-only surfaces (secrets, faction clocks, countdown positions, GM context).`;
+      }
+      return out;
+    },
+  },
+  {
+    // REQ-407 — persistence tools (never-truncated tier).
+    token: "persistence_tools",
+    group: "persistence tools",
+    layer: "supplementary",
+    badges: GM_ONLY,
+    empty: "omit",
+    hasContent: () => true,
+    render: () => `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · ${[...new Set(PERSISTENCE_CATEGORY_TOKENS.map((row) => row.tool))].join(" · ")} · manage_knowledge (index_build/graph_build) · resolve_mechanic (fate_aspect) · resolve_mechanic (ironsworn_momentum) · resolve_mechanic (forged_stress)`,
+  },
+  {
+    // REQ-185b/REQ-341 — Player spatial surface (no internal IDs).
+    token: "world_state",
+    group: "world-model room context",
+    layer: "supplementary",
+    badges: ["player"],
+    empty: "marker",
+    hasContent: (c) => c.novel.world.rooms.size > 0,
+    render: (c) => {
+      if (c.novel.world.rooms.size === 0) {
+        return "\n\n### Surroundings\n[No world model — surroundings are as described by the GM.]";
+      }
       const bare = (s: string) => s.toLowerCase().replace(/^the\s+/, "");
       const room =
-        (entity?.current_room
-          ? [...novel.world.rooms.values()].find((r) => r.name.toLowerCase() === entity.current_room!.toLowerCase())
+        (c.entity?.current_room
+          ? [...c.novel.world.rooms.values()].find((r: any) => r.name.toLowerCase() === c.entity.current_room!.toLowerCase())
           : undefined) ??
-        (novel.scene_location
-          ? [...novel.world.rooms.values()].find((r) => bare(r.name) === bare(novel.scene_location!))
+        (c.novel.scene_location
+          ? [...c.novel.world.rooms.values()].find((r: any) => bare(r.name) === bare(c.novel.scene_location!))
           : undefined) ??
-        [...novel.world.rooms.values()][0];
+        [...c.novel.world.rooms.values()][0];
       const exitDirs = [...room.exits.keys()];
-      const things = [...novel.world.things.values()].filter((t) => t.location && t.location.toLowerCase() === room.name.toLowerCase() && t.locationType === "room");
-      briefing += `\n\n### Surroundings
+      const things = [...c.novel.world.things.values()].filter((t: any) => t.location && t.location.toLowerCase() === room.name.toLowerCase() && t.locationType === "room");
+      return `\n\n### Surroundings
 Room: ${room.name}
 Exits: ${exitDirs.length ? exitDirs.join(", ") : "none"}
-Visible: ${things.length ? things.map((t) => t.name).join(", ") : "nothing of note"}`;
-    } else {
-      briefing += `\n\n### Surroundings
-[No world model — surroundings are as described by the GM.]`;
-    }
-  } else if (badge === "game_master" || badge === "observer") {
-    briefing += `\n\n### GM State
-**World model:** ${novel.world.rooms.size} rooms, ${novel.world.things.size} things
-**NPCs:** ${novel.npcs.size} | **Lore entries:** ${novel.lore.size} | **Countdowns:** ${novel.countdowns.size}
-**Scene tick:** ${novel.scene_tick} (GM only — resets on a scene transition, advances on a full combat round)`;
-
-    // REQ-311 — NPC memory: NPCs present in the current scene surface their
-    // memory section (emotional state, last interactions, goals) in the entity
-    // personality group. Gated by presence per REQ-307.
-    if (badge === "game_master" && novel.npcs.size > 0) {
-      const sceneLoc = novel.scene_location?.toLowerCase();
-      for (const [, npc] of novel.npcs) {
-        const npcPresent = !sceneLoc || (npc.location && npc.location.toLowerCase() === sceneLoc);
-        const hasIdentity = (identityFor(npc.id)?.facets.length ?? 0) > 0;
-        if (npcPresent && (npc.memory || npc.mind?.identity_core || npc.mind?.shared_notes || hasIdentity)) briefing += composeNpcMemorySection(novel, npc);
+Visible: ${things.length ? things.map((t: any) => t.name).join(", ") : "nothing of note"}`;
+    },
+  },
+  {
+    // REQ-317d — vehicle traversal: the aboard vehicle and recent moments.
+    token: "vehicle",
+    group: "vehicle traversal",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: (c) => {
+      const aboard = c.entity?.in_vehicle ? String(c.entity.in_vehicle) : null;
+      return !!aboard || c.novel.story_journal.some((s: any) => typeof s.entry === "string" && (s.entry.startsWith("[vehicle-entry]") || s.entry.startsWith("[vehicle-exit]")));
+    },
+    render: (c) => {
+      const aboardName = c.entity?.in_vehicle ? String(c.entity.in_vehicle) : null;
+      const vehicleMoments = c.novel.story_journal
+        .filter((s: any) => typeof s.entry === "string" && (s.entry.startsWith("[vehicle-entry]") || s.entry.startsWith("[vehicle-exit]")))
+        .slice(-5);
+      if (!aboardName && vehicleMoments.length === 0) return "";
+      const lines: string[] = [];
+      if (aboardName) {
+        const aboard = c.novel.world.things.get(aboardName.toLowerCase());
+        if (aboard) lines.push(`- Aboard: ${aboard.name} (parked in ${aboard.location ?? "unknown"}) — ${aboard.vehicleInterior || aboard.description || "no interior description"}`);
       }
-    }
+      for (const m of vehicleMoments) lines.push(`- ${m.entry}`);
+      return lines.length > 0 ? `\n\n### Vehicle\n${lines.join("\n")}` : "";
+    },
+  },
+  {
+    // REQ-128 — player signals with their age; empty-state marker when unset.
+    token: "player_signals",
+    group: "player signals",
+    layer: "supplementary",
+    badges: GM_ONLY,
+    empty: "marker",
+    hasContent: (c) => Object.keys(c.novel.player_signals ?? {}).length > 0,
+    render: (c) => {
+      const signals = Object.entries(c.novel.player_signals ?? {}) as Array<[string, any]>;
+      if (signals.length === 0) return "\n\n### Player signals\n[No player signals set.]";
+      const age = (entry: any): string => {
+        if (typeof entry?.connection_counter !== "number") return "unknown";
+        const delta = (c.novel.connection_counter ?? 0) - entry.connection_counter;
+        if (delta <= 0) return "set this connection";
+        return delta === 1 ? "set 1 connection ago" : `set ${delta} connections ago`;
+      };
+      return `\n\n### Player signals\n${signals.map(([k, entry]) => `${k}: ${entry.value} (${age(entry)})`).join("\n")}`;
+    },
+  },
+  {
+    // REQ-109 — persisted player boundaries (never trimmed).
+    token: "boundaries",
+    group: "player boundaries",
+    layer: "supplementary",
+    badges: GM_ONLY,
+    empty: "omit",
+    hasContent: (c) => !!c.novel.player_signals.boundary?.value,
+    render: (c) => {
+      const boundary = c.novel.player_signals.boundary?.value;
+      if (!boundary) return "";
+      return `\n\n### Boundaries
+The player has set these topics as off-limits for the entire story:
+- ${boundary}
 
-    if (badge === "game_master") {
-      // REQ-400 — State-Persistence Directive (never-truncated tier). The
-      // category list comes from PERSISTENCE_CATEGORY_TOKENS so the directive
-      // and the REQ-407 tool list below share one source.
-      const categoryTokens = PERSISTENCE_CATEGORY_TOKENS
-        .map((row) => `${row.category} (${row.directive})`)
-        .join(", ");
-      briefing += `\n\n### State persistence
-Commit every narratable change to state in the same turn you narrate it — scene changes (scene, action: set), mechanical outcomes (countdown, condition), disposition shifts (npc, action: update), story beats (story, action: record), base-capability outcomes (fate, ironsworn, forged), and the remaining state categories: ${categoryTokens}.`;
-
-      // REQ-401 — state_ledger decision-critical token (never-truncated).
-      const ledgerLines = [
-        `Last state mutation: ${novel.last_mutation_at ? new Date(novel.last_mutation_at).toISOString() : "none this session"}`,
-      ];
-      for (const [group, count] of Object.entries(novel.mutation_counts_by_group)) {
-        if (count > 0) ledgerLines.push(`  ${group}: ${count}`);
+Do not narrate, imply, or introduce content that evokes these topics. They are
+kept out of every scene, every scene description, and every choice.`;
+    },
+  },
+  {
+    // REQ-306 — autonomy state (GM only).
+    token: "autonomy",
+    group: "autonomy state",
+    layer: "supplementary",
+    badges: GM_ONLY,
+    empty: "omit",
+    hasContent: () => true,
+    render: (c) => {
+      const a = c.novel.autonomy;
+      let out = `\n\n### Autonomy
+Level: ${a.level} | Confirmation: ${a.confirmation} | Safety: ${a.safety} | Creativity: ${a.creativity}`;
+      // REQ-306c — at mechanical_prompt the AI must pause at mechanical decisions.
+      if (a.level === "mechanical_prompt") {
+        out += `\nMechanical decisions pause: before resolving a ruleset-derived mechanic, call manage_scene (action: choices) with [NEED_INPUT] and act on the human's respond_decision answer.`;
       }
-      if (state.stateDriftActive(novel)) ledgerLines.push(`  [state-drift] GM context saved after last mutation — narration may be uncommitted.`);
-      if (novel.state_regression) ledgerLines.push(`  [state-regression] restored from backup (audit gap ${novel.state_regression.audit_gap}).`);
-      briefing += `\n\n### state_ledger\n${ledgerLines.join("\n")}`;
-    }
-
-    // REQ-407 — persist-tools never truncated: the GM scene-typed tool
-      // section always lists the core state-persistence tools regardless of
-      // scene type (scene, journal, countdown, note, personality, NPC, vow,
-      // event log, belief/evidence, identity, causal state, corpus, semantic
-      // index, knowledge graph, agent tasks, perception, base capabilities).
-      briefing += `\n\n### Persistence tools\nmanage_scene (set) · manage_story (record) · manage_countdown (set) · manage_note (set) · manage_character (personality) · manage_npc (create) · manage_vow (set) · ${[...new Set(PERSISTENCE_CATEGORY_TOKENS.map((row) => row.tool))].join(" · ")} · manage_knowledge (index_build/graph_build) · resolve_mechanic (fate_aspect) · resolve_mechanic (ironsworn_momentum) · resolve_mechanic (forged_stress)`;
-
-      if (badge === "observer") {
-      // REQ-366 — observer omniscient orientation directive.
-      briefing += `\n\n### Observer Mode
-You are both Game Master and Player. The human is observing. Narrate scenes, make decisions for all player characters, advance combat, play the Novel. Narrate from an omniscient perspective — you see all entity percepts, presence markers, and knowledge, but never GM-only surfaces (secrets, faction clocks, countdown positions, GM context).`;
-    }
-
-    // Triggered lore is rendered by composeLoreSection for every badge
-    // (REQ-083a/f, REQ-155a, REQ-328b).
-
+      return out;
+    },
+  },
+  {
+    // REQ-089 — novel-setup progress markers.
+    token: "novel_setup",
+    group: "Novel setup metadata",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: () => true,
+    render: (c) => {
+      const setupMark = (done: boolean) => (done ? "[✓]" : "[ ]");
+      let out = `\n\n### Novel Setup
+Characters: ${setupMark(c.novel.characters_present)} | Story source: ${setupMark(c.novel.adventure_set)} | Session zero: ${setupMark(c.novel.session_zero_completed)}`;
+      if (!c.novel.session_zero_completed) {
+        out += `\nA session zero has not been completed yet — run the session zero guide before play begins.`;
+      }
+      return out;
+    },
+  },
+  {
+    // REQ-320 — recent narrative-intent verbs (GM).
+    token: "player_intent",
+    group: "player intent",
+    layer: "supplementary",
+    badges: GM_ONLY,
+    empty: "omit",
+    hasContent: (c) => !!(c.novel as any).player_intents?.length,
+    render: (c) => {
+      const intents = (c.novel as any).player_intents;
+      if (!intents?.length) return "";
+      const recent = intents.slice(-5).map((p: any) => `${p.warning ? "[WARNING]" : "[OK]"} ${p.intent}`);
+      return `\n\n### Player Intent\n${recent.join("\n")}`;
+    },
+  },
+  {
     // REQ-337 — story beats arc (GM surface: shared + GM beats).
-    if (novel.story_beats.length > 0) {
+    token: "story_beats",
+    group: "story beats",
+    layer: "supplementary",
+    badges: GM_OR_OBSERVER,
+    empty: "marker",
+    hasContent: (c) => c.novel.story_beats.length > 0,
+    render: (c) => {
+      if (c.novel.story_beats.length === 0) return "\n\n### Story beats\n[No beats completed.]";
       const window = configInt("TTRPG_STORY_BEAT_WINDOW", 10);
-      const recent = novel.story_beats.slice(-window);
-      const beatLine = recent.map((b) => `${b.beat} ("${b.scene_preview}")${b.source === "adventure-scaffold" ? " [adventure-scaffold]" : ""}`).join(" -> ");
-      briefing += `\n\n### Story beats\n${beatLine}`;
-    } else {
-      briefing += `\n\n### Story beats\n[No beats completed.]`;
-    }
-
-    // REQ-281 — narrative-threads section token (decision-critical group):
-    // unresolved decisions, active promises, countdowns, non-default NPC
-    // dispositions, active vows, and §5.12 couplings; badge-filtered.
-    const threadLines: string[] = [];
-
-    const pacing = pacingSignalText(novel);
-    if (pacing) threadLines.push(pacing);
-
-    // REQ-236b — relationship-change markers for the current scene.
-    threadLines.push(...relationshipMarkerLines(novel, badge, entity?.id));
-
-    const unresolvedDecisions = novel.story_journal.filter((s) => s.type === "decision" && !novel.story_journal.some((c) => c.type === "consequence" && c.scene_anchor === s.scene_anchor));
-    for (const s of unresolvedDecisions.slice(-3)) threadLines.push(`Unresolved: ${s.entry}`);
-
-    const openBonds = novel.story_journal.filter((s) => s.type === "bond" && !novel.story_journal.some((c) => c.type === "consequence" && c.entry === s.entry));
-    for (const s of openBonds.slice(-3)) threadLines.push(`Promise: ${s.entry}`);
-
-    for (const v of novel.vows) {
-      if (v.state === "active") {
-        const description = v.description ? ` — ${v.description}` : "";
-        const parties = (v.parties ?? []).length > 0 ? ` (parties: ${v.parties.join(", ")})` : "";
-        threadLines.push(`Vow: ${v.name}${description}${parties} (${v.difficulty}, ${v.milestones}/${v.rank_track} milestones)`);
-      }
-    }
-    // REQ-073a1 — a linked chain renders as an indented tree: parents first,
-    // their children beneath.
-    const clockLines: string[] = [];
-    for (const [name, cd] of novel.countdowns) {
-      if (cd.linked_parent) continue;
-      if (cd.ticks > 0 || cd.clock_type === "mission") clockLines.push(`Countdown: ${name} (${countdownDisplay(cd)})`);
-      for (const [childName, child] of novel.countdowns) {
-        if (child.linked_parent !== name) continue;
-        clockLines.push(`  Countdown: ${childName} (${countdownDisplay(child)})`);
-      }
-    }
-    threadLines.push(...clockLines);
-    if (badge === "game_master") {
-      for (const [, npc] of novel.npcs) {
-        if (npc.disposition && npc.disposition !== "neutral") threadLines.push(`${npc.name} (${npc.disposition})`);
-      }
-    }
-
-    threadLines.push(...collectCouplingAdvisories(novel, entity));
-
-    // REQ-322 — vow-countdown coupling suggestion surfaced in narrative_threads.
-    if (novel.pending_vow_countdown_suggestion) {
-      const s = novel.pending_vow_countdown_suggestion;
-      threadLines.push(`Vow countdown suggestion: create '${s.countdown_name}' (${s.tick_count} ticks, mission) tied to vow '${s.vow_name}' — respond \`accept\` or \`decline\`.`);
-    }
-
-    if (threadLines.length > 0) {
-      briefing += `\n\n### Narrative threads\n${threadLines.join("\n")}`;
-    } else {
-      briefing += `\n\n### Narrative threads\n[No unresolved threads.]`;
-    }
-
-    // REQ-339 — World in Motion: goal-pursuit suggestions (GM only);
-    // REQ-233a — the reactivity cycle runs only while world reactivity is on.
-    if (badge === "game_master" && worldReactivityOn()) {
-      if (opts.mutate && npcAutonomyOn()) {
-        for (const [, npc] of novel.npcs) {
-          const goal = npc.personality?.goals;
-          if (!goal) continue;
-          const prevSuggestion = novel.npc_goal_suggestions.find((s) => s.npc_id === npc.id);
-          if (prevSuggestion?.state === "dismissed" || prevSuggestion?.state === "accepted") continue;
-          ensureGoalSuggestion(novel, npc.id, npc.name, goal);
-        }
-      }
-      // REQ-339e — session-boundary beats, once per session, derived from the
-      // audit log. Default off; requires NPC autonomy.
-      if (opts.mutate && npcAutonomyOn() && npcProactiveBoundaryOn() && !boundaryBeatFiredThisSession(novel)) {
-        const surfaced: string[] = [];
-        for (const [, npc] of novel.npcs) {
-          const goal = npc.personality?.goals;
-          if (!goal) continue;
-          const prev = novel.npc_goal_suggestions.find((s) => s.npc_id === npc.id);
-          if (prev?.state === "dismissed" || prev?.state === "accepted") continue;
-          ensureGoalSuggestion(novel, npc.id, npc.name, goal);
-          surfaced.push(npc.id);
-        }
-        if (surfaced.length > 0) audit("npc-boundary-beat", { npcs: surfaced });
-      }
-      const active = novel.npc_goal_suggestions.filter((s) => s.state !== "dismissed" && s.state !== "accepted");
-      const npcLines = active.map((s) => {
-        // REQ-339d — the auto-apply option surfaces only for NPCs carrying a
-        // populated mind directive when TTRPG_NPC_MIND=on.
-        const npc = novel.npcs.get(s.npc_id);
-        const choices = npcMindOn() && npc?.mind?.directive
-          ? "`accept`, `defer`, `dismiss`, or `auto-apply`"
-          : "`accept`, `defer`, or `dismiss`";
-        return `${s.text}\n   — respond ${choices} (suggestion ${s.npc_id})`;
-      });
-      // REQ-233a2 — pending world changes carry source, summary, and the
-      // accept/modify/defer labels.
-      const changeLines = novel.world_in_motion
-        .filter((c) => c.state === "pending" || c.state === "deferred")
-        .map((c) => {
-          const affects = c.targets.length > 0 ? `; affects: ${c.targets.join(", ")}` : "";
-          return `${c.summary}\n   — source: ${c.source}${affects}; respond \`accept\`, \`modify\`, or \`defer\` (change ${c.id})`;
+      const recent = c.novel.story_beats.slice(-window);
+      const beatLine = recent.map((b: any) => `${b.beat} ("${b.scene_preview}")${b.source === "adventure-scaffold" ? " [adventure-scaffold]" : ""}`).join(" -> ");
+      return `\n\n### Story beats\n${beatLine}`;
+    },
+  },
+  {
+    // REQ-159/REQ-265 — active synthesis and Ruleset Wisdom content.
+    token: "synthesis",
+    group: "synthesis and Ruleset Wisdom",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: (c) => {
+      const anyActive = (mod: string) => effectiveWisdomItems(mod).filter(badgeCanSeeWisdom).length > 0;
+      return SYNTHESIS_MODULES.some((mod) => isModuleEnabled(mod) && anyActive(mod))
+        || (c.novel.supplementary_rulesets ?? []).some((s: any) => (s.wisdom ?? []).length > 0)
+        || Object.keys(c.novel.player_synthesis ?? {}).length > 0;
+    },
+    render: (c) => {
+      const synthLines: string[] = [];
+      const renderItems = (label: string, items: any[], pick: (i: any) => string): void => {
+        if (items.length === 0) return;
+        synthLines.push(`${label}:`);
+        const rank = (i: any): number => (i?.confidence === "LOW" ? 2 : i?.confidence === "MEDIUM" ? 1 : 0);
+        [...items].sort((a, b) => rank(a) - rank(b)).slice(0, 5).forEach((i: any) => {
+          const conf = i.confidence ? ` [${i.confidence}]` : "";
+          const src = i.source_url ? ` (${i.source_url})` : "";
+          synthLines.push(`- ${wisdomTag(i)}${conf} ${pick(i)}${src}`);
         });
-      const wimLines = [...npcLines, ...changeLines];
-      if (wimLines.length > 0) {
-        briefing += `\n\n## World in Motion\n${wimLines.join("\n")}`;
-        if (opts.mutate) state.saveNovel(novel);
+      };
+      renderItems("Supplementary guidance", effectiveWisdomItems("supplementary_guidance").filter(badgeCanSeeWisdom), (i) => i.content);
+      renderItems("Lore templates", effectiveWisdomItems("lore_templates").filter(badgeCanSeeWisdom), (i) => i.content);
+      renderItems("Voice examples", effectiveWisdomItems("voice_examples").filter(badgeCanSeeWisdom), (i) => i.content);
+      renderItems("Narrative voices", effectiveWisdomItems("narrative_voices").filter(badgeCanSeeWisdom), (i) => i.description ? `${i.name} — ${String(i.description).slice(0, 240)}` : i.name);
+      renderItems("Action patterns", effectiveWisdomItems("action_patterns").filter(badgeCanSeeWisdom), (i) => i.intent);
+      if (c.novel.adventure_set || c.novel.adventure_slug) {
+        renderItems("Adventure advice", effectiveWisdomItems("adventure_advice").filter(badgeCanSeeWisdom), (i) => i.content);
       }
-    }
+      // REQ-372 — supplementary imports surface as Wisdom before synthesis.
+      const imported = (c.novel.supplementary_rulesets ?? [])
+        .flatMap((s: any) => (s.wisdom ?? []).map((w: any) => ({ ...w, tag: "supplementary" })))
+        .filter((i: any) => isModuleEnabled(i.module) && badgeCanSeeWisdom(i));
+      renderItems("Imported Wisdom", imported, (i) => i.content);
+      // REQ-261 — player-authored items, active unless deactivated.
+      const playerItems = Object.entries(c.novel.player_synthesis ?? {}).flatMap(([m, items]) =>
+        (items as any[])
+          .filter((i: any) => i.active !== false && isModuleEnabled(m) && badgeCanSeeWisdom(i))
+          .map((i: any) => `- [player] ${m}: ${i.key}`));
+      synthLines.push(...playerItems);
+      return synthLines.length > 0 ? `\n\n### Synthesis\n${synthLines.join("\n")}` : "";
+    },
+  },
+  {
+    // REQ-365a — tagged server notes (GM/Editor only), sorted for stable bytes.
+    token: "server_guidance",
+    group: "server guidance notes",
+    layer: "supplementary",
+    badges: ["game_master", "none"],
+    empty: "omit",
+    hasContent: () => [...state.serverNotes.values()].some((note: any) => !!note.narrative_tag && !!note.content),
+    render: () => {
+      const noteLines = [...state.serverNotes.entries()]
+        .filter(([, note]) => !!note.narrative_tag && !!note.content)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([, note]) => `- [${String(note.narrative_tag).replace(/_/g, "-")}] ${note.content}`);
+      return noteLines.length > 0 ? `\n\n### Server guidance\n${noteLines.join("\n")}` : "";
+    },
+  },
+  {
+    // REQ-242b — Novel notes, badge-filtered.
+    token: "notes",
+    group: "Novel notes",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: (c) => c.novel.notes.length > 0,
+    render: (c) => composeNotesSection(c.novel, c.badge),
+  },
+  {
+    // REQ-412 — turn-handoff directive; the variant follows the AI narrative
+    // role (REQ-304/REQ-598), and the Editor badge carries no directive.
+    token: "turn_handoff",
+    group: "turn handoff directive",
+    layer: "supplementary",
+    empty: "omit",
+    hasContent: (c) => c.badge !== "none" && (narrativeRole(c.novel) === "player" || (narrativeRole(c.novel) === "game_master" && (c.badge === "player" || c.badge === "observer"))),
+    render: (c) => {
+      if (c.badge === "none") return "";
+      const handoffRole = narrativeRole(c.novel);
+      if (handoffRole === "game_master" && (c.badge === "player" || c.badge === "observer")) {
+        return `\n\n### Turn handoff
+Close each narrated turn by inviting the player's next action — ask what they do, where they look, or what they say next. Never end a turn with a tool signature or a parameter list; use a plain-English question or prompt to act.`;
+      }
+      if (handoffRole === "player") {
+        return `\n\n### Turn handoff
+You inhabit a player character. Close each in-character turn with an offer that hands initiative back to the human Game Master to describe the outcome or advance the scene.`;
+      }
+      return "";
+    },
+  },
+];
 
-    // REQ-109 — story journal (GM): recent decision/bond/moment entries.
-    const storyItems = novel.story_journal.slice(-3).map((s) => `${s.discovered ? "[discovered] " : ""}[${s.type}] ${s.entry}`).join("\n");
-    if (storyItems) {
-      briefing += `\n\n### Story journal\n${storyItems}`;
-    }
+// REQ-185b — the countdown group has no section of its own: REQ-281c renders
+// countdowns inside narrative threads, so the token selects that sub-block.
+const BRIEFING_VIEW_TOKENS: Array<{ token: string; group: string; hasContent: (novel: NovelState) => boolean }> = [
+  { token: "countdowns", group: "active countdowns", hasContent: (novel) => novel.countdowns.size > 0 },
+];
+
+const BRIEFING_BY_TOKEN = new Map<string, BriefingSection>(BRIEFING_SECTIONS.map((s) => [s.token, s]));
+
+// REQ-186a/REQ-186b — the valid token set: registry tokens in default order,
+// with the view token placed beside the section that renders it.
+const BRIEFING_TOKENS: Array<{ token: string; group: string; hasContent: (novel: NovelState) => boolean }> = (() => {
+  const rows: Array<{ token: string; group: string; hasContent: (novel: NovelState) => boolean }> = [];
+  for (const section of BRIEFING_SECTIONS) {
+    rows.push({ token: section.token, group: section.group, hasContent: (novel) => section.hasContent(briefingCtxFor(novel)) });
+    if (section.token === "narrative_threads") rows.push(...BRIEFING_VIEW_TOKENS);
+  }
+  return rows;
+})();
+
+const VALID_BRIEFING_TOKENS = BRIEFING_TOKENS.map((row) => row.token);
+
+// REQ-082a — an empty array (or no value) restores the builder default; a
+// non-empty array orders and filters the registry.
+function briefingSectionOrder(novel: NovelState): { tokens: string[]; overridden: boolean } {
+  const saved = novel.briefing_order ?? [];
+  if (saved.length === 0) return { tokens: BRIEFING_SECTIONS.map((s) => s.token), overridden: false };
+  return { tokens: saved.filter((token) => BRIEFING_BY_TOKEN.has(token)), overridden: true };
+}
+
+function briefingCtxFor(novel: NovelState): BriefingCtx {
+  const aiRole = process.env.TTRPG_AI_ROLE ?? "counterpart";
+  const role = aiRole === "counterpart" ? (novel.badge === "game_master" ? "player" : "game_master") : aiRole;
+  return {
+    novel,
+    badge: novel.badge,
+    entity: state.getActiveEntity(),
+    mutate: false,
+    orientation: "",
+    orientationBadge: role === "player" ? "player" : role === "game_master" ? "game_master" : "none",
+    includeCountdowns: true,
+  };
+}
+
+function composeBadgeBriefing(novel: NovelState | null | undefined, opts: { mutate: boolean }): string {
+  // REQ-136 — Editor-badge briefing: with no active Novel, return setup-oriented
+  // content — available Novels, the active Novel name if any, intro pointer.
+  if (!novel) {
+    const novels = [...state.novels.entries()].map(([slug, n]) => `- ${n.name} (${slug})`);
+    const list = novels.length > 0 ? `\nAvailable Novels:\n${novels.join("\n")}` : "\nNo Novels yet — create one to begin.";
+    return `## Editor Briefing${list}\n\nUse the intro prompt to get started, or manage_novel (action: create) to set up a new campaign.`;
   }
 
-  // REQ-242b — Novel notes, badge-filtered.
-  briefing += composeNotesSection(novel, badge);
+  const badge = novel.badge;
+  // REQ-412a — play-loop orientation token, adapted to the AI's narrative role
+  // (REQ-304, resolved by narrativeRole per REQ-598).
+  const loopRole = narrativeRole(novel) ?? "game_master";
+  const profile = guidanceProfile();
+  const orientation = composeBadgeOrientation(profile, loopRole);
 
-  // REQ-286 — knowledge state (decision-critical, all badges with an entity).
-  briefing += composeLoreSection(novel, badge);
-  briefing += composeKnowledgeState(novel, entity, badge);
+  // REQ-336/351 — the pacing counter advances in the tool-registry wrapper.
+  // Rendering the briefing reads the signal and commits one autonomy cycle when
+  // the window has been exceeded.
+  if (opts.mutate) triggerPacingAutonomy(novel);
 
-  // REQ-109 — intro pointer: always surface the intro prompt as an entry point.
-  briefing += `\n\nUse the intro prompt to get started, or badge_briefing for current badge guidance.`;
+  // REQ-304 — the AI's narrative role is the counterpart of the active badge by
+  // default; TTRPG_AI_ROLE locks the orientation. Orientation content (boundary,
+  // anti-slop, tone) follows the AI role; the badge controls the state surface.
+  const aiRole = process.env.TTRPG_AI_ROLE ?? "counterpart";
+  const orientationRole = aiRole === "counterpart"
+    ? (badge === "game_master" ? "player" : "game_master")
+    : aiRole;
+  const orientationBadge = orientationRole === "player" ? "player" : orientationRole === "game_master" ? "game_master" : "none";
+
+  const order = briefingSectionOrder(novel);
+  const ctx: BriefingCtx = {
+    novel,
+    badge,
+    entity: state.getActiveEntity(),
+    mutate: opts.mutate,
+    orientation,
+    orientationBadge,
+    includeCountdowns: !order.overridden || order.tokens.includes("countdowns") || !order.tokens.includes("narrative_threads"),
+  };
+
+  // REQ-109 — the identity header always renders; scene state, surface settings
+  // and the beat line are the first registry entry.
+  let briefing = `## Badge Briefing — ${badgeLabel(badge).toUpperCase()}
+**Novel:** ${novel.name} (${novel.slug})`;
+
+  for (const token of order.tokens) {
+    const section = BRIEFING_BY_TOKEN.get(token);
+    if (!section) continue;
+    if (section.badges && !section.badges.includes(badge)) continue;
+    const has = section.hasContent(ctx);
+    if (!has && section.empty === "omit") continue;
+    const body = section.render(ctx);
+    if (body) briefing += body;
+  }
 
   // REQ-118 — prompt length budget: truncate low-priority sections past budget.
+  // REQ-063/REQ-118 — the intro pointer and the consistency footer are appended
+  // after the budget pass so they are never truncated.
   briefing = applyPromptBudget(briefing);
 
-  // REQ-515–521 — briefing consistency cursor (never truncated).
+  // REQ-063 — always surface the intro prompt as an entry point.
+  briefing += `\n\nUse the intro prompt to get started, or badge_briefing for current badge guidance.`;
+
+  // REQ-515-521 — briefing consistency cursor (never truncated).
   const bc = briefingConsistency();
   briefing += `\n\n**Briefing consistency:** events through #${bc.through_ordinal}; index ${bc.index}; graph ${bc.graph}.${bc.advisory ? ` ${bc.advisory}` : ""}`;
 
   return briefing;
 }
-
 server.prompt("badge_briefing", "Current Badge Briefing", async () => {
   return { messages: [{ role: "user", content: { type: "text" as const, text: composeBadgeBriefing(state.activeNovel, { mutate: true }) } }] };
 });

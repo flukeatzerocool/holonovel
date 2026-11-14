@@ -546,6 +546,26 @@ async function main() {
       "Story beats", "Narrative threads", "Lore", "Knowledge state", "Player Tools", "Synthesis", "Server guidance"]);
     const seen = gm.split("\n").filter((l) => l.startsWith("### ")).map((l) => l.slice(4).trim());
     for (const heading of seen) assert(known.has(heading), `unknown briefing section: ${heading}`);
+    // REQ-109d/REQ-109e — the decision-critical layer precedes the
+    // supplementary layer, and each layer keeps its resolved default order.
+    const heads = [...gm.matchAll(/^#{2,3} ([^\n]+)$/gm)].map((m) => m[1].trim());
+    const CRITICAL = ["Point of view", "Party", "Narrative threads", "Combat", "NPCs (depth)", "Lore",
+      "Campaign Memory", "Knowledge state", "State persistence", "state_ledger",
+      "Available Actions (available_actions)", "Story journal"];
+    const SUPPLEMENTARY = ["Who They Are", "Play loop", "Anti-slop guidance", "Narrative tone",
+      "Badge boundary", "Personality", "Narrative directive", "Narration contract", "Adventure",
+      "GM State", "Persistence tools", "Player signals", "Autonomy", "Novel Setup", "Story beats",
+      "Synthesis", "Server guidance"];
+    let firstSupplementary = "";
+    for (const h of heads) {
+      if (SUPPLEMENTARY.includes(h)) { if (!firstSupplementary) firstSupplementary = h; continue; }
+      if (CRITICAL.includes(h)) assert(!firstSupplementary, `decision-critical section ${h} rendered after supplementary ${firstSupplementary}`);
+    }
+    const present = CRITICAL.filter((h) => heads.includes(h));
+    const positions = present.map((h) => heads.indexOf(h));
+    for (let i = 1; i < positions.length; i++) {
+      assert(positions[i] > positions[i - 1], `decision-critical order broken at ${present[i]}`);
+    }
     // Player badge sees the player-visible groups and none of the GM-only ones.
     await call(p, "set_badge", { badge: "player" });
     const player = await promptText(p, "badge_briefing");
@@ -554,6 +574,12 @@ async function main() {
     }
     for (const anchor of ["### Autonomy", "### GM State", "### Player signals", "### Narrator"]) {
       assert(!player.includes(anchor), `REQ-109f GM-only group leaked to Player: ${anchor}`);
+    }
+    // REQ-109e — the relative order survives the Player badge's filtering.
+    const pheads = [...player.matchAll(/^#{2,3} ([^\n]+)$/gm)].map((m) => m[1].trim());
+    const porder = ["Point of view", "Party", "Knowledge state", "Who They Are", "Play loop"].filter((h) => pheads.includes(h));
+    for (let i = 1; i < porder.length; i++) {
+      assert(pheads.indexOf(porder[i]) > pheads.indexOf(porder[i - 1]), `Player briefing order broken at ${porder[i]}`);
     }
     await call(p, "set_badge", { badge: "game_master" });
     // Empty markers and group omission.

@@ -11,6 +11,21 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-14 briefing section ordering
+
+- **F-S3 — the briefing's section order deviates from REQ-109d/109e. Resolved
+  (2026-11-14).** Predicate was the statement-order emission in
+  `holonovel/src/index.ts` (`composeBadgeBriefing`, pre-change `:17102-17734`):
+  `### Point of view` followed `### Novel Setup` and `### Narrative threads`
+  followed `### Autonomy`, while REQ-109e requires decision-critical groups to
+  precede supplementary ones. The composer now walks a single ordered
+  `BRIEFING_SECTIONS` registry (decision-critical layer first, REQ-281b's
+  threads-before-combat adjacency, who-they-are heading the supplementary
+  layer), and REQ-109d/REQ-109c2 were amended so the within-layer order and the
+  cross-layer placement are both determinate. Exercised by T109 (ordering legs,
+  GM and Player), T66 (override order/filter/persistence), and T149 (the
+  supplementary sections truncate before the decision-critical ones).
+
 ### 2026-11-13 trust-core error envelope
 
 The five error-envelope findings of the 2026-11-09 chunk-P1 sweep were resolved
@@ -2522,6 +2537,19 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
 
 ## Scheduled-roadmap
 
+### 2026-11-14 briefing section ordering — follow-ups
+
+- **F-S4 — REQ-281b's Player narrative-threads clause has no implementation or
+  assertion (scheduled):** `### Narrative threads` renders only inside the
+  GM/observer branch (the `narrative_threads` registry entry carries
+  `badges: ["game_master", "observer"]`), so a Player briefing carries no
+  unresolved-thread signal; REQ-281b requires the Player to see own-entity bonds
+  and `shared`-scope content. T330 (`test-output-contracts.ts:760-772`) asserts
+  the GM path only. A Player surface needs badge-filtered bond, countdown, and
+  disposition content, so it is its own increment rather than part of the
+  ordering change. Scheduled under `ROADMAP.md` § *Player narrative threads
+  (P1)*.
+
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
 - **F-P8-2 — duplicate test IDs shadow coverage resolution (2026-11-09):**
@@ -2539,25 +2567,6 @@ Probe status: the 2026-11-09 assertion-repair session ran the Appendix F rows
 against live harnesses. Four rows now pass and are committed (T136, T94, T144,
 T324); the rows below could not be asserted because the behaviour they name is
 absent, so each finding carries the failing predicate rather than a test.
-
-F-S1 (the four phantom `Automated` citations) is resolved and recorded under
-`## Resolved`; F-S3 below is scheduled under `ROADMAP.md` § *Briefing section
-ordering (P1)*. Each finding cites the predicate that carries it; none is
-derived from a gate message or a test failure.
-
-- **F-S3 — the briefing's section order deviates from REQ-109d/109e
-  (scheduled):** the rendered order places decision-critical groups after
-  supplementary ones — `### Point of view` (REQ-220) follows `### Novel Setup`
-  and `### Player signals`, and `### Narrative threads` / `### Lore` follow
-  `### Autonomy`, while REQ-109e requires the decision-critical groups (scene
-  state, POV, entities, combat, triggered lore, NPCs, countdowns, narrative
-  threads, available actions) to precede the supplementary ones. The observed
-  GM order is recorded in
-  `docs/plans/2026-11-14-trust-core-citation-repair/tasks.md`. T109 asserts
-  presence, the known-heading inventory, the empty markers, and the Player
-  exclusion, but not the ordering. Predicate: `composeBadgeBriefing`
-  section emission order (`holonovel/src/index.ts:17102-17460`);
-  `spec/02-requirements.md:1330-1333` (REQ-109d/109e).
 
 ### 2026-11-09 full-review sweep — chunk P2 (tool surface, §5.3)
 

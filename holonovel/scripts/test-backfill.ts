@@ -1477,10 +1477,54 @@ async function main() {
       if (a.tool_count !== b.tool_count) throw new Error("cached metadata drifted between calls");
     });
 
-    await test("T66/T225/T082: prompt section ordering — badge_briefing renders sections in order", async () => {
-      const brief = await getPrompt(proc, "badge_briefing", {});
-      assertContains(brief, "## ");
-      if (brief.indexOf("## ") === -1) throw new Error("no sections");
+    await test("T66/T225/T082: prompt section ordering — briefing_order reorders, filters, and persists", async () => {
+      await call(proc, "manage_novel", { action: "create",  name: "t66-order" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_character", { action: "create",  name: "Order Tester" });
+      await call(proc, "manage_scene", { action: "set",  description: "A vault door stands open" });
+      await call(proc, "manage_lore", { action: "set",  key: "t66-lore", content: "The vault code is 4417", triggers: ["vault"], visibility: "shared" });
+
+      // Builder default: decision-critical before supplementary (REQ-109e).
+      const defaultBrief = await getPrompt(proc, "badge_briefing", {});
+      assert(defaultBrief.indexOf("### Party") < defaultBrief.indexOf("### Autonomy"), "builder default order is not decision-critical first");
+
+      // Custom order: named groups render in the given order (REQ-082a).
+      assertContains(await call(proc, "manage_context", { action: "briefing_order",  sections: ["lore", "scene_state", "entities"] }), "Briefing order set");
+      const custom = await getPrompt(proc, "badge_briefing", {});
+      assert(custom.indexOf("### Lore") < custom.indexOf("### Party"), "briefing_order did not reorder sections");
+      assert(!custom.includes("### Autonomy"), "an omitted token still rendered its group");
+      assertContains(custom, "**Scene:**");
+
+      // A token whose group has no content renders its empty section.
+      await call(proc, "manage_context", { action: "briefing_order",  sections: ["story_beats"] });
+      const emptySection = await getPrompt(proc, "badge_briefing", {});
+      assertContains(emptySection, "### Story beats");
+      assertContains(emptySection, "[No beats completed.]");
+
+      // Unknown token refused, with the valid set enumerated and equal to
+      // spec_health.section_tokens (REQ-186b).
+      const bad = await call(proc, "manage_context", { action: "briefing_order",  sections: ["not_a_token"] });
+      assertContains(bad, "[INVALID_INPUT]");
+      const enumerated = (bad.match(/Valid tokens: (.*?)\./) ?? [])[1] ?? "";
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      assert(enumerated === health.section_tokens.map((r: any) => r.token).join(", "), "error enumeration and spec_health.section_tokens disagree");
+
+      // Player may not reorder; an empty array restores the builder default.
+      await call(proc, "set_badge", { badge: "player" });
+      assertContains(await call(proc, "manage_context", { action: "briefing_order",  sections: ["lore"] }), "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
+      await call(proc, "manage_context", { action: "briefing_order",  sections: [] });
+      assertContains(await getPrompt(proc, "badge_briefing", {}), "### Autonomy");
+
+      // The order persists with the Novel across a second process (REQ-082c).
+      await call(proc, "manage_context", { action: "briefing_order",  sections: ["lore", "entities"] });
+      const p2 = await boot();
+      await call(p2, "set_badge", { badge: "game_master" });
+      await call(p2, "manage_novel", { action: "resume",  slug: "t66-order" });
+      const persisted = await getPrompt(p2, "badge_briefing", {});
+      assert(persisted.indexOf("### Lore") < persisted.indexOf("### Party"), "briefing_order did not persist across a restart");
+      await kill(p2);
+      await call(proc, "manage_context", { action: "briefing_order",  sections: [] });
     });
 
     await test("T194/T159: synthesis briefing integration — spec_health reports synthesis status", async () => {
