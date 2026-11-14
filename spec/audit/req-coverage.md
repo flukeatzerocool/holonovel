@@ -19,10 +19,10 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-017 | Badge stories | 5.2 Extraction and Confidence | E | — | — |
 | REQ-018 | Extraction evidence | 5.2 Extraction and Confidence | E | — | — |
 | REQ-020 | Tools (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T5, T32, T259 | — |
-| REQ-021 | Tool-surface economy | 5.3 Tools, Resources, and Lookups | E | — | — |
+| REQ-021 | Tool-surface economy | 5.3 Tools, Resources, and Lookups | E | T35 | — |
 | REQ-022 | Resources (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T16 | — |
-| REQ-023 | Prompts (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T26, T49, T50, T155, T480 | — |
-| REQ-024 | Tool documentation (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T39, T49, T509, T488, T642 | — |
+| REQ-023 | Prompts (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T22, T26, T49, T50, T155, T480 | — |
+| REQ-024 | Tool documentation (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T35, T39, T49, T509, T488, T642 | — |
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T480, T93, T195, T204, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | T785, S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |

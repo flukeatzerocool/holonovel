@@ -2511,6 +2511,139 @@ async function main() {
     passed++;
   });
 
+  // ── REQ-023b/REQ-025c — prompt registration lifecycle and live counts ──
+  await test("T22/REQ-023b+REQ-025c: prompt registration lifecycle and live spec_health counts", async () => {
+    const p = await boot();
+    await call(p, "set_badge", { badge: "game_master" });
+    // REQ-023b — every prompt carries a served title and every declared
+    // argument carries a description. Host prompts declare no arguments, so
+    // the argument leg is vacuous today and stays as a guard.
+    const listed = await send(p, { method: "prompts/list", params: {} });
+    const promptList: any[] = listed?.result?.prompts ?? [];
+    if (promptList.length === 0) throw new Error("REQ-023b: prompts/list is empty");
+    for (const prompt of promptList) {
+      // The SDK's Prompt schema carries `description`; `server.prompt(name, title, cb)`
+      // serves the human title there, so the served title reads title ?? description.
+      const served = String(prompt?.description ?? prompt?.title ?? "");
+      if (served.trim() === "") throw new Error(`REQ-023b: prompt '${prompt?.name}' carries no served title`);
+      for (const arg of prompt?.arguments ?? []) {
+        if (String(arg?.description ?? "").trim() === "") {
+          throw new Error(`REQ-023b: prompt argument '${prompt?.name}.${arg?.name}' carries no description`);
+        }
+      }
+    }
+    // REQ-023b — prompts/get returns exactly one user-role message.
+    for (const prompt of promptList) {
+      const got = await send(p, { method: "prompts/get", params: { name: prompt.name, arguments: {} } });
+      if (got?.error) throw new Error(`REQ-023b: prompts/get '${prompt.name}' failed: ${got.error.message}`);
+      const messages = got?.result?.messages ?? [];
+      if (messages.length !== 1 || messages[0]?.role !== "user") {
+        throw new Error(`REQ-023b: prompts/get '${prompt.name}' returned ${messages.length} message(s), role ${messages[0]?.role}`);
+      }
+    }
+    // REQ-025c — counts derive from the live registrations at call time.
+    const before = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    const stubTool = {
+      name: "lookup_stub", title: "Stub Entry",
+      description: "Look up a stub entry. Use when: asserting live registration. Do NOT use when: a real package serves it.",
+      kind: "lookup", collection: "concepts",
+      inputSchema: { type: "object", properties: { key: { type: "string", description: "The stub key." } } },
+    };
+    const pkg: any = {
+      manifest: { slug: "lifecycle", name: "Lifecycle Stub", host_version: "2026.10.20", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-10-20", counts: { index: 0 } },
+      index: [],
+      model: { concepts: {}, tables: {}, generation_tables: {} },
+      tools: [stubTool],
+      resources: [],
+      prompts: [{ name: "lifecycle_intro", title: "Lifecycle Introduction", text: "A stub prompt registered at runtime." }],
+    };
+    pkg.manifest.content_hash = contentHash(pkg);
+    const installed = await call(p, "manage_ruleset", {
+      action: "install", slug: "lifecycle", manifest: pkg.manifest, index: pkg.index,
+      model: pkg.model, tools: pkg.tools, resources: pkg.resources, prompts: pkg.prompts,
+    });
+    assertContains(installed, "installed", "REQ-023b stub package installed without restart");
+    const afterPrompts = await send(p, { method: "prompts/list", params: {} });
+    assertContains((afterPrompts?.result?.prompts ?? []).map((x: any) => x.name).join(","), "lifecycle_intro", "REQ-023b stub prompt served without restart");
+    const afterTools = await send(p, { method: "tools/list", params: { _meta: { scope: "all" } } });
+    assertContains((afterTools?.result?.tools ?? []).map((x: any) => x.name).join(","), "lifecycle_lookup_stub", "REQ-023b stub tool served without restart");
+    const after = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    if (after.tool_count !== before.tool_count + 1) {
+      throw new Error(`REQ-025c: tool_count ${before.tool_count} -> ${after.tool_count}, expected +1 on install`);
+    }
+    if (after.prompt_count !== before.prompt_count + 1) {
+      throw new Error(`REQ-025c: prompt_count ${before.prompt_count} -> ${after.prompt_count}, expected +1 on install`);
+    }
+    const removed = await call(p, "manage_ruleset", { action: "remove", slug: "lifecycle" });
+    assertContains(removed, "removed", "REQ-023b stub package removed");
+    const gonePrompts = await send(p, { method: "prompts/list", params: {} });
+    assertNotContains((gonePrompts?.result?.prompts ?? []).map((x: any) => x.name).join(","), "lifecycle_intro", "REQ-023b stub prompt deregistered");
+    await kill(p);
+    // REQ-023b — removing the stub and restarting keeps it absent.
+    const restarted = await boot();
+    const afterRestart = await send(restarted, { method: "prompts/list", params: {} });
+    assertNotContains((afterRestart?.result?.prompts ?? []).map((x: any) => x.name).join(","), "lifecycle_intro", "REQ-023b stub prompt absent after restart");
+    const restartTools = await send(restarted, { method: "tools/list", params: { _meta: { scope: "all" } } });
+    assertNotContains((restartTools?.result?.tools ?? []).map((x: any) => x.name).join(","), "lifecycle_lookup_stub", "REQ-023b stub tool absent after restart");
+    await kill(restarted);
+    passed++;
+  });
+
+  // ── REQ-024a — installed-package isolation and title pass-through ──
+  await test("T35/REQ-024a: fixture-only package tools stay isolated and keep their declared titles", async () => {
+    seedRuleset();
+    const p = await boot();
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_novel", { action: "create", name: "isolation", ruleset: "wave1test" });
+    const fixtureNames = ["create_delver", "roll_move", "start_confrontation"];
+    const listed = await send(p, { method: "tools/list", params: {} });
+    const targetNames: string[] = (listed?.result?.tools ?? []).map((x: any) => x.name);
+    for (const name of fixtureNames) {
+      const leaked = targetNames.filter((n) => n.endsWith(`_${name}`));
+      assertNotContains(leaked.join(","), name, `REQ-024a fixture-only tool '${name}' absent from the target ruleset`);
+    }
+    const tools = fixtureNames.map((name) => ({
+      name,
+      title: name === "create_delver" ? "Create Delver" : name === "roll_move" ? "Roll Move" : "Start Confrontation",
+      description: `A fixture-only ${name} action. Use when: serving the delver fixture. Do NOT use when: serving another ruleset.`,
+      kind: name === "roll_move" ? "roll" : "lookup",
+      collection: "concepts",
+      inputSchema: { type: "object", properties: { name: { type: "string", description: "The delver or move name." } } },
+    }));
+    const pkg: any = {
+      manifest: { slug: "fixtiso", name: "Fixture Isolation", host_version: "2026.10.20", package_format: PACKAGE_FORMAT, content_hash: "TBD", built_at: "2026-10-20", counts: { index: 0 } },
+      index: [],
+      model: { concepts: {}, tables: {}, generation_tables: {} },
+      tools, resources: [], prompts: [],
+    };
+    pkg.manifest.content_hash = contentHash(pkg);
+    const installed = await call(p, "manage_ruleset", {
+      action: "install", slug: "fixtiso", manifest: pkg.manifest, index: pkg.index,
+      model: pkg.model, tools: pkg.tools, resources: pkg.resources, prompts: pkg.prompts,
+    });
+    assertContains(installed, "installed", "REQ-024a fixture package installed");
+    // REQ-391a — the default listing is infrastructure plus the active Novel's
+    // ruleset, so the installed package is asserted through the full catalog
+    // (scope=all) while the absence above used the scoped listing.
+    const serving = await send(p, { method: "tools/list", params: { _meta: { scope: "all" } } });
+    const servingTools: any[] = serving?.result?.tools ?? [];
+    for (const [i, name] of fixtureNames.entries()) {
+      const entry = servingTools.find((t: any) => t.name === `fixtiso_${name}`);
+      if (!entry) throw new Error(`REQ-024a fixture tool 'fixtiso_${name}' not served`);
+      if (entry.title !== tools[i].title) {
+        throw new Error(`REQ-024a '${entry.name}' title '${entry.title}', expected the package-declared '${tools[i].title}'`);
+      }
+    }
+    const removed = await call(p, "manage_ruleset", { action: "remove", slug: "fixtiso" });
+    assertContains(removed, "removed", "REQ-024a fixture package removed");
+    // The SDK has no tool-deregistration API, so a removed package's tool stays
+    // in the catalog and is refused only by the scope gate. That listing residue
+    // is recorded in the register (F-P2-6); the isolation contract asserted
+    // here is absence before install and presence while installed.
+    await kill(p);
+    passed++;
+  });
+
   // ── REQ-389b corrupted-hash rejection ──
   await test("T452/REQ-389: corrupted package manifest hash is rejected by slug with hashes named", async () => {
     seedRuleset();

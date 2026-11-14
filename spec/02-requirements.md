@@ -734,7 +734,7 @@ The server provides prompts covering multi-step workflows, badge briefing, conne
 **REQ-023b — Prompts (Part b).**
 Adding a tool, resource, or guidance item updates prompt output without restart. `prompts/get` returns exactly one user-role message. `prompts/list` carries a title on every prompt and a description on every argument. *Acceptance criterion:* Removing a stub tool and restarting removes it from all host prompts; adding a tool updates prompt output without restart; `prompts/list` carries a title on every prompt and a description on every argument. _Check:_ T22, T28, T155.
 **REQ-024a — Tool documentation (Part a).**
-Every tool carries a `title` field with the ruleset's own term for that action. Annotations match action classification. *Acceptance criterion:* Every tool's `title` field uses the ruleset's own term for that action; a `lookup_weapon` tool under D&D 5e is titled "Weapons" not "lookup_weapon." _Check:_ T3, T35, T39. The `description` field SHALL follow a three-clause structure: a one-line summary of the tool's action (verb + object), a "Use when:" clause naming concrete scenarios that select this tool, and a "Do NOT use when:" clause naming the nearest sibling tool the caller SHALL prefer for similar-sounding requests, or, when no sibling is plausibly confusable, the intra-tool precondition that excludes this tool.
+Every tool carries a `title` field with the ruleset's own term for that action. Annotations match action classification. *Acceptance criterion:* Every tool's `title` field uses the ruleset's own term for that action; a `lookup_weapon` tool under D&D 5e is titled "Weapons" not "lookup_weapon." _Check:_ T3, T35. The `description` field SHALL follow a three-clause structure: a one-line summary of the tool's action (verb + object), a "Use when:" clause naming concrete scenarios that select this tool, and a "Do NOT use when:" clause naming the nearest sibling tool the caller SHALL prefer for similar-sounding requests, or, when no sibling is plausibly confusable, the intra-tool precondition that excludes this tool.
 
 **REQ-024b — Tool documentation (Part b).**
 The server truncates descriptions longer than three sentences in `tools/list`; the full text remains available at `resources/read`. *Acceptance criterion:* Every tool's description contains all three clauses; overlapping tools (e.g., `roll_weapon_attack` and `roll_weapon_damage`) name each other in their disambiguation clauses; a verifier can map a natural-language player intent to the correct tool using only the tool descriptions. _Check:_ T3, T49.
@@ -773,7 +773,7 @@ Confidence scores appear per-file and overall. For builds that converted content
 `spec_health` also reports prompt health — each registered prompt's presence, length relative to budget, and stale references. The report also includes a gap audit section that compares the current spec version against the build-time version, with tool-catalog, resource-map, prompt-list, and badge-gating comparisons. Cross-reference health reports the total, resolved, unresolved, and unresolved percentage across discovered ruleset cross-references, with regression detection on rebuild. Pattern Buffer scenarios report the passed count, total count, and last-run timestamp. Search index coverage reports total headings, indexed headings, and coverage percentage, with unmapped sections flagged where coverage sits below threshold.
 
 **REQ-025c — spec_health (Part c).**
-The Player badge sees only player-filtered metrics. Build-phase-dependent sections (the convergence summary and the gap audit) appear only after the build completes. *Acceptance criterion:* `spec_health` counts match the live registry — adding a tool, resource, or prompt increments the count immediately; counts are derived from arrays at call time, not hardcoded. _Check:_ T15, T45, T93, T105, T154, T165, T166, T170.
+The Player badge sees only player-filtered metrics. Build-phase-dependent sections (the convergence summary and the gap audit) appear only after the build completes. *Acceptance criterion:* `spec_health` counts match the live registry — adding a tool, resource, or prompt increments the count immediately; counts are derived from arrays at call time, not hardcoded. _Check:_ T15, T22, T93, T105.
 
 **REQ-411 — Stable-metadata caching.**
 Rendered content that does not change between calls — tool schemas, prompt scaffolding, and
@@ -823,7 +823,7 @@ When no Novel is active, the field does not appear. *Acceptance criterion:* A No
 `spec_health` SHALL include, for each registered prompt: its name, presence (present/absent), character length, the configured budget from REQ-118, a budget-compliance flag (within/exceeded), and a stale-references list. The stale-references list names tool or resource names appearing in the prompt's rendered text that do not match any name in the live tool registry or resource map. A stale reference is one whose name (matching by exact string or the MCP SDK's registration name) appears in the prompt text but is absent from the live registrations at call time. The absence of any stale references SHALL be reported as an empty list.
 
 **REQ-138b — Prompt health reporting (Part b).**
-Prompt health SHALL be present in `spec_health` regardless of build mode. *Acceptance criterion:* `spec_health` reports prompt health for every registered prompt; renaming a tool referenced in a prompt produces a stale reference entry on the next `spec_health` call; restoring the tool name clears the entry. _Check:_ T152, T167.
+Prompt health SHALL be present in `spec_health` regardless of build mode. *Acceptance criterion:* `spec_health` reports prompt health for every registered prompt; renaming a tool referenced in a prompt produces a stale reference entry on the next `spec_health` call; restoring the tool name clears the entry. _Check:_ T152.
 **REQ-139 — Resource URI completeness reporting.** `spec_health` SHALL report
 resource URI presence: for every URI template defined in the REQ-022 resource
 catalog, `spec_health` SHALL list the URI, its presence (present/absent), its
@@ -834,7 +834,7 @@ The report SHALL be absent when the build is not yet complete.
 *Acceptance criterion:* `spec_health.resource_uris` lists every REQ-022 URI
 with presence; registering a new resource adds an entry immediately; removing a
 resource changes its presence to `absent`.
-_Check:_ T153, T168.
+_Check:_ T153.
 
 **REQ-269 — Safety protocol status.** The server SHALL report, through `spec_health`,
 a `safety_protocols` object enumerating each safety property (state loss, badge
@@ -970,7 +970,7 @@ The prompt SHALL use the ruleset's own terminology for mechanical concepts. `ses
 The ruleset defines certain categories as canonical content: equipment, spells, monsters/stat-blocks, conditions, feats, class features, species, and backgrounds. For each such category, a `lookup_<category>` tool accepts the canonical name and documented aliases and returns the full ruleset entry. Unknown names return `[ERROR] [NOT_FOUND]` with valid values enumerated; the tool returns no fabricated entry.
 
 **REQ-057b — Canonical lookup tools (Part b).**
-For additional ruleset-unique canonical content — talent trees, abilities, features, or other named resources — `lookup_<feature>` tools follow the same pattern. *Acceptance criterion:* `lookup_spell("fireball")` returns every field the ruleset defines; `lookup_spell("nonexistent")` returns `[NOT_FOUND]` with session-visible valid spell names and a "Did you mean?" hint when applicable. _Check:_ T39, T40.
+For additional ruleset-unique canonical content — talent trees, abilities, features, or other named resources — `lookup_<feature>` tools follow the same pattern. *Acceptance criterion:* `lookup_spell("fireball")` returns every field the ruleset defines; `lookup_spell("nonexistent")` returns `[NOT_FOUND]` with session-visible valid spell names and a "Did you mean?" hint when applicable. _Check:_ T39.
 **REQ-112 — Cross-reference discovery.** When the ruleset text for a canonical entry
 names another ruleset section by its heading or anchor, the lookup result includes a
 pointer to that section — the section anchor and a one-line description of the

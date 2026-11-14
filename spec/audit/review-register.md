@@ -26,6 +26,40 @@ condition — not a gate's emitted message; a message alone is not evidence.
   GM and Player), T66 (override order/filter/persistence), and T149 (the
   supplementary sections truncate before the decision-critical ones).
 
+### 2026-11-14 §5.3 citation repair
+
+The three §5.3 citation findings scheduled under the 2026-11-09 chunk-P2 sweep
+were resolved in the §5.3 citation-repair increment (plan
+`docs/plans/2026-11-14-s5-3-citation-repair/`). Two assertions were written;
+five Check trailers were re-pointed to exercised IDs. The cold plan review
+proved that two acceptance criteria run deeper than the implementation, so
+their depth is scheduled rather than claimed (F-P2-5).
+
+- **F-P2-1 — REQs citing T22 with no implementing harness. Resolved
+  (2026-11-14).** T22 now exists at
+  `holonovel/scripts/test-output-contracts.ts:2515` and asserts the prompt
+  lifecycle: a served title on every prompt, a description on every declared
+  argument, exactly one user-role message per `prompts/get`, a runtime-installed
+  stub prompt/tool appearing without restart, and the prompt/tool absent after
+  removal and restart. The zero-padded `T022` token at
+  `holonovel/scripts/test-backfill.ts:210` is a different assertion and is
+  handled by F-P2-4. REQ-078d keeps its T22 citation, which is now exercised.
+- **F-P2-2 — REQ-024a cites T35 with no implementing harness. Resolved
+  (2026-11-14).** T35 now exists at
+  `holonovel/scripts/test-output-contracts.ts:2593`: fixture-only tool names are
+  absent from the target ruleset's scoped `tools/list`, present as
+  `<slug>_<name>` in the full catalog when a package declares them, and each
+  entry carries the package-declared title so REQ-024a's title clause is
+  evidenced. The Appendix F row was narrowed to that implementable surface (the
+  Appendix B fixture is spec prose, not an installable package).
+- **F-P2-3 — REQs citing stale test IDs whose behaviour is exercised under
+  another ID. Resolved (2026-11-14).** The Check trailers now cite the closest
+  exercised assertion: REQ-025c cites `T15, T22, T93, T105` (the live-count leg
+  is T22's); REQ-138b cites T152; REQ-139 cites T153; REQ-057b cites T39 (which
+  asserts the `[NOT_FOUND]` enumeration and the "Did you mean" hint). The
+  build-mode convergence rows T45/T154/T165/T166/T167/T168/T170 keep their
+  Appendix F attribution and no longer appear as runtime Check citations.
+
 ### 2026-11-13 trust-core error envelope
 
 The five error-envelope findings of the 2026-11-09 chunk-P1 sweep were resolved
@@ -2570,38 +2604,16 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P2 (tool surface, §5.3)
 
-Scheduled under `ROADMAP.md` § *§5.3 citation repair (P1)* and
-§ *Harness test-ID label hygiene (P2)*. Each finding cites the predicate that
+Scheduled under `ROADMAP.md` § *§5.3 prompt-health and resource-presence
+depth (P1)* and § *Harness test-ID label hygiene (P2)*. Each finding cites the predicate that
 carries it; the citation findings rest on an enumeration of the §5.3 blocks
 against Appendix F and the harness corpus, not on a gate message.
 
-- **F-P2-1 — nine §5.3 REQs cite T22 with no implementing harness
-  (scheduled):** REQ-023a and REQ-023b cite T22 (prompt registration lifecycle:
-  stub tool appears/absent across restart, exactly one user-role message, a
-  title on every prompt, a description on every argument). No harness under
-  `holonovel/scripts` or `scripts` references T22. The only literal token is
-  `T022` at `holonovel/scripts/test-backfill.ts:164`, whose title is
-  `T16/T022: resources/list exposes world + spec resources` — a different
-  assertion, so it is a false match. REQ-078a–078d inherit the same citation
-  but are already exercised by T124
-  (`holonovel/scripts/test-output-contracts.ts:320`), so they need a re-point,
-  not a new assertion. Predicate: `test-backfill.ts:164`;
-  `spec/02-requirements.md` REQ-023b and REQ-078a–078d Check lines.
-- **F-P2-2 — REQ-024a cites T35 (fixture isolation) with no implementing
-  harness (scheduled):** T35 asserts fixture-only tool names
-  (`create_delver`, `roll_move`, `start_confrontation`) are absent from
-  `tools/list` for the target ruleset and present when serving the fixture.
-  Neither token appears in any harness, and `test-tool-surface.ts` only asserts
-  alias/retirement behaviour. Predicate: `spec/02-requirements.md` REQ-024a
-  Check line; `holonovel/scripts/test-tool-surface.ts:225-252`.
-- **F-P2-3 — nine §5.3 REQs cite stale test IDs whose behaviour is exercised
-  under another ID (scheduled):** REQ-025a/b1/b2/c cite
-  T45/T154/T165/T166/T170 (behaviour asserted by
-  `holonovel/scripts/test-output-contracts.ts:281` under T105/T486/T487/T488);
-  REQ-138a/b cite T167 (asserted at `:419` under T152); REQ-139 cites T168
-  (asserted at `:427` under T153); REQ-057a/b cite T40 (asserted at `:305`
-  under T39). Action is a citation re-point, not a new assertion. Predicate:
-  the cited Check lines against the named harness lines.
+The three citation findings F-P2-1, F-P2-2, and F-P2-3 are `Resolved`
+(2026-11-14) — see the §5.3 citation-repair entry under `## Resolved`. The
+chunk's remaining scheduled item is F-P2-4 below, plus the depth findings
+F-P2-5 and F-P2-6.
+
 - **F-P2-4 — zero-padded harness test IDs shadow real catalogue IDs
   (scheduled):** `holonovel/scripts/test-backfill.ts:157` (`T5/T020`),
   `:164` (`T16/T022`), and `:802` (`T176/T177/T178/T002`) use tokens that do
@@ -2610,6 +2622,25 @@ against Appendix F and the harness corpus, not on a gate message.
   applies to any REQ citing T20/T2. Fix is to enumerate the padded tokens,
   correct them to the IDs the assertions actually implement, and re-run the
   coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
+
+- **F-P2-5 — prompt-health stale references and live resource-URI presence are
+  unimplemented (scheduled):** `spec_health` emits `stale_references: []` for
+  every host and package prompt (`holonovel/src/index.ts:14648`, `:14659`) and
+  derives `resource_uris` from the static `REQ022_URI_CATALOG`
+  (`:14634-14637`), so REQ-138a/b's stale-reference lifecycle and REQ-139's
+  "registering a new resource adds an entry immediately" clause have no
+  implementation and no assertion. T152/T153 assert the report shape only.
+  Predicate: the two source sites against the two Check trailers. Scheduled
+  under `ROADMAP.md` § *§5.3 prompt-health and resource-presence depth (P1)*.
+- **F-P2-6 — a removed package's tools remain in `tools/list`
+  (scheduled):** the SDK has no tool-deregistration API and the live listing
+  does not filter on the installed set (only `registeredToolDefinitions`,
+  `holonovel/src/index.ts:1580`, applies `packageToolVisible`), so after
+  `manage_ruleset (action: remove)` the package's tools still list and are
+  refused only by the dispatch scope gate. Observed while writing T35
+  (`holonovel/scripts/test-output-contracts.ts:2593`). Predicate: `:1580`
+  versus the live-list handler at `:18379-18420`. Scheduled under the same
+  roadmap section.
 
 ## Closed-P3 (recorded, no action)
 

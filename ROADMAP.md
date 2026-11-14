@@ -12,20 +12,19 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## §5.3 citation repair (P1)
+## §5.3 prompt-health and resource-presence depth (P1)
 
-- Write the T22 prompt-registration assertion (REQ-023a/REQ-023b) and the T35
-  fixture-isolation assertion (REQ-024a), or re-point them to a harness that
-  exercises the stated behaviour; REQ-078a and REQ-078d already have T124 and
-  need only a citation re-point.
-- Re-point the nine stale citations REQ-025a/b1/b2/c → T45/T154/T165/T166/T170,
-  REQ-138a/b → T167, REQ-139 → T168, REQ-057a/b → T40, each already exercised
-  under T105/T486/T487/T488, T152, T153, and T39; then refresh the coverage
-  register.
+- Implement `stale_references` in `spec_health` (`holonovel/src/index.ts:14648`,
+  `:14659`): a prompt naming a tool or resource absent from the live registries
+  reports that name, and restoring the registration clears it (REQ-138a/b,
+  F-P2-5).
+- Derive `resource_uris` from the live resource map rather than
+  `REQ022_URI_CATALOG` so registration adds an entry and removal flips it to
+  `absent` (REQ-139), and filter a removed package's tools out of the live
+  `tools/list` (F-P2-6, REQ-389c); extend T152/T153 with both lifecycles.
 
-**Trigger:** the next session that takes citation-remediation work; closes when
-every §5.3 Check citation resolves to an exercised harness and
-`spec/audit/review-register.md` marks F-P2-1–F-P2-3 `Resolved`.
+**Trigger:** the next `spec_health` or package-lifecycle session; closes when
+T152/T153 assert the lifecycle legs and F-P2-5 and F-P2-6 are `Resolved`.
 
 ## Player narrative threads (P1)
 

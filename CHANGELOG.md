@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-14 — §5.3 citation repair: prompt registration and fixture isolation
+
+- Two §5.3 assertions that named no harness now exist: T22 exercises the prompt
+  lifecycle — a served title on every prompt, a description on every declared
+  argument, exactly one user-role message per `prompts/get`, a stub prompt and
+  tool registered without restart, their absence after removal and restart, and
+  `spec_health` counts incrementing by one on install. T35 exercises
+  installed-package isolation — fixture-only tool names absent from the target
+  ruleset's listing, present as `<slug>_<name>` with their package-declared
+  titles when a package declares them. (REQ-023b, REQ-024a, REQ-025c)
+- Five Check trailers now cite the closest exercised assertion instead of
+  build-mode convergence rows no runtime harness implements: REQ-025c cites
+  `T15, T22, T93, T105`, REQ-138b cites T152, REQ-139 cites T153, REQ-057b
+  cites T39, and REQ-024a cites `T3, T35`. The Appendix F rows for T22 and T35
+  were narrowed to the implementable surface. (REQ-024a, REQ-025c, REQ-057b,
+  REQ-138b, REQ-139)
+- The depth the cold plan review proved unimplemented is scheduled, not
+  claimed: `spec_health` still returns `stale_references: []` for every prompt
+  and derives `resource_uris` from a static catalogue, and a removed package's
+  tools remain listed. Recorded as F-P2-5 and F-P2-6 and scheduled on
+  `ROADMAP.md` § *§5.3 prompt-health and resource-presence depth (P1)*.
+  (REQ-138b, REQ-139, REQ-389c)
+
 ## 2026-11-14 — Briefing section ordering and a live `briefing_order`
 
 - `badge_briefing` now leads with what a narrator needs to make a decision —
