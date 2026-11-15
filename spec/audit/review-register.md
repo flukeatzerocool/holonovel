@@ -59,9 +59,10 @@ chunk.
   F-P2-4 "the remaining scheduled item" although no F-P2-4 bullet exists in any
   register bucket. The §5.3 findings are resolved, and the residual is one
   zero-padded ID in a harness comment (`holonovel/scripts/test-narrative.ts:1205`
-  names `T056`, which Appendix F does not define, beside the real `T723`). The
-  entry now names that residual and points at the restored `ROADMAP.md` §
-  *Harness test-ID label hygiene (P2)* section. Row 35.
+  named `T056`, which Appendix F does not define, beside the real `T723`). The
+  label was corrected and the padding detector extended to comment tokens in the
+  2026-11-15 roadmap-residuals session — see F-P2-4 under
+  `## Resolved — 2026-11-15 roadmap residuals`. Row 35.
 
 ### 2026-11-15 U7 reference appendices and registries
 
@@ -2969,6 +2970,24 @@ stale generated snapshot, and one incomplete layout description. Predicates are
   neither requires nor forbids it. The layout now shows it as optional and says
   why. Row 46.
 
+## Resolved — 2026-11-15 roadmap residuals
+
+### 2026-11-15 roadmap-residuals session
+
+Closes three of the four ROADMAP sections open at `e8c79d1`
+(`docs/plans/2026-11-15-roadmap-residuals/`); the 2026-11-28 fix-up
+re-measurement is date-gated and stays scheduled.
+
+- **F-P2-4 — the harness comment named a zero-padded test ID. Resolved
+  (2026-11-15).** Predicate: `holonovel/scripts/test-narrative.ts:1205` read
+  `// ── T056/T723: …` while Appendix F defines no `T056`
+  (`grep -c '| T056 ' spec/appendices-reference.md` → 0), and the padding
+  detector reached test titles only (`scripts/lib/req-checks.ts:606-625`, fed by
+  `scripts/validate.ts:1544-1562`). The banner now reads `T56/T723`, and
+  `checkHarnessCommentIds` scans comment tokens, erroring under `--sdd-strict`.
+  Corpus result: `grep -rnoE '\bT0[0-9]{2,3}\b' holonovel/scripts holonovel/src`
+  was one hit before the fix and zero after.
+
 ## Scheduled-roadmap
 
 ### 2026-11-15 U7 reference appendices and registries — vendor-manifest provenance
@@ -3041,17 +3060,17 @@ absent, so each finding carries the failing predicate rather than a test.
 ### 2026-11-09 full-review sweep — chunk P2 (tool surface, §5.3)
 
 The §5.3 prompt-health and resource-presence findings are closed. The chunk's
-only residual is the harness-label finding F-P2-4, scheduled under
-`ROADMAP.md` § *Harness test-ID label hygiene (P2)*. Each finding cites the
+only residual, the harness-label finding F-P2-4, is resolved (2026-11-15) — see
+`## Resolved — 2026-11-15 roadmap residuals`. Each finding cites the
 predicate that carries it; the citation findings rest on an enumeration of the
 §5.3 blocks against Appendix F and the harness corpus, not on a gate message.
 
 The three citation findings F-P2-1, F-P2-2, and F-P2-3 are `Resolved`
 (2026-11-14) — see the §5.3 citation-repair entry under `## Resolved`. The
 depth findings F-P2-5 and F-P2-6 are also `Resolved` (2026-11-14) — see the
-§5.3 prompt-health depth entry. The residual is the zero-padded ID at
+§5.3 prompt-health depth entry. The residual was the zero-padded ID at
 `holonovel/scripts/test-narrative.ts:1205` (`T056`, which Appendix F does not
-define; the same comment also names the real `T723`).
+define; the same comment also names the real `T723`), now corrected.
 
 
 ## Resolved — 2026-11-15 badge guidance resources

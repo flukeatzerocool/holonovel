@@ -1202,7 +1202,7 @@ async function main() {
     await kill(proc);
   }
 
-  // ── T056/T723: NPC depth metadata and the [distant] marker ──
+  // ── T56/T723: NPC depth metadata and the [distant] marker ──
   {
     const proc = await boot({ TTRPG_SESSION_ID: "depth-s1" });
     await call(proc, "manage_novel", { action: "create",  name: "npc-depth" });

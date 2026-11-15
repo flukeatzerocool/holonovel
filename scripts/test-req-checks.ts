@@ -5,7 +5,7 @@
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
 import { checkNewBucketB } from "./lib/req-checks.js";
-import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount, checkHarnessTitleIds, unresolvedPatternRuleTokens } from "./lib/req-checks.js";
+import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount, checkHarnessTitleIds, checkHarnessCommentIds, unresolvedPatternRuleTokens } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings, findDuplicateReqIds, extractReqBodiesWithSentences } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
@@ -670,6 +670,23 @@ test("a harness title ID must resolve to the catalogue or a suffixed parent", ()
   if (orphan.length !== 1 || !orphan[0].includes("no Appendix F row")) throw new Error(`orphan ID not caught: ${JSON.stringify(orphan)}`);
   const collision = checkHarnessTitleIds(catalogue, [{ file: "bad.ts", name: "T408: wrong row", all: ["T408"] }]);
   if (collision.length !== 1) throw new Error(`unresolved collision not caught: ${JSON.stringify(collision)}`);
+});
+
+test("a zero-padded ID in a harness comment is caught, and a real one is not", () => {
+  const text = [
+    "  // ── T056/T723: NPC depth metadata ──",   // padded: report line 1
+    "  // ── T56/T723: fixed banner ──",          // real pair: ignore
+    "    await test(\"T274/REQ-234: known information\", async () => {});", // title: title pass, not this one
+    "  // REQ-083d and T274 legitimately named in prose",
+  ].join("\n");
+  const issues = checkHarnessCommentIds([{ file: "narrative.ts", text }]);
+  if (issues.length !== 1) throw new Error(`expected exactly one finding: ${JSON.stringify(issues)}`);
+  if (!issues[0].includes("T056") || !issues[0].endsWith("narrative.ts:1")) {
+    throw new Error(`finding does not name the token and line: ${issues[0]}`);
+  }
+  // A padded title is still the title pass's finding, and this pass sees it too.
+  const both = checkHarnessTitleIds(new Set(["T20"]), [{ file: "bad.ts", name: "T020: padded", all: ["T020"] }]);
+  if (both.length !== 1 || !both[0].includes("zero-padded")) throw new Error(`title pass lost the padded case: ${JSON.stringify(both)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

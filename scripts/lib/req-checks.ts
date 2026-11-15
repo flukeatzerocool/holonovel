@@ -603,6 +603,26 @@ export function checkReqSentenceCount(
 // catalogue row or a suffixed refinement of one (`T138a` refines `T138`); a
 // zero-padded form is never an identifier (`T020` is not `T20`). A token that
 // resolves nowhere evidences whichever REQ its parent happens to carry.
+// The same zero-padding rule applies to IDs named in harness *comments*: a
+// section banner like `// ── T056/T723` is how the padded form re-entered the
+// corpus after the title pass was added. Only the padding branch runs here —
+// a comment may legitimately name an ID in prose, so the catalogue-resolution
+// branch of `checkHarnessTitleIds` stays title-only.
+export function checkHarnessCommentIds(
+  files: readonly { file: string; text: string }[],
+): string[] {
+  const issues: string[] = [];
+  for (const { file, text } of files) {
+    const lines = text.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      for (const m of lines[i].matchAll(/\bT0\d{2,}[a-z0-9]*\b/g)) {
+        issues.push(`zero-padded test ID '${m[0]}' in ${file}:${i + 1}`);
+      }
+    }
+  }
+  return issues;
+}
+
 export function checkHarnessTitleIds(
   catalogue: ReadonlySet<string>,
   titles: readonly { file: string; name: string; all: readonly string[] }[],

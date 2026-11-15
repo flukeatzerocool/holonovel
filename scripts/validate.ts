@@ -39,6 +39,7 @@ import {
   checkIndependentVerificationCoverage,
   checkLicenseSourceParity,
   checkHarnessTitleIds,
+  checkHarnessCommentIds,
   unresolvedPatternRuleTokens,
   extractSection,
 } from "./lib/req-checks.js";
@@ -1539,26 +1540,37 @@ function checkTestNameInflation(): string[] {
 
 // Harness test names with their pre-colon (prefix) IDs and all IDs. Shared by
 // the bundled-evidence ratchet (B2), the direct-test guard (B3), and the
-// Appendix F assertion check (B4).
+// Appendix F assertion check (B4). Each harness file is read once; the source
+// text rides along for the comment-token scan so a second parse is never made.
 interface HarnessTest { file: string; name: string; prefix: string[]; all: string[]; }
-function collectHarnessTestNames(): HarnessTest[] {
-  const names: HarnessTest[] = [];
+interface HarnessSource { file: string; text: string; tests: HarnessTest[]; }
+let harnessSourcesCache: HarnessSource[] | null = null;
+function collectHarnessSources(): HarnessSource[] {
+  if (harnessSourcesCache) return harnessSourcesCache;
+  const sources: HarnessSource[] = [];
   for (const f of IMPL_SCRIPTS_FILES) {
     let content = "";
     try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    const file = path.basename(f);
+    const tests: HarnessTest[] = [];
     for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
       const name = m[1];
       const colon = name.indexOf(":");
       const prefix = colon === -1 ? name : name.slice(0, colon);
-      names.push({
-        file: path.basename(f),
+      tests.push({
+        file,
         name,
         prefix: [...prefix.matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)].map((x) => x[1]),
         all: [...name.matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)].map((x) => x[1]),
       });
     }
+    sources.push({ file, text: content, tests });
   }
-  return names;
+  harnessSourcesCache = sources;
+  return sources;
+}
+function collectHarnessTestNames(): HarnessTest[] {
+  return collectHarnessSources().flatMap((source) => source.tests);
 }
 
 // B2 (REQ-113 evidence integrity): a bucket-C REQ whose only exercised evidence
@@ -2611,6 +2623,14 @@ function main(): void {
     if (sddStrict) { for (const issue of titleIdIssues) console.log(`ERROR: ${issue}`); errors += titleIdIssues.length; }
     else { for (const issue of titleIdIssues) console.log(`WARNING: ${issue}`); warnings += titleIdIssues.length; }
   } else console.log("PASS: Every harness title ID resolves to the Appendix F catalogue");
+
+  // A zero-padded ID is never an identifier (Appendix F's preamble), whether it
+  // appears in a test title or in a section-banner comment.
+  const commentIdIssues = checkHarnessCommentIds(collectHarnessSources());
+  if (commentIdIssues.length > 0) {
+    if (sddStrict) { for (const issue of commentIdIssues) console.log(`ERROR: ${issue}`); errors += commentIdIssues.length; }
+    else { for (const issue of commentIdIssues) console.log(`WARNING: ${issue}`); warnings += commentIdIssues.length; }
+  } else console.log("PASS: No zero-padded test ID in a harness comment");
 
   // B2/B4 — nominal-evidence ratchet. Bundled-only bucket-C evidence and
   // Appendix F assertion misses are warnings, but their counts may not rise

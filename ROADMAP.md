@@ -44,16 +44,6 @@ closes when the re-measurement is recorded in the AAR of that session.
 **Trigger:** the next allocated content-provenance session; closes when the
 manifest carries the column, the checker enforces it, and U7-F4 is `Resolved`.
 
-## Harness test-ID label hygiene (P2)
-
-- The residual from the 2026-11-09 full-review sweep's chunk P2 (F-P2-4): a
-  harness comment at `holonovel/scripts/test-narrative.ts:1205` names `T056`, a
-  zero-padded ID Appendix F does not define, beside the real `T723`. Correct the
-  label, then grep the harness corpus for zero-padded IDs and record the result.
-
-**Trigger:** the next harness-maintenance session; closes when the comment
-carries only real Appendix F IDs and the corpus grep is recorded.
-
 ## Non-goals
 
 Authoritative list and rationale: `holonovel/DECISIONS.md` § Non-goals.

@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-15 — Harness labels: the padded ID goes, and comments are scanned
+
+One harness comment named `T056`, an ID Appendix F does not define, and the
+padding detector could not see it because it reached test titles only. The label
+is corrected and the class now has a predicate that can fail.
+
+- The label. `holonovel/scripts/test-narrative.ts:1205` read
+  `// ── T056/T723: NPC depth metadata …`; it now reads `T56/T723`.
+- The detector. New `checkHarnessCommentIds` (`scripts/lib/req-checks.ts`) scans
+  every harness file's text for a zero-padded `T0\d{2,}` token and reports the
+  token with its `file:line`. `scripts/validate.ts` runs it beside the title-ID
+  check and prints `PASS: No zero-padded test ID in a harness comment`; a
+  finding is an error under `--sdd-strict`, a warning otherwise. The record
+  branch of `checkHarnessTitleIds` stays title-only, because a comment may name
+  an ID in prose; only the padding branch is corpus-wide.
+- Dry run before the fix. `npm run validate:fast` on the unfixed tree reported
+  exactly one error — `zero-padded test ID 'T056' in test-narrative.ts:1205` —
+  and exited 1; after the label fix it reports the PASS line and exits 0. The
+  corpus grep `grep -rnoE '\bT0[0-9]{2,3}\b' holonovel/scripts holonovel/src`
+  was one hit before the fix and zero after.
+- One read, not two. The harness collector now returns each file's text beside
+  its test names (`collectHarnessSources`), so the comment scan reuses the
+  existing parse instead of adding a second one; `scripts/test-req-checks.ts`
+  self-tests the detector's padded, real-pair, and title-fallback cases (65
+  passed).
+- Records. F-P2-4 is a real bullet for the first time, under
+  `## Resolved — 2026-11-15 roadmap residuals`; the chunk-P2 preamble and U8-F6's
+  pointer now cite that entry instead of a roadmap section that no longer exists;
+  the roadmap section is removed.
+
 ## 2026-11-15 — Badge guidance renderers: `voice` and `tone` from live synthesis state
 
 §11.3 named two badge guidance renderers that did not exist. Both now read the
