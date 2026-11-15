@@ -163,7 +163,7 @@ async function main() {
       assertContains(still, "fork");
     });
 
-    await test("T100/T281/T096: export produces a valid interchange manifest; import validates", async () => {
+    await test("T100/T281: export produces a valid interchange manifest; import validates", async () => {
       const exported = await call(proc, "manage_archive", { action: "export",  format: "json" });
       const parsed = JSON.parse(exported); // must be parseable JSON
       assertContains(exported, "\"slug\"");
@@ -342,17 +342,17 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "renamed" });
     });
 
-    await test("T78/T99/T093: metadata in spec_health lists Novels", async () => {
+    await test("T78/T99: metadata in spec_health lists Novels", async () => {
       const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, "novel");
     });
 
-    await test("T101/T160/T097: spec_health reports novel health", async () => {
+    await test("T101/T160: spec_health reports novel health", async () => {
       const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, "health");
     });
 
-    await test("T98/T095: switch_novel activates another Novel", async () => {
+    await test("T98: switch_novel activates another Novel", async () => {
       await call(proc, "manage_novel", { action: "create",  name: "second" });
       await call(proc, "manage_novel", { action: "switch",  slug: "second" });
       const info = await call(proc, "manage_novel", { action: "info" });
@@ -706,13 +706,13 @@ async function main() {
 
     proc = await boot({ TTRPG_DATA_DIR: dir, TTRPG_NOVEL: "old-save", TTRPG_BADGE: "game_master" });
     await call(proc, "set_badge", { badge: "game_master" });
-    await test("T057/REQ-076b3: a pre-scene_tick save loads at tick 0 and renders", async () => {
+    await test("T57/REQ-076b3: a pre-scene_tick save loads at tick 0 and renders", async () => {
       const brief = await promptText(proc, "badge_briefing");
       assertContains(brief, "Scene tick:** 0");
       assertContains(brief, "Keeper");
       assertNotContains(brief, "undefined");
     });
-    await test("T056/REQ-075c: a pre-metadata NPC renders without a depth marker and gains one on appearance", async () => {
+    await test("T56/REQ-075c: a pre-metadata NPC renders without a depth marker and gains one on appearance", async () => {
       const before = await promptText(proc, "badge_briefing");
       assertNotContains(before, "[recurring]");
       await call(proc, "manage_scene", { action: "set",  location: "Hall", description: "The Hall at dusk" });

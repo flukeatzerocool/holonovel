@@ -10834,6 +10834,10 @@ Each test cites its requirements; T29 verifies the traceability table mandate. W
 are allowed only under REQ-013. Tests keep their original numbering; identifiers T1, T2,
 T6, T7, T11, T12, T14, T19, T24, T30, T34, T37, and T22a are retired and never reused.
 
+A suffixed identifier (`T138a`) names one branch of its parent row's assertion and does
+not need a row of its own. Identifiers are never zero-padded: `T020` is a malformed ID,
+not a synonym for `T20`.
+
 Automated tests must ship a runnable script in the project directory
 (`scripts/test_N.sh` or `scripts/test_N.ts`) that exercises the test and returns exit
 code 0 on pass. Manual tests must document the verification procedure and expected output

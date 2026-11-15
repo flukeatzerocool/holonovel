@@ -128,7 +128,7 @@ async function main() {
     await kill(p);
   });
 
-  await test("T482/T412: turn handoff follows the AI narrative role and survives the never-truncated tier", async () => {
+  await test("T482: turn handoff follows the AI narrative role and survives the never-truncated tier", async () => {
     // REQ-412: the directive's variant follows the AI's narrative role
     // (REQ-304), not the human badge; it renders in the never-truncated tier
     // (REQ-135). Each combination gets its own server because the role is
@@ -342,7 +342,7 @@ async function main() {
     await kill(p);
   });
 
-  await test("T057/REQ-076b3: scene tick resets on a transition and advances on a combat round", async () => {
+  await test("T57/REQ-076b3: scene tick resets on a transition and advances on a combat round", async () => {
     const p = await boot(); await newNovel(p, "tick1");
     await call(p, "manage_character", { action: "create", name: "Tick A", species: "Human" });
     await call(p, "manage_character", { action: "create", name: "Tick B", species: "Elf" });

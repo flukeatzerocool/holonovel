@@ -1208,7 +1208,7 @@ async function main() {
     await call(proc, "manage_novel", { action: "create",  name: "npc-depth" });
     await call(proc, "set_badge", { badge: "game_master" });
 
-    await test("T056/REQ-075c: an NPC seen three times carries [recurring] with the count", async () => {
+    await test("T56/REQ-075c: an NPC seen three times carries [recurring] with the count", async () => {
       await call(proc, "manage_npc", { action: "create",  name: "Innkeeper", location: "Common Room" });
       for (const description of ["The Common Room", "The Common Room at noon", "The Common Room again"]) {
         await call(proc, "manage_scene", { action: "set",  location: "Common Room", description });
@@ -1220,14 +1220,14 @@ async function main() {
       assertContains(brief, "3 appearances");
     });
 
-    await test("T056/REQ-075c: a repeat render of the same scene does not inflate the count", async () => {
+    await test("T56/REQ-075c: a repeat render of the same scene does not inflate the count", async () => {
       const before = await briefing(proc);
       await briefing(proc);
       const after = await briefing(proc);
       assert(before.includes("3 appearances") && after.includes("3 appearances"), "a repeat render changed the appearance count");
     });
 
-    await test("T056/REQ-075d: five sessions unseen carries [distant] and no session data suppresses it", async () => {
+    await test("T56/REQ-075d: five sessions unseen carries [distant] and no session data suppresses it", async () => {
       const fresh = await boot();
       await call(fresh, "manage_novel", { action: "create",  name: "npc-distant-guard" });
       await call(fresh, "set_badge", { badge: "game_master" });
@@ -1237,7 +1237,7 @@ async function main() {
       assert(!freshBrief.includes("[distant]"), "[distant] rendered with no session data");
       await kill(fresh);
     });
-    await test("T056/REQ-075c: ten appearances carry [campaign]", async () => {
+    await test("T56/REQ-075c: ten appearances carry [campaign]", async () => {
       await call(proc, "manage_npc", { action: "create",  name: "Fixture", location: "Hall" });
       for (let i = 0; i < 10; i++) {
         await call(proc, "manage_scene", { action: "set",  location: "Hall", description: `Hall visit ${i}` });
@@ -1250,7 +1250,7 @@ async function main() {
 
     await kill(proc);
 
-    await test("T056/REQ-075d: an NPC unseen for five sessions carries [distant]", async () => {
+    await test("T56/REQ-075d: an NPC unseen for five sessions carries [distant]", async () => {
       const first = await boot({ TTRPG_SESSION_ID: "distant-1" });
       await call(first, "manage_novel", { action: "create",  name: "npc-distant" });
       await call(first, "set_badge", { badge: "game_master" });

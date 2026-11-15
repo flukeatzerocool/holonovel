@@ -411,7 +411,7 @@ async function main() {
       if (out.novel?.auto_record !== false) throw new Error(`auto_record not false: ${out.novel?.auto_record}`);
     });
 
-    await test("T408/REQ-246a: TTRPG_STORY_JOURNAL_DISPLAY=full returns full entries", async () => {
+    await test("T282/REQ-246a: TTRPG_STORY_JOURNAL_DISPLAY=full returns full entries", async () => {
       await call(proc, "manage_story", { action: "record", type: "moment", entry: "A complete journal entry far longer than any preview would show." });
       const list = JSON.parse(await call(proc, "manage_story", { action: "list" }));
       if (!list[0] || typeof list[0].entry !== "string") throw new Error(`full entry not returned: ${JSON.stringify(list[0])}`);

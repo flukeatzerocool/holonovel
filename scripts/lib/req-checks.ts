@@ -598,3 +598,28 @@ export function checkReqSentenceCount(
   }
   return issues;
 }
+
+// Harness title IDs must resolve to the Appendix F catalogue. An ID is either a
+// catalogue row or a suffixed refinement of one (`T138a` refines `T138`); a
+// zero-padded form is never an identifier (`T020` is not `T20`). A token that
+// resolves nowhere evidences whichever REQ its parent happens to carry.
+export function checkHarnessTitleIds(
+  catalogue: ReadonlySet<string>,
+  titles: readonly { file: string; name: string; all: readonly string[] }[],
+): string[] {
+  const issues: string[] = [];
+  for (const title of titles) {
+    for (const id of title.all) {
+      if (!/^T\d+[a-z0-9]*$/.test(id)) continue; // S/I tokens are out of scope
+      if (/^T0\d\d/.test(id)) {
+        issues.push(`zero-padded test ID '${id}' in ${title.file}: "${title.name.slice(0, 60)}…"`);
+        continue;
+      }
+      if (catalogue.has(id)) continue;
+      const parent = id.match(/^T\d+/)![0];
+      if (catalogue.has(parent)) continue;
+      issues.push(`test ID '${id}' has no Appendix F row (parent '${parent}') in ${title.file}: "${title.name.slice(0, 60)}…"`);
+    }
+  }
+  return issues;
+}

@@ -38,6 +38,7 @@ import {
   checkReqSentenceCount,
   checkIndependentVerificationCoverage,
   checkLicenseSourceParity,
+  checkHarnessTitleIds,
   unresolvedPatternRuleTokens,
   extractSection,
 } from "./lib/req-checks.js";
@@ -2601,6 +2602,14 @@ function main(): void {
     if (implStrict) { for (const issue of inflationIssues) console.log(`ERROR: ${issue}`); errors += inflationIssues.length; }
     else { for (const issue of inflationIssues) console.log(`WARNING: ${issue}`); warnings += inflationIssues.length; }
   } else console.log("PASS: No over-stuffed test names (<= 4 IDs per name)");
+
+  const titleIdIssues = checkHarnessTitleIds(new Set(parseAppendixFTestText(text).keys()), collectHarnessTestNames());
+  if (titleIdIssues.length > 0) {
+    // A title ID that resolves nowhere is nominal evidence; under
+    // --sdd-strict it is an error, matching the shape checks.
+    if (sddStrict) { for (const issue of titleIdIssues) console.log(`ERROR: ${issue}`); errors += titleIdIssues.length; }
+    else { for (const issue of titleIdIssues) console.log(`WARNING: ${issue}`); warnings += titleIdIssues.length; }
+  } else console.log("PASS: Every harness title ID resolves to the Appendix F catalogue");
 
   // B2/B4 — nominal-evidence ratchet. Bundled-only bucket-C evidence and
   // Appendix F assertion misses are warnings, but their counts may not rise

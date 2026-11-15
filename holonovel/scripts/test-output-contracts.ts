@@ -394,7 +394,7 @@ async function main() {
   });
 
   // ── REQ-001b1 error boundary: every tool-level error is isError ──
-  await test("T783/REQ-001b1: every [ERROR] result carries isError", async () => {
+  await test("T180/REQ-001b1: every [ERROR] result carries isError", async () => {
     seedRuleset();
     const p = await boot();
     await call(p, "manage_novel", { action: "create", name: "t783", ruleset: "wave1test" });

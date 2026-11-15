@@ -199,7 +199,7 @@ async function main() {
       assertContains(text, "Corrective action");
     });
 
-    await test("T26/T062: badge foundations — set_badge switches and persists across Novel scope", async () => {
+    await test("T26: badge foundations — set_badge switches and persists across Novel scope", async () => {
       await call(proc, "set_badge", { badge: "player" });
       const gated = await callRaw(proc, "manage_npc", { action: "create",  name: "X", description: "d", disposition: "neutral" });
       const err = gated.isError === true || (gated.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n").includes("FORBIDDEN");
@@ -207,14 +207,14 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T5/T020: tools/list exposes the registered tool surface", async () => {
+    await test("T5: tools/list exposes the registered tool surface", async () => {
       const tools = await listTools(proc);
       for (const t of ["manage_novel", "set_badge", "manage_world", "manage_context", "manage_combat", "manage_scene"]) {
         if (!tools.includes(t)) throw new Error(`missing tool ${t}`);
       }
     });
 
-    await test("T16/T022: resources/list exposes world + spec resources", async () => {
+    await test("T16: resources/list exposes world + spec resources", async () => {
       const uris = await listResources(proc);
       for (const u of ["world://map", "world://kinds", "spec://build"]) {
         if (!uris.some((x) => x === u || x.startsWith(u))) throw new Error(`missing resource ${u}`);
@@ -319,7 +319,7 @@ async function main() {
       assertContains(text, "Active Novel");
     });
 
-    await test("T268/T232: pause context round-trips with the briefing payload", async () => {
+    await test("T268: pause context round-trips with the briefing payload", async () => {
       // REQ-232c — only decision/bond story entries are captured.
       await call(proc, "manage_story", { action: "record", type: "decision", entry: "The party chose the west door." });
       await call(proc, "manage_story", { action: "record", type: "moment", entry: "A Quiet moment in the hall." });
@@ -513,7 +513,7 @@ async function main() {
     await call(proc, "manage_novel", { action: "create",  name: "bf2" });
     await call(proc, "set_badge", { badge: "game_master" });
 
-    await test("T91/T043: conflict lifecycle — pending workflow blocks badge/workflow mutations", async () => {
+    await test("T91: conflict lifecycle — pending workflow blocks badge/workflow mutations", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "conflict-room", description: "Room." });
       // Open a pending workflow (present_choices); badge + undo are blocked
       // until it resolves (REQ-043 conflict lifecycle).
@@ -845,13 +845,13 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf2" });
     });
 
-    await test("T64/T134/T081: narrative directive set", async () => {
+    await test("T64/T134: narrative directive set", async () => {
       await call(proc, "manage_scene", { action: "directive",  directive: "Foreshadow the siege." });
       const scene = await call(proc, "manage_scene", { action: "set",  description: "The gates tremble." });
       assertContains(scene, "[OK] Scene set");
     });
 
-    await test("T96/T119/T120/T084: suggest_actions groups by domain", async () => {
+    await test("T96/T119/T120: suggest_actions groups by domain", async () => {
       await call(proc, "set_badge", { badge: "player" });
       const actions = await call(proc, "run_command", { action: "suggest",  intent: "explore" });
       assertContains(actions, "Spatial");
@@ -863,14 +863,14 @@ async function main() {
       assertContains(gmActions, "run_command (action: resolve");
     });
 
-    await test("T69/T085: macro system expands {{entity.name}} / {{scene.current}}", async () => {
+    await test("T69: macro system expands {{entity.name}} / {{scene.current}}", async () => {
       await call(proc, "manage_scene", { action: "set",  description: "Macro scene" });
       await call(proc, "manage_npc", { action: "create",  name: "Marco", description: "d", disposition: "neutral" });
       const scene = await call(proc, "manage_scene", { action: "set",  description: "{{novel.slug}} at {{scene.current}}" });
       assertContains(scene, "bf2");
     });
 
-    await test("T327/T306/T230: synthesis dashboard lists modules", async () => {
+    await test("T327/T306: synthesis dashboard lists modules", async () => {
       const toggled = await call(proc, "manage_synthesis", { action: "toggle",  module: "adventure_advice", enabled: true });
       assertContains(toggled, "[OK] Synthesis module 'adventure_advice' enabled");
     });
@@ -919,7 +919,7 @@ async function main() {
     await call(proc, "manage_novel", { action: "create",  name: "bf3" });
     await call(proc, "set_badge", { badge: "game_master" });
 
-    await test("T27/T111/T050: determinism — identical seed produces identical oracle roll", async () => {
+    await test("T27/T111: determinism — identical seed produces identical oracle roll", async () => {
       const a = await call(proc, "manage_scene", { action: "oracle",  question: "Rain?", seed: "determinism-check" });
       const b = await call(proc, "manage_scene", { action: "oracle",  question: "Rain?", seed: "determinism-check" });
       const rollA = a.match(/Roll: (\d+)\/100/)?.[1];
@@ -999,7 +999,7 @@ async function main() {
       if (!first || first !== second) throw new Error(`default-seed restart diverged: ${first} vs ${second}`);
     });
 
-    await test("T41/T051: no outbound network access — server stays local", async () => {
+    await test("T41: no outbound network access — server stays local", async () => {
       // The server is STDIO-local; assert no network endpoints are registered.
       const health = await call(proc, "manage_diagnostics", { action: "health" });
       assertContains(health, "spec_version");
@@ -1011,7 +1011,7 @@ async function main() {
       assertContains(map, "containment-room");
     });
 
-    await test("T125/T156/T261/T092: Novel persistence — state survives restart", async () => {
+    await test("T125/T156/T261: Novel persistence — state survives restart", async () => {
       await call(proc, "manage_world", { action: "create_room",  name: "persist-room", description: "Persistent." });
       await kill(proc);
 
@@ -1034,14 +1034,14 @@ async function main() {
     await call(proc, "manage_novel", { action: "create",  name: "bf4" });
     await call(proc, "set_badge", { badge: "game_master" });
 
-    await test("T9/T066: set_badge cycles badges with audit", async () => {
+    await test("T9: set_badge cycles badges with audit", async () => {
       const player = await call(proc, "set_badge", { badge: "player" });
       assertContains(player, "[OK] Active badge: player");
       const gm = await call(proc, "set_badge", { badge: "game_master" });
       assertContains(gm, "[OK] Active badge: game_master");
     });
 
-    await test("T216/T218/T220/T074: multi-entity party contract — party://current and entities://", async () => {
+    await test("T216/T218/T220: multi-entity party contract — party://current and entities://", async () => {
       await call(proc, "manage_character", { action: "create",  name: "MultiOne", description: "1" });
       await call(proc, "manage_character", { action: "create",  name: "MultiTwo", description: "2" });
       const readRes = async (uri: string): Promise<string> => {
@@ -1094,7 +1094,7 @@ async function main() {
       assertContains(skip, "countdowns — unchanged");
     });
 
-    await test("T056/REQ-075e: recap carries the NPC relationship heatmap", async () => {
+    await test("T56/REQ-075e: recap carries the NPC relationship heatmap", async () => {
       await call(proc, "manage_npc", { action: "create",  name: "Heatmap Keeper", location: "heat-hall" });
       await call(proc, "manage_scene", { action: "set",  location: "heat-hall", description: "Heat hall one" });
       await call(proc, "manage_scene", { action: "set",  location: "heat-hall", description: "Heat hall two" });
@@ -1108,7 +1108,7 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T056/REQ-311: NPC memory ingests a disposition outcome and records party knowledge", async () => {
+    await test("T56/REQ-311: NPC memory ingests a disposition outcome and records party knowledge", async () => {
       const hero = await call(proc, "manage_character", { action: "create",  name: "Mem Hero", species: "Human" });
       const heroId = hero.match(/character_\d+/)?.[0];
       if (heroId) await call(proc, "manage_character", { action: "set_active",  entity_id: heroId });
@@ -1380,7 +1380,7 @@ async function main() {
       await call(proc, "manage_novel", { action: "switch",  slug: "bf4" });
     });
 
-    await test("T273/T235: structured player choices — present_choices emits options", async () => {
+    await test("T273: structured player choices — present_choices emits options", async () => {
       const pc = await call(proc, "manage_scene", { action: "choices",  prompt: "Which path?", choices: [{ id: "path1", label: "North road" }] });
       assertContains(pc, "North road");
       await call(proc, "respond_decision", { decision: "-present_choices-", option: "path1" });
@@ -1411,13 +1411,13 @@ async function main() {
       assertContains(kinds, "## Kind Hierarchy");
     });
 
-    await test("T303/T227: synthesis model — toggle_synthesis_module surfaces modules", async () => {
+    await test("T303: synthesis model — toggle_synthesis_module surfaces modules", async () => {
       const t = await call(proc, "manage_synthesis", { action: "toggle",  module: "lore_templates", enabled: false });
       assertContains(t, "[OK]");
       await call(proc, "manage_synthesis", { action: "toggle",  module: "lore_templates", enabled: true });
     });
 
-    await test("T477/T488/T408: parameter ceiling recorded in spec_health", async () => {
+    await test("T477/T488: parameter ceiling recorded in spec_health", async () => {
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (typeof health.parameter_ceiling !== "number") throw new Error("parameter_ceiling missing");
       // T477's recoverable clause: each tool's parameter count is exposed.
@@ -1426,7 +1426,7 @@ async function main() {
       }
     });
 
-    await test("T478/T409: response-lean enumeration — summary by default, detail on request", async () => {
+    await test("T478: response-lean enumeration — summary by default, detail on request", async () => {
       const longText = "A deliberately long description that an enumeration should summarize rather than repeat in full.";
       await call(proc, "manage_npc", { action: "create", name: "Summary Subject", description: longText });
       await call(proc, "manage_lore", { action: "set", key: "t478-lore", content: longText });
@@ -1466,18 +1466,18 @@ async function main() {
       if (health.enumeration_verbosity !== "summary") throw new Error("spec_health did not report the enumeration mode");
     });
 
-    await test("T479/T410: token footprint in performance record", async () => {
+    await test("T479: token footprint in performance record", async () => {
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (typeof health.token_footprint?.tools_list_bytes !== "number") throw new Error("token_footprint.tools_list_bytes missing");
     });
 
-    await test("T480/T411: stable-metadata caching — repeated spec_health consistent", async () => {
+    await test("T480: stable-metadata caching — repeated spec_health consistent", async () => {
       const a = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       const b = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (a.tool_count !== b.tool_count) throw new Error("cached metadata drifted between calls");
     });
 
-    await test("T66/T225/T082: prompt section ordering — briefing_order reorders, filters, and persists", async () => {
+    await test("T66/T225: prompt section ordering — briefing_order reorders, filters, and persists", async () => {
       await call(proc, "manage_novel", { action: "create",  name: "t66-order" });
       await call(proc, "set_badge", { badge: "game_master" });
       await call(proc, "manage_character", { action: "create",  name: "Order Tester" });
@@ -1541,7 +1541,7 @@ async function main() {
       if (JSON.parse(g).active_badge !== "game_master") throw new Error("badge switch not reflected");
     });
 
-    await test("T176/T177/T178/T002: error taxonomy — forbidden + corrective action; missing param surfaces SDK error", async () => {
+    await test("T176/T177/T178: error taxonomy — forbidden + corrective action; missing param surfaces SDK error", async () => {
       await call(proc, "set_badge", { badge: "player" });
       const forbidden = await callRaw(proc, "manage_npc", { action: "create",  name: "X", description: "d", disposition: "neutral" });
       const forbText = forbidden.isError
@@ -1562,7 +1562,7 @@ async function main() {
       await call(proc, "set_badge", { badge: "game_master" });
     });
 
-    await test("T133/T137/T331/T076: scene-state ledger — set_scene_state stores location/time/atmosphere", async () => {
+    await test("T133/T137/T331: scene-state ledger — set_scene_state stores location/time/atmosphere", async () => {
       await call(proc, "manage_scene", { action: "set",  description: "The hall echoes.", location: "Throne Room", time_of_day: "dusk", atmosphere: "tense" });
       const sc = JSON.parse(await readResource(proc, "scene://current"));
       assertContains(sc.location ?? "", "Throne Room");
@@ -1570,7 +1570,7 @@ async function main() {
       assertContains(sc.atmosphere ?? "", "tense");
     });
 
-    await test("T482/T412: turn-handoff directive follows the badge under the counterpart role", async () => {
+    await test("T482: turn-handoff directive follows the badge under the counterpart role", async () => {
       // Lift the section and classify its wording: the GM-narrator variant
       // invites the player, the AI-Player variant hands initiative back.
       const handoff = (brief: string): "invite" | "handback" | "none" => {

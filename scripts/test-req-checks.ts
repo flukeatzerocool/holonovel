@@ -5,7 +5,7 @@
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
 import { checkNewBucketB } from "./lib/req-checks.js";
-import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount, unresolvedPatternRuleTokens } from "./lib/req-checks.js";
+import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount, checkHarnessTitleIds, unresolvedPatternRuleTokens } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings, findDuplicateReqIds, extractReqBodiesWithSentences } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
@@ -654,6 +654,22 @@ test("an archetype token outside the vocabulary fails and names its rule", () =>
   if (issues[0].rule !== "P60" || issues[0].token !== "Surface") {
     throw new Error(`issue names the wrong rule/token: ${JSON.stringify(issues[0])}`);
   }
+});
+
+test("a harness title ID must resolve to the catalogue or a suffixed parent", () => {
+  const catalogue = new Set(["T20", "T138", "T477"]);
+  const ok = checkHarnessTitleIds(catalogue, [
+    { file: "ok.ts", name: "T20: direct row", all: ["T20"] },
+    { file: "ok.ts", name: "T138a: suffixed refinement", all: ["T138a"] },
+    { file: "ok.ts", name: "S22: session token is out of scope", all: ["S22"] },
+  ]);
+  if (ok.length !== 0) throw new Error(`valid titles wrongly flagged: ${JSON.stringify(ok)}`);
+  const padded = checkHarnessTitleIds(catalogue, [{ file: "bad.ts", name: "T020: padded", all: ["T020"] }]);
+  if (padded.length !== 1 || !padded[0].includes("zero-padded")) throw new Error(`padded ID not caught: ${JSON.stringify(padded)}`);
+  const orphan = checkHarnessTitleIds(catalogue, [{ file: "bad.ts", name: "T783: no parent", all: ["T783"] }]);
+  if (orphan.length !== 1 || !orphan[0].includes("no Appendix F row")) throw new Error(`orphan ID not caught: ${JSON.stringify(orphan)}`);
+  const collision = checkHarnessTitleIds(catalogue, [{ file: "bad.ts", name: "T408: wrong row", all: ["T408"] }]);
+  if (collision.length !== 1) throw new Error(`unresolved collision not caught: ${JSON.stringify(collision)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);
