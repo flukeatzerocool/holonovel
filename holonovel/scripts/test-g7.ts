@@ -9,6 +9,7 @@ import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { narrativeCoherence, type Section512Req } from "../src/narrative-coherence.js";
 installHarnessGuard();
 
 const SERVER_SCRIPT = join(import.meta.dirname!, "..", "src", "index.ts");
@@ -99,6 +100,38 @@ async function main() {
     });
     await kill(proc);
   }
+
+  // T403 — the disposition is derived, not a literal: the same rule that backs
+  // spec_health must reach `partial` when an attested parent is missing and
+  // `fail` when nothing is attested and no attestation is recorded (REQ-346b).
+  await test("T403: the disposition rule reaches pass, partial, and fail", () => {
+    const reqs: Section512Req[] = [
+      { id: "REQ-901a", parent: "REQ-901", builderSide: false },
+      { id: "REQ-901b", parent: "REQ-901", builderSide: false },
+      { id: "REQ-902a", parent: "REQ-902", builderSide: false },
+      { id: "REQ-903a", parent: "REQ-903", builderSide: true },
+    ];
+    const pass = narrativeCoherence(reqs, ["REQ-901", "REQ-902", "REQ-903"], { recorded: true, specCurrent: true });
+    if (pass.disposition !== "pass" || pass.total !== 3 || pass.implemented !== 3) {
+      throw new Error(`expected pass over 3 server-side bodies, got ${JSON.stringify(pass)}`);
+    }
+    const partial = narrativeCoherence(reqs, ["REQ-901"], { recorded: true, specCurrent: true });
+    if (partial.disposition !== "partial" || partial.missing.join(",") !== "REQ-902a") {
+      throw new Error(`expected partial with REQ-902a missing, got ${JSON.stringify(partial)}`);
+    }
+    const fail = narrativeCoherence(reqs, [], { recorded: false, specCurrent: true });
+    if (fail.disposition !== "fail" || fail.implemented !== 0) {
+      throw new Error(`expected fail with nothing implemented, got ${JSON.stringify(fail)}`);
+    }
+    const stale = narrativeCoherence(reqs, ["REQ-901", "REQ-902"], { recorded: true, specCurrent: false });
+    if (stale.disposition !== "partial" || stale.attestation !== "stale") {
+      throw new Error(`expected partial/stale for a spec the attestation does not cover, got ${JSON.stringify(stale)}`);
+    }
+    const builderOnly = reqs.filter((req) => req.builderSide);
+    if (builderOnly.length !== 1 || pass.reqs.includes("REQ-903a")) {
+      throw new Error("a builder-side body must not count as a server-side implementation");
+    }
+  });
 
   harnessComplete();
   console.log(`\n${passed} passed, ${failed} failed`);

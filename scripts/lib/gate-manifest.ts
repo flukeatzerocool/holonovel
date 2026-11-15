@@ -105,6 +105,12 @@ const RAW_GATES: Gate[] = [
     full: npm("check-world-provider"),
   },
   {
+    name: "check-g7-attestation",
+    description: "G7 §5.12 disposition table and attested-parent data freshness",
+    fast: npm("check-g7-attestation"),
+    full: npm("check-g7-attestation"),
+  },
+  {
     name: "check-adventure-index",
     description: "Adventure module index and DECISIONS table freshness",
     fast: npm("check-adventure-index"),

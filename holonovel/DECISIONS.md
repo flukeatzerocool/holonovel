@@ -2376,10 +2376,99 @@ bound ruleset), so there are no source ruleset sections to re-classify. Recorded
 
 @section evidence
 
-- **(a) implementation status** — 31 of 31 server-side §5.12 REQs `converged`/evidenced (bucket C, harnesses `test-narrative.ts` + `test-g7.ts`). REQ-354 (extended narrative extraction) is a builder-side §5.2 REQ and is excluded from the server-side count.
+- **(a) implementation status** — 82 of 82 server-side §5.12 REQ bodies `converged`/evidenced (bucket C, harnesses `test-narrative.ts` + `test-g7.ts`). The two builder-side attestation bodies (REQ-346a1/a2) are recorded by this block rather than counted as server contracts; the per-body disposition is generated below from §5.12 and the coverage register.
 - **(b) badge_briefing population** — the briefing renders `Beat:`, narrative threads (pacing signal, unresolved decisions, bonds, countdowns, dispositions, coupling advisories), `Story beats`, `World in Motion`, `Knowledge state`, spatial surface, and observer orientation.
 - **(c) smoke-session transcript** — the `holonovel/scripts/test-narrative.ts` harness exercises a 5+ turn cooperative-play sequence across beats, autonomy, world couplings, voice feedback, and coupled lore; results recorded in `spec/audit/req-coverage.md` (§5.12 rows, bucket C).
-- **spec_health.narrative_coherence** — `pass` (31/31 implemented; disposition derived at runtime from `SECTION_512_REQS`/`SECTION_512_IMPLEMENTED`).
+- **spec_health.narrative_coherence** — `pass` (82/82 server-side bodies implemented; the disposition is derived from the shipped §5.12 list and the generated attested parents, and reports `partial`/`fail` when they diverge).
+
+<!-- g7:start -->
+| §5.12 REQ | Parent | Disposition |
+|---|---|---|
+| REQ-335a | REQ-335 | implemented |
+| REQ-335b | REQ-335 | implemented |
+| REQ-335c | REQ-335 | implemented |
+| REQ-353 | REQ-353 | implemented |
+| REQ-336a | REQ-336 | implemented |
+| REQ-336b | REQ-336 | implemented |
+| REQ-351a | REQ-351 | implemented |
+| REQ-351b | REQ-351 | implemented |
+| REQ-351c | REQ-351 | implemented |
+| REQ-337a | REQ-337 | implemented |
+| REQ-337b | REQ-337 | implemented |
+| REQ-352a | REQ-352 | implemented |
+| REQ-352b | REQ-352 | implemented |
+| REQ-352c | REQ-352 | implemented |
+| REQ-352d | REQ-352 | implemented |
+| REQ-338a | REQ-338 | implemented |
+| REQ-338b | REQ-338 | implemented |
+| REQ-338c | REQ-338 | implemented |
+| REQ-339a | REQ-339 | implemented |
+| REQ-339b | REQ-339 | implemented |
+| REQ-339c | REQ-339 | implemented |
+| REQ-339d | REQ-339 | implemented |
+| REQ-339e | REQ-339 | implemented |
+| REQ-348a | REQ-348 | implemented |
+| REQ-348b | REQ-348 | implemented |
+| REQ-348c | REQ-348 | implemented |
+| REQ-340a | REQ-340 | implemented |
+| REQ-340b | REQ-340 | implemented |
+| REQ-340c | REQ-340 | implemented |
+| REQ-349a | REQ-349 | implemented |
+| REQ-349b | REQ-349 | implemented |
+| REQ-349c | REQ-349 | implemented |
+| REQ-349d | REQ-349 | implemented |
+| REQ-341a | REQ-341 | implemented |
+| REQ-341b | REQ-341 | implemented |
+| REQ-341c | REQ-341 | implemented |
+| REQ-342a | REQ-342 | implemented |
+| REQ-342b | REQ-342 | implemented |
+| REQ-343a | REQ-343 | implemented |
+| REQ-343b | REQ-343 | implemented |
+| REQ-343c | REQ-343 | implemented |
+| REQ-343d | REQ-343 | implemented |
+| REQ-344a | REQ-344 | implemented |
+| REQ-344b | REQ-344 | implemented |
+| REQ-344c | REQ-344 | implemented |
+| REQ-347a | REQ-347 | implemented |
+| REQ-347b | REQ-347 | implemented |
+| REQ-347c | REQ-347 | implemented |
+| REQ-345a | REQ-345 | implemented |
+| REQ-345b | REQ-345 | implemented |
+| REQ-345c | REQ-345 | implemented |
+| REQ-350a | REQ-350 | implemented |
+| REQ-350b | REQ-350 | implemented |
+| REQ-350c | REQ-350 | implemented |
+| REQ-355a | REQ-355 | implemented |
+| REQ-355b | REQ-355 | implemented |
+| REQ-356a | REQ-356 | implemented |
+| REQ-356b | REQ-356 | implemented |
+| REQ-357a | REQ-357 | implemented |
+| REQ-357b | REQ-357 | implemented |
+| REQ-358a | REQ-358 | implemented |
+| REQ-358b | REQ-358 | implemented |
+| REQ-359a | REQ-359 | implemented |
+| REQ-359b | REQ-359 | implemented |
+| REQ-360a | REQ-360 | implemented |
+| REQ-360b | REQ-360 | implemented |
+| REQ-361a | REQ-361 | implemented |
+| REQ-361b | REQ-361 | implemented |
+| REQ-362a | REQ-362 | implemented |
+| REQ-362b | REQ-362 | implemented |
+| REQ-363a | REQ-363 | implemented |
+| REQ-363b | REQ-363 | implemented |
+| REQ-364a | REQ-364 | implemented |
+| REQ-364b | REQ-364 | implemented |
+| REQ-365a | REQ-365 | implemented |
+| REQ-365b | REQ-365 | implemented |
+| REQ-365c | REQ-365 | implemented |
+| REQ-366a | REQ-366 | implemented |
+| REQ-366b | REQ-366 | implemented |
+| REQ-366c | REQ-366 | implemented |
+| REQ-366d | REQ-366 | implemented |
+| REQ-346a1 | REQ-346 | attested (builder-side) |
+| REQ-346a2 | REQ-346 | attested (builder-side) |
+| REQ-346b | REQ-346 | implemented |
+<!-- g7:end -->
 
 ### Holonovel Spec Update — 2026-08-22 (provenance, licensing, and toolchain consolidation)
 

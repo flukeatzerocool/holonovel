@@ -94,6 +94,8 @@ import { buildArtifactRegistry, registryCounts, type ArtifactEntry, type Artifac
 import { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary, ADVENTURE_PROVENANCE_KEYS, type AdventureProvenance } from "./core/adventure-provenance.js";
 import { resolveInboxDir, resolveWithin, isSafeSlug } from "./core/data-dir.js";
 import { deriveSlug, fitSlug, isReservedSlugStem, SLUG_PATH_CEILING } from "./core/slug.js";
+import { parseSection512, narrativeCoherence, type NarrativeCoherenceReport, type Section512Req } from "./narrative-coherence.js";
+import { ATTESTED_PARENTS, ATTESTATION_RECORDED, SPEC_HASH as G7_SPEC_HASH } from "./generated/g7-attestation.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 //
@@ -369,20 +371,25 @@ function toolsVisibleToBadge(
 
 // ── §5.12 Narrative Architecture helpers (REQ-335 through REQ-366) ──
 
-// REQ-346 — canonical §5.12 REQ list for the narrative_coherence disposition.
-// REQ-354 (extended narrative extraction) is a §5.2 builder-side REQ, not a
-// §5.12 server contract — it is excluded from the server-side count.
-const SECTION_512_REQS = [
-  "REQ-335", "REQ-336", "REQ-337", "REQ-338", "REQ-339", "REQ-340", "REQ-341",
-  "REQ-342", "REQ-343", "REQ-344", "REQ-345", "REQ-346", "REQ-347", "REQ-348",
-  "REQ-349", "REQ-350", "REQ-351", "REQ-352", "REQ-353", "REQ-355",
-  "REQ-356", "REQ-357", "REQ-358", "REQ-359", "REQ-360", "REQ-361", "REQ-362",
-  "REQ-363", "REQ-364", "REQ-365", "REQ-366",
-];
-// REQ-346 is the attestation itself: it is counted as implemented when the G7
-// narrative_coherence attestation block is recorded in DECISIONS.md (see C4).
-const G7_ATTESTATION_RECORDED = true;
-const SECTION_512_IMPLEMENTED = SECTION_512_REQS.filter((r) => r !== "REQ-346" || G7_ATTESTATION_RECORDED);
+// REQ-346b — the narrative_coherence disposition is derived, not asserted: the
+// §5.12 bodies come from the shipped spec and the attested parents from the
+// generated attestation data (coverage register at build time). A spec the
+// attestation was not generated against reports `stale`, so `pass` is
+// unreachable when the two disagree. See `narrative-coherence.ts`.
+let narrativeCoherenceCache: NarrativeCoherenceReport | null = null;
+function narrativeCoherenceReport(): NarrativeCoherenceReport {
+  if (narrativeCoherenceCache) return narrativeCoherenceCache;
+  let reqs: Section512Req[] = [];
+  try {
+    const specPath = path.join(__dirname, "..", "holonovel.md");
+    if (fs.existsSync(specPath)) reqs = parseSection512(fs.readFileSync(specPath, "utf-8"));
+  } catch { /* unreadable spec — REQ-346b reports `fail` below */ }
+  narrativeCoherenceCache = narrativeCoherence(reqs, ATTESTED_PARENTS, {
+    recorded: ATTESTATION_RECORDED,
+    specCurrent: SPEC_HASH === G7_SPEC_HASH,
+  });
+  return narrativeCoherenceCache;
+}
 
 // REQ-335 — fixed beat vocabulary; the six values are the only valid beats.
 const BEAT_VALUES = ["setup", "escalation", "turning_point", "climax", "resolution", "denouement"] as const;
@@ -15387,15 +15394,11 @@ function buildSpecHealth(): Record<string, unknown> {
       tools_list_bytes: measuredSurface().active.bytes,
       prompt_scaffold_bytes: cachedMetadata().promptBytes,
     },
-    // REQ-346 — narrative coherence disposition (G7). Derived from the §5.12
-    // REQs implemented in this build; a full list with per-REQ dispositions
-    // is recorded in DECISIONS.md under the narrative_coherence attestation.
-    narrative_coherence: {
-      implemented: SECTION_512_IMPLEMENTED.length,
-      total: SECTION_512_REQS.length,
-      disposition: SECTION_512_IMPLEMENTED.length >= SECTION_512_REQS.length ? "pass" : (SECTION_512_IMPLEMENTED.length > 0 ? "partial" : "fail"),
-      reqs: SECTION_512_IMPLEMENTED.slice(),
-    },
+    // REQ-346b — narrative coherence disposition (G7). `implemented`, `total`,
+    // `disposition`, and `reqs` keep their shape; `missing` and `attestation`
+    // are additive, so the G7 evidence record and the coverage register can opt
+    // into the detail without a schema break.
+    narrative_coherence: narrativeCoherenceReport(),
   };
 
   const fingerprintPath = path.join(DATA_DIR, "build-order-fingerprint.json");
