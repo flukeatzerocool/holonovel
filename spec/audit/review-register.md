@@ -11,6 +11,58 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-15 U8 repo governance and content assets
+
+Chunk U8 of the unscoped-surface review program
+(`docs/plans/2026-11-15-unscoped-u8/`, 60 verdict rows in `review.md`). The
+governance docs match the artifacts they describe except where a stale count, a
+dead appendix range, an overstated corpus claim, a missing licence copy, or a
+dangling scheduled pointer was repaired here; the program closes with this
+chunk.
+
+- **U8-F1 — the README install prerequisite contradicted its own design
+  contract. Resolved (2026-11-15).** Predicate: `README.md:63` (the DESIGN
+  comment) required "(Node.js 24+)" while the body (`README.md:220`) and the
+  server package's engine floor (`holonovel/package.json:149-151`, `>=22`) say
+  22+; the validator reads structure and voice, not the value
+  (`scripts/validate-readme.ts:44-70`). The design line now reads 22+, so the
+  user-facing prerequisite and the published package agree. Row 3.
+- **U8-F2 — the server README undercounted the tool surface. Resolved
+  (2026-11-15).** Predicate: `holonovel/README.md:57` said "36
+  action-discriminator tools" while `holonovel/tool-definitions.json:3` records
+  `tool_count: 37`, `holonovel/AGENTS.md:46,65,126` say 37, and every one of the
+  37 entries carries a non-empty `action_enum`. The sentence now reads 37. Row
+  20.
+- **U8-F3 — the layer map put Appendix N in two files. Resolved
+  (2026-11-15).** Predicate: `AGENTS.md:39` described
+  `appendices-reference.md` as "A, D–S, T", a range that includes Appendix N,
+  while `:40` assigns N to `appendices-fixtures.md`. The range now reads
+  "D–M, O–S". Row 11.
+- **U8-F4 — the vendored-corpus table claimed documents the tree does not
+  hold. Resolved (2026-11-15).** Predicate:
+  `holonovel/narrative_world_model/narrative/README.md:13` listed IF Craft
+  Corpus as "(59 documents)" while `narrative/if-craft-corpus/` holds exactly
+  `README.md` and `LICENSE`; the 59-document corpus is an upstream `pip`
+  install (`:3-5` of that file). The cell now names the vendored files and says
+  the corpus is an upstream install. Row 46.
+- **U8-F5 — the container image omitted the licence its NOTICE cites. Resolved
+  (2026-11-15).** Predicate: `holonovel/Dockerfile:22` copied `NOTICE.md` into
+  the runtime stage while `holonovel/NOTICE.md:3` says "MIT-licensed (see
+  `LICENSE.md`)"; the image shipped no `LICENSE.md`, so the referenced file was
+  absent from the distribution. `LICENSE.md` now joins the COPY line, matching
+  the npm tarball (which includes it by npm's licence-file rule). Row 33.
+- **U8-F6 — a scheduled finding was referenced but never recorded, under two
+  dead roadmap sections. Resolved (2026-11-15).** Predicate:
+  `spec/audit/review-register.md:2978-2988` scheduled chunk P2 under
+  `ROADMAP.md` § *§5.3 prompt-health and resource-presence* (a section the
+  roadmap no longer holds) and § *Harness test-ID label hygiene*, then called
+  F-P2-4 "the remaining scheduled item" although no F-P2-4 bullet exists in any
+  register bucket. The §5.3 findings are resolved, and the residual is one
+  zero-padded ID in a harness comment (`holonovel/scripts/test-narrative.ts:1205`
+  names `T056`, which Appendix F does not define, beside the real `T723`). The
+  entry now names that residual and points at the restored `ROADMAP.md` §
+  *Harness test-ID label hygiene (P2)* section. Row 35.
+
 ### 2026-11-15 U7 reference appendices and registries
 
 Chunk U7 of the unscoped-surface review program
@@ -57,8 +109,9 @@ close-protocol debt.
 - **U6-F1 — the U5 close protocol's ROADMAP half was not run. Resolved
   (2026-11-15).** Predicate:
   `docs/plans/2026-11-10-unscoped-surface-review/worklist.md:312-313` makes
-  advancing `ROADMAP.md` step 5 of every chunk close, and `ROADMAP.md:30-31`
-  still read "U5 is next" after U5 closed at `5980ed2` with `LOOP PAUSED`; the
+  advancing `ROADMAP.md` step 5 of every chunk close, and the roadmap's
+  unscoped-surface sweep pointer still read "U5 is next" after U5 closed at
+  `5980ed2` with `LOOP PAUSED`; the
   register half of step 5 did run (the
   `## Resolved — 2026-11-15 U5 artifacts and publication` section below). The
   pointer now names the next chunk, and this increment exercised it twice — into
@@ -2976,19 +3029,52 @@ absent, so each finding carries the failing predicate rather than a test.
 
 ### 2026-11-09 full-review sweep — chunk P2 (tool surface, §5.3)
 
-Scheduled under `ROADMAP.md` § *§5.3 prompt-health and resource-presence
-depth (P1)* and § *Harness test-ID label hygiene (P2)*. Each finding cites the predicate that
-carries it; the citation findings rest on an enumeration of the §5.3 blocks
-against Appendix F and the harness corpus, not on a gate message.
+The §5.3 prompt-health and resource-presence findings are closed. The chunk's
+only residual is the harness-label finding F-P2-4, scheduled under
+`ROADMAP.md` § *Harness test-ID label hygiene (P2)*. Each finding cites the
+predicate that carries it; the citation findings rest on an enumeration of the
+§5.3 blocks against Appendix F and the harness corpus, not on a gate message.
 
 The three citation findings F-P2-1, F-P2-2, and F-P2-3 are `Resolved`
 (2026-11-14) — see the §5.3 citation-repair entry under `## Resolved`. The
 depth findings F-P2-5 and F-P2-6 are also `Resolved` (2026-11-14) — see the
-§5.3 prompt-health depth entry. The chunk's remaining scheduled item is F-P2-4
-below.
+§5.3 prompt-health depth entry. The residual is the zero-padded ID at
+`holonovel/scripts/test-narrative.ts:1205` (`T056`, which Appendix F does not
+define; the same comment also names the real `T723`).
 
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-15 U8 repo governance and content assets
+
+- **U8-F7 — the bare-tool-name guard covers only retired aliases. Recorded
+  (2026-11-15), no action.** Predicate: `scripts/validate-readme.ts:11-24`
+  holds 58 names, every one a retired alias (`advance_combat`, `roll_save`, …),
+  and none of the 37 live names; the guard's regex (`:147-150`) therefore
+  cannot see a live tool named bare in prose. No violation exists: a scan of
+  `README.md` for live tool names outside backticks returns no match, so the
+  guard's gap is latent. Extending it is a validator change with its own
+  self-tests, and the README DESIGN rule it serves is unchanged. Row 1.
+- **U8-F8 — the state-model bullets use the legacy in-tree path. Recorded
+  (2026-11-15), no action.** Predicate: `holonovel/AGENTS.md:195-210` states
+  `<DATA_DIR>` defaults to the per-OS user-data location, then writes the
+  roster and Novel paths as `.holonovel-state/roster.json` and
+  `.holonovel-state/novels/<slug>.json`. Both are interpreted relative to the
+  resolved data directory (`holonovel/src/core/data-dir.ts`), so the sentence
+  is imprecise rather than wrong, and the same section names the compat
+  directory in its first paragraph. Row 26.
+- **U8-F9 — the resource-template count has no gate. Recorded (2026-11-15),
+  no action.** Predicate: `holonovel/AGENTS.md:46` records 22 resource
+  templates; the `@spec:` markers cover `tool_count`, `resource_count`, and
+  `prompt_count` only, so no gate compares 22 with the registration surface.
+  No wrong output is demonstrated — the count is a documentation claim on a
+  surface no consumer reads. Row 23.
+- **U8-F11 — the packaging paragraph omits two shipped entries. Recorded
+  (2026-11-15), no action.** Predicate: `holonovel/AGENTS.md:185-193` lists the
+  tarball contents without `adventures/` or `NOTICE.md`, both of which
+  `holonovel/package.json:23-33` ships. The sentence is an incomplete
+  enumeration, not a contradiction; `check-package-manifest` gates the
+  allowlist itself. Row 25.
 
 ### 2026-11-15 U7 reference appendices and registries
 

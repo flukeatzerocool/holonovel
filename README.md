@@ -60,7 +60,7 @@ README DESIGN:
     Two h3 subsections. No introductory prose under the h2.
     Install: a lede stating that a fresh install is playable with no
     rulebook (the starter Novel), the base-server description, prerequisite
-    (Node.js 24+), shell code block for install, and copy-paste JSON config
+    (Node.js 22+), shell code block for install, and copy-paste JSON config
     block with `<path>` placeholder.
     Install a ruleset: drop-in packages, lazy loading, and the
     state-directory location.

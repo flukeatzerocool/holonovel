@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-15 — Repo governance and content assets: U8 reviewed, the sweep closed
+
+Chunk U8 of the unscoped-surface review program reviewed the repo governance
+docs and the vendored/content assets — 60 verdict rows over the README, AGENTS,
+SECURITY, package and Docker surfaces, the registers, the vendored corpus, and
+the open `docs/` reports. The program is complete: U1–U8 are reviewed, and the
+roadmap's sweep section is retired.
+
+- Six defects repaired. The README design contract's Node prerequisite now
+  matches the 22+ floor the body and the server package state. The server README
+  tool count reads 37. The AGENTS layer map no longer implies Appendix N lives in
+  the reference file. The vendored-corpus table names the files the tree holds
+  instead of claiming 59 upstream documents. The container image now copies
+  `LICENSE.md`, which its NOTICE cites. The P2 chunk's dangling scheduled pointer
+  is replaced by a live roadmap section naming its residual zero-padded harness
+  comment (`holonovel/scripts/test-narrative.ts:1205`).
+- Four P3 notes recorded and closed: the bare-tool-name guard covers retired
+  aliases only, the state-model bullets use the legacy in-tree path, the
+  resource-template count has no gate, and the packaging paragraph omits two
+  shipped entries.
+- Verified: `check:fast` 45/0, `check-registers:strict`, `check-roadmap`,
+  `check-vendor-manifest` (25/25 hashes), `lint`, `validate:sdd` (0 errors).
+
 ## 2026-11-15 — Reference appendices and registries: thirteen stamps repinned, vendor provenance named
 
 Chunk U7 of the unscoped-surface review program reviewed the reference appendices

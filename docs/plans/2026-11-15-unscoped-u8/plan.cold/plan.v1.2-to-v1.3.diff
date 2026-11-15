@@ -1,0 +1,119 @@
+--- plans/2026-11-15-unscoped-u8.cold/plan.v1.2.md	2026-11-15 14:18:52.092717318 -0500
++++ plans/2026-11-15-unscoped-u8.cold/plan.v1.3.md	2026-11-15 14:24:38.110436075 -0500
+@@ -1,8 +1,9 @@
+ # Plan — U8: repo governance and content assets (unscoped-surface review sweep)
+ 
+-Status: draft v1.2 — self pass 2026-11-15 applied (F1–F8); cold pass 1 on v1.1
+-returned `independent-review FAILED` (2 Blockers, 6 Majors, 9 Nits), all applied
+-verbatim as R1–R17 below. Delta re-review owed; plan gate open.
++Status: draft v1.3 — self pass applied (F1–F8); cold pass 1 on v1.1 returned
++`independent-review FAILED` (2 Blockers, 6 Majors, 9 Nits), applied as R1–R17;
++the delta re-review of v1.2 raised 2 Majors and 4 Nits, applied as D1–D6. Plan
++gate ready to stamp.
+ Kind: planned · Depth: standard
+ Increment target: `docs/plans/2026-11-15-unscoped-u8/` — created in Phase 0
+ step 3, not before. This draft lives in the gitignored `plans/` area, so no
+@@ -24,8 +25,29 @@
+ (sha256 `dd7181a7afc54959fe33813272f70e382d2bc22641924bb26ebfe3d855b95e62`)
+ and reported to `plans/2026-11-15-unscoped-u8.cold/report.md` (stages 5/5 in one
+ fresh context — the reviewer records that its five stages could not be split into
+-fresh children, a deviation the stamp carries). Hashes are recorded by the stamp,
+-not restated here.
++fresh children, a deviation the stamp carries). The delta re-review of v1.2
++diff-scanned the repair and returned the six findings D1–D6, all applied.
++Hashes are recorded by the stamp, not restated here.
++
++## Resolutions (delta re-review v1.2 → v1.3)
++
++- **D1 [design, Major] — the R35 section would have failed V6b.** The added
++  section makes `grep -c '^## '` 5, so V6b now accepts 4 or 5, and 6.5 states
++  the section's required 1–3 bullets plus `**Trigger:**`.
++- **D2 [design, Major] — the G7 writer also rewrites the generated attestation
++  source.** `generate-g7-attestation.ts` writes
++  `holonovel/src/generated/g7-attestation.ts` as well as the DECISIONS table;
++  that path moved from "Unchanged" to "Generated", and the row states V7 does
++  not cover it.
++- **D3 [design, Nit] — the added-section branch omitted the trigger.** Now stated
++  with the admission rule it enforces.
++- **D4 [clarity, Nit] — R7 overclaimed.** Only V2's expected column names the
++  drafting-time count; the resolution note says so.
++- **D5 [clarity, Nit] — 6.5b and 6.2 could both rewrite the same bullet.** 6.5b
++  now conditions on 6.2 not having re-pointed it.
++- **D6 [clarity, Nit] — R4's narrative contradicted its own paraphrase.** The
++  sentence now says "no live bullet names the sweep section, and one cites lines
++  the removal moves", matching 6.5b.
+ 
+ ## Resolutions (cold pass v1.1 → v1.2)
+ 
+@@ -46,9 +68,9 @@
+ - **R4 [design, Major 4] — the citation sweep over-reached.** 6.5b is scoped to
+   live governance surfaces (`ROADMAP.md`, `spec/audit/`, `AGENTS.md`, the
+   worklist) and explicitly excludes `docs/plans/` history, which this program
+-  does not rewrite (`worklist.md:40`). The "one exists today" claim becomes "no
+-  live register bullet cites the sweep section; one cites lines the removal
+-  moves."
++  does not rewrite (`worklist.md:40`). The "one exists today" claim becomes: no
++  live register bullet names the sweep section, and one cites lines the removal
++  moves.
+ - **R5 [design, Major 5] — R35's finding class had no repair path.** 6.2 now
+   includes `spec/audit/review-register.md` for a stale section pointer, and
+   Phase 3 states the branch: re-point a bullet whose scheduled work is still
+@@ -59,11 +81,15 @@
+   `npx tsx holonovel/scripts/generate-g7-attestation.ts` (no `--check`) for the
+   G7 table.
+ - **R7 [design, Major 7] — "45 passed" survived in three places.** 6.3b and done
+-  bar 4 now reference "the Phase 0 baseline count (EV2)"; only EV2 records 45.
++  bar 4 now reference "the Phase 0 baseline count (EV2)"; only V2's expected
++  column names the drafting-time count (45) as provenance.
+ - **R8 [design, Major 8] — the preflight evidence described a different
+   artifact.** Preflight is re-run against `plans/2026-11-15-unscoped-u8/plan.md`
+-  with the full target list before stamping; a nonexistent `review.md` target is
+-  no longer passed.
++  with the full target list before stamping. The increment directory does not
++  exist until Phase 0, but the plan file itself lives under the gitignored
++  `plans/` area today, so the artifact path is real now; a nonexistent
++  `review.md` target is no longer passed, and the target list names every file
++  the phases may write.
+ - **R9 [clarity, Nit 9] — R24 was exhaustive and sampled at once.** It now
+   enumerates all 37 names and samples the action lists at stride 5.
+ - **R10 [clarity, Nit 10] — R44's anchor stopped before `## Non-goals`.** Now
+@@ -473,7 +499,8 @@
+ 6. **(6.5)** Close the sweep in one edit: remove `ROADMAP.md:15-34` (the
+    section plus its trailing blank, so `:15` becomes the synthesis heading),
+    leaving the three P1/P2 sections and the `## Non-goals` pointer. If R35 found
+-   scheduled work with no home, add its 1–3-bullet section here. Update
++   scheduled work with no home, add its section here: 1–3 bullets plus a
++   `**Trigger:**` line, the admission shape (`ROADMAP.md:4-6`). Update
+    `worklist.md:98` to
+    `**reviewed 2026-11-15** — 60 rows, <a> P0 fixed, <b> P0 scheduled, <c> P1
+    scheduled, <d> P2 scheduled, <e> P3 closed (…/review.md)` with every count
+@@ -484,7 +511,7 @@
+    the register (`spec/audit/review-register.md`), `AGENTS.md`, and the worklist.
+    No live register bullet names the sweep section; one,
+    `review-register.md:60`, cites `ROADMAP.md:30-31` and is rewritten to name the
+-   section rather than the line. `docs/plans/` history is out of scope — this
++   section rather than the line — if 6.2 has not already re-pointed it. `docs/plans/` history is out of scope — this
+    program does not edit another increment's artifacts (`worklist.md:40`) — so
+    its old line citations stay as they were. Then `sed -n` the new register
+    entry's citations.
+@@ -511,9 +538,9 @@
+ |---|---|---|
+ | Prose (bounded) | `README.md`, `AGENTS.md`, `holonovel/README.md`, `holonovel/AGENTS.md`, `SECURITY.md`, `holonovel/NOTICE.md`, `holonovel/Dockerfile` | S–M — only demonstrated defects |
+ | Records | `spec/audit/review-register.md` (existing-bullet repairs plus the new entry), `spec/audit/req-coverage.md` (only if R38 regenerates it), `ROADMAP.md`, `worklist.md:98,314-316`, `CHANGELOG.md` | S–M |
+-| Generated (conditional) | the G7 table inside `holonovel/DECISIONS.md`; README `@spec:` marker values | S — only on drift from 6.3 |
++| Generated (conditional) | the G7 table inside `holonovel/DECISIONS.md` and `holonovel/src/generated/g7-attestation.ts`; README `@spec:` marker values | S — only on drift from 6.3. `check-fingerprint-sync` (V7) does not cover the attestation; V13's file list is the check |
+ | Increment | `docs/plans/2026-11-15-unscoped-u8/{plan,tasks,review,aar}.md`, optional `plan.cold/` | M — new files |
+-| Unchanged (verified) | `holonovel.md`, `holonovel/holonovel.md`, `spec/build-phase-map.md`, `holonovel/src/generated/contract-fingerprints.ts`, `holonovel/src/generated/g7-attestation.ts`, `spec/` sources | — — V1/V7/V12 prove it |
++| Unchanged (verified) | `holonovel.md`, `holonovel/holonovel.md`, `spec/build-phase-map.md`, `holonovel/src/generated/contract-fingerprints.ts`, `spec/` sources | — — V1/V7 prove it |
+ | Read-only | root `package.json`, root `LICENSE`, `holonovel/LICENSE.md`, `DECISIONS.md` (except the generated table), `spec/audit/*` baselines and reports, `holonovel/narrative_world_model/`, `holonovel/content/`, `holonovel/adventures/`, `docs/upstream/`, `docs/licenses/`, `docs/e5-world-pack-gap-report.md`, `docs/ruleset-index-phase0.md`, `docs/plans/README.md` and the increment history, gate scripts, server source | — |
+ 
+ ## Verification
+@@ -529,7 +556,7 @@
+ | V4 | `npm run check-loop-artifacts` | pass — plan/tasks/AAR present with a terminal token |
+ | V5 | `npm run check-registers:strict` | pass — every bullet carries a disposition and a date |
+ | V6 | `npm run check-roadmap` | pass — the removed section is gone, every remaining section has 1–3 bullets and a trigger, the pointer resolves |
+-| V6b | `grep -c '^## ' ROADMAP.md` and `sed -n '15p' ROADMAP.md` | 4 (three items + `## Non-goals`); `:15` is the synthesis heading — the read V6 cannot make |
++| V6b | `grep -c '^## ' ROADMAP.md` and `sed -n '15p' ROADMAP.md` | 4 (three items + `## Non-goals`), or 5 if 6.5 added the R35 section; `:15` is the synthesis heading either way — the read V6 cannot make |
+ | V7 | `npm run check-fingerprint-sync` | pass — unchanged (no `spec/` source edited) |
+ | V8 | `npm run lint` then `npm run validate:sdd` | 0 errors each; proofreading warnings are informational. Note: `lint` reads only `holonovel.md` and `README.md` (`package.json:7`), so `holonovel/README.md`, `AGENTS.md`, and `holonovel/AGENTS.md` need the manual column check in 6.2 |
+ | V9 | `npm run check-anchors` | pass — TypeScript source anchors resolve |

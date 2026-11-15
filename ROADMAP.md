@@ -12,26 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Unscoped-surface review sweep (P2)
-
-- Foundations through verification: review §1–§4 and Appendices A/M against the
-  validator surface (U1), §6 and the build-phase map against the build/update
-  tooling and git hooks (U2), §7 and `docs/engine-contract.md` §1/§7–§10 against
-  the adapter and server code (U3), and §8 against the gate manifest and CI (U4).
-- Artifacts, synthesis, and catalogues: review §9/§10 and Appendix V against the
-  publication pipeline (U5), §11 and Appendices B/C/N/W–Z against the fixtures
-  and playability harness (U6), and Appendices D–L/O–T/U against the registries
-  and manifests (U7).
-- Repo governance and content: review the README, AGENTS, SECURITY, package, and
-  Docker surface plus the vendored world model and ruleset content (U8), recording
-  every finding in `spec/audit/review-register.md` with the same P0–P3
-  dispositions as the 2026-11-09 sweep.
-
-U8 is next (repo governance and content assets).
-
-**Trigger:** the next allocated review session takes U8; each chunk closes when
-its findings are dispositioned, and this section closes when U8 is `Resolved`.
-
 ## Synthesis-surface gaps (P1)
 
 - Implement the synthesis fingerprint: a root hash over the ruleset content hash,
@@ -68,6 +48,16 @@ closes when the re-measurement is recorded in the AAR of that session.
 
 **Trigger:** the next allocated content-provenance session; closes when the
 manifest carries the column, the checker enforces it, and U7-F4 is `Resolved`.
+
+## Harness test-ID label hygiene (P2)
+
+- The residual from the 2026-11-09 full-review sweep's chunk P2 (F-P2-4): a
+  harness comment at `holonovel/scripts/test-narrative.ts:1205` names `T056`, a
+  zero-padded ID Appendix F does not define, beside the real `T723`. Correct the
+  label, then grep the harness corpus for zero-padded IDs and record the result.
+
+**Trigger:** the next harness-maintenance session; closes when the comment
+carries only real Appendix F IDs and the corpus grep is recorded.
 
 ## Non-goals
 

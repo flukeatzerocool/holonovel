@@ -19,7 +19,7 @@ RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/dist ./dist
 COPY bin ./bin
 COPY content ./content
-COPY holonovel.md tool-surface-registry.json tool-disambiguation.json NOTICE.md ./
+COPY holonovel.md tool-surface-registry.json tool-disambiguation.json NOTICE.md LICENSE.md ./
 
 # The launcher starts the stdio MCP server; `help` prints usage and exits 0.
 ENTRYPOINT ["node", "bin/holonovel.js"]

@@ -1,0 +1,313 @@
+--- plans/2026-11-15-unscoped-u8.cold/plan.v1.1.md	2026-11-15 14:07:36.865938766 -0500
++++ plans/2026-11-15-unscoped-u8.cold/plan.v1.2.md	2026-11-15 14:18:52.092717318 -0500
+@@ -1,7 +1,8 @@
+ # Plan — U8: repo governance and content assets (unscoped-surface review sweep)
+ 
+-Status: draft v1.1 — self pass 2026-11-15 applied (F1–F8); standard-depth cold
+-pass still owed; plan gate open.
++Status: draft v1.2 — self pass 2026-11-15 applied (F1–F8); cold pass 1 on v1.1
++returned `independent-review FAILED` (2 Blockers, 6 Majors, 9 Nits), all applied
++verbatim as R1–R17 below. Delta re-review owed; plan gate open.
+ Kind: planned · Depth: standard
+ Increment target: `docs/plans/2026-11-15-unscoped-u8/` — created in Phase 0
+ step 3, not before. This draft lives in the gitignored `plans/` area, so no
+@@ -18,8 +19,73 @@
+ Trust boundary: every premise is read from the working tree. No web fetch, no
+ user statement, and no upstream content enters the plan; the governance docs'
+ own external links are checked for shape, never fetched (K5).
+-Review independence: self pass only. A standard-depth cold pass
+-(`independent-review`) is required before this plan may be presented as gated.
++Review independence: fresh. Cold pass 1 reviewed
++`plans/2026-11-15-unscoped-u8.cold/plan.v1.1.md`
++(sha256 `dd7181a7afc54959fe33813272f70e382d2bc22641924bb26ebfe3d855b95e62`)
++and reported to `plans/2026-11-15-unscoped-u8.cold/report.md` (stages 5/5 in one
++fresh context — the reviewer records that its five stages could not be split into
++fresh children, a deviation the stamp carries). Hashes are recorded by the stamp,
++not restated here.
++
++## Resolutions (cold pass v1.1 → v1.2)
++
++All 17 findings are applied. Blockers first.
++
++- **R1 [design, Blocker 1] — V6b's line expectation could not hold.** Removing
++  `ROADMAP.md:15-33` leaves the blank separator (`:34`) at new `:15`. 6.5 now
++  removes `ROADMAP.md:15-34` (section plus its trailing blank), so `:15` becomes
++  the synthesis heading as V6b expects.
++- **R2 [design, Blocker 2] — 6.5 wrote the wrong worklist block.** U8's exit
++  evidence is `worklist.md:314-316`; `:324-326` is the shared per-chunk close
++  protocol. 6.5 and the blast radius now say `:314-316` (status row `:98` was
++  correct and stays).
++- **R3 [design, Major 3] — five reviewed files had no destination.** Root
++  `AGENTS.md` joins 6.2's prose list; root `LICENSE`, `holonovel/LICENSE.md`,
++  `docs/e5-world-pack-gap-report.md`, and `docs/ruleset-index-phase0.md` join the
++  read-only row, where a finding is scheduled, not edited.
++- **R4 [design, Major 4] — the citation sweep over-reached.** 6.5b is scoped to
++  live governance surfaces (`ROADMAP.md`, `spec/audit/`, `AGENTS.md`, the
++  worklist) and explicitly excludes `docs/plans/` history, which this program
++  does not rewrite (`worklist.md:40`). The "one exists today" claim becomes "no
++  live register bullet cites the sweep section; one cites lines the removal
++  moves."
++- **R5 [design, Major 5] — R35's finding class had no repair path.** 6.2 now
++  includes `spec/audit/review-register.md` for a stale section pointer, and
++  Phase 3 states the branch: re-point a bullet whose scheduled work is still
++  live (adding a 1–3-bullet roadmap section only if the work has no home), or
++  record-and-close it if the work shipped.
++- **R6 [design, Major 6] — 6.3 named no writer.** Added:
++  `npm run refresh-properties` for the markers and
++  `npx tsx holonovel/scripts/generate-g7-attestation.ts` (no `--check`) for the
++  G7 table.
++- **R7 [design, Major 7] — "45 passed" survived in three places.** 6.3b and done
++  bar 4 now reference "the Phase 0 baseline count (EV2)"; only EV2 records 45.
++- **R8 [design, Major 8] — the preflight evidence described a different
++  artifact.** Preflight is re-run against `plans/2026-11-15-unscoped-u8/plan.md`
++  with the full target list before stamping; a nonexistent `review.md` target is
++  no longer passed.
++- **R9 [clarity, Nit 9] — R24 was exhaustive and sampled at once.** It now
++  enumerates all 37 names and samples the action lists at stride 5.
++- **R10 [clarity, Nit 10] — R44's anchor stopped before `## Non-goals`.** Now
++  `ROADMAP.md:1-74`.
++- **R11 [clarity, Nit 11] — R31's range overlapped R30.** R30 owns
++  `:1491-1581` (gate classification, the alias table, and the configuration
++  classification record); R31 owns the dated entries at `:1372-1490,1582-2906`.
++- **R12 [clarity, Nit 12] — bundled verification rows.** The preamble now says a
++  row naming two commands records both exit statuses.
++- **R13 [design, Nit 13] — `## Done bar` is not the artifact contract.**
++  `scripts/lib/loop-artifacts.ts:92-98` looks for a `**Done bar:**` line; the
++  section now carries one.
++- **R14 [clarity, Nit 14] — multiple dispositions had no layout.** 6.4 states one
++  `### 2026-11-15 …` heading per bucket, because the parser keys off `## `.
++- **R15 [clarity, Nit 15] — V11's pipe rule and V11b's floor were imprecise.**
++  The preamble exempts the `comm … <(…|…)` process substitution, and V11b states
++  that the floor rests on EV8's confirmed drift.
++- **R16 [clarity, Nit 16] — 6.7 omitted the heading contract.** The entry must
++  read `## <YYYY-MM-DD> — <title>` with the date equal to the session date
++  (`scripts/session-close.ts:246-257`).
++- **R17 [clarity, Nit 17] — Phase 0 step 6 misnamed the second arm.** It is the
++  `2026-11-28` date or 26 new commits, with the 2026-11-08→14 baseline.
+ 
+ ## Self pass (v1 → v1.1)
+ 
+@@ -35,7 +101,7 @@
+   `holonovel/README.md` or `holonovel/AGENTS.md` would ship unchecked. 6.2 gains
+   a manual column and count check, and V8 states the gap.
+ - **F3 [design] — the ROADMAP removal orphans a line-anchored citation.**
+-  `review-register.md:60` cites `ROADMAP.md:30-31`; removing `:15-33` makes that
++  `review-register.md:60` cites `ROADMAP.md:30-31`; removing `:15-34` makes that
+   pointer false. 6.5b rewrites it to name the section, and K11 records the risk.
+ - **F4 [design] — V2 pinned a gate count.** A gate added between drafting and
+   execution would fail a literal "45 passed". V2 now compares against the Phase 0
+@@ -210,14 +276,14 @@
+ | R21 | `holonovel/README.md` Configuration: every switch is an environment switch and inert by default | `:73-89`; `docs/engine-contract.md` §… (U3-owned, read-only) |
+ | R22 | `holonovel/README.md` Development commands and License pointer | `:90-138`; `holonovel/package.json` scripts |
+ | R23 | `holonovel/AGENTS.md` Layer map ↔ the tree and the live resource/template/prompt counts | `holonovel/AGENTS.md:1-64`; EV10 |
+-| R24 | `holonovel/AGENTS.md` Tool Surface: all 37 names and their action lists, sampled at stride 5, ↔ the registry | `:65-137`; `holonovel/tool-surface-registry.json` |
++| R24 | `holonovel/AGENTS.md` Tool Surface: all 37 names enumerate against the registry; the action lists are sampled at stride 5 | `:65-137`; `holonovel/tool-surface-registry.json` |
+ | R25 | `holonovel/AGENTS.md` Running, Boot, Packaging ↔ `prepack`/`postpack`, the `files` allowlist, the Node floor | `:138-194`; EV15, EV16 |
+ | R26 | `holonovel/AGENTS.md` State Model ↔ REQ-613 data-dir behaviour and the save layout | `:195-210`; `SECURITY.md:14-31` |
+ | R27 | `holonovel/AGENTS.md` Two-Repo Workflow and Retiring a server ↔ the scripts those steps name | `:211-253`; `scripts/update-server.ts`, `scripts/migrate-user-data.ts` |
+ | R28 | `DECISIONS.md` current record block: spec hash, tool/description/surface budgets ↔ the live counts and the gates that record them | `holonovel/DECISIONS.md:1-11`; EV8 |
+ | R29 | `DECISIONS.md` `## Non-goals`: sampled entries each cite a governing REQ, and the pointer rule holds | `:13-1371`; `scripts/check-roadmap.ts` |
+-| R30 | `DECISIONS.md` Gate classification and Configuration classification tables ↔ registered tools/resources | `:1491-1600`; `scripts/check-traceability.ts` |
+-| R31 | `DECISIONS.md` dated entries (sampled): a dated count is history, and its claims resolve at its own date | `:1372-2906` sample; EV11 |
++| R30 | `DECISIONS.md` Gate classification and Configuration classification records ↔ registered tools/resources | `:1491-1581`; `scripts/check-traceability.ts` |
++| R31 | `DECISIONS.md` dated entries (sampled): a dated count is history, and its claims resolve at its own date | `:1372-1490,1582-2906`; EV11 |
+ | R32 | `NOTICE.md`, `LICENSE.md`, root `LICENSE`: licence chain and the 13-source list ↔ Appendix U (read-only) | EV12; `spec/appendices-licenses.md:7-21` |
+ | R33 | `Dockerfile`: build/runtime split, what the image ships, and whether the omissions (`LICENSE.md`, vendors) are sound | EV13; `scripts/check-container-image.ts` |
+ 
+@@ -235,7 +301,7 @@
+ | R41 | `performance-record.json` ↔ `check-performance-record` | `scripts/check-performance-record.ts`; EV20 |
+ | R42 | `tdqs-scoreboard.json` ↔ `check-tdqs-scoreboard` (read-only; U7 reviewed the tier bar) | `scripts/check-tdqs-scoreboard.ts` |
+ | R43 | `remediation-2026-08-24.md` and `spec-code-comparison-2026-09-25.md`: dated reports, archived status, no live pointer needed | `spec/audit/remediation-2026-08-24.md:1-20`; `spec/audit/spec-code-comparison-2026-09-25.md:1-20` |
+-| R44 | `ROADMAP.md` admission rule ↔ `check-roadmap`; the section that closes and the three that remain | `ROADMAP.md:1-70`; `scripts/check-roadmap.ts:20-30` |
++| R44 | `ROADMAP.md` admission rule ↔ `check-roadmap`; the section that closes and the three that remain | `ROADMAP.md:1-74`; `scripts/check-roadmap.ts:20-30` |
+ | R45 | `CHANGELOG.md` conventions ↔ `session:close`'s subject derivation and the spec-update narrative duty | `CHANGELOG.md:1-20`; `scripts/session-close.ts:242-276` |
+ 
+ ### Phase 4 — vendored and content assets (R46–R55)
+@@ -281,9 +347,9 @@
+    in `session:close` (`docs/plans/README.md:47-54`).
+ 5. **Do not edit `ROADMAP.md` at Phase 0.** The section and its U8 pointer are
+    correct until 6.5 closes the chunk.
+-6. Record both re-measurement arms: the commit count since `2026-11-15` and the
+-   date `2026-11-28` (`ROADMAP.md:50-60`). Neither is met, so no work on that
+-   section is permitted.
++6. Record both re-measurement arms: the `2026-11-28` date or 26 new commits,
++   against the 2026-11-08→14 baseline (`ROADMAP.md:52-59`). Neither is met, so no
++   work on that section is permitted.
+ 
+ ## Phase 1 — root governance docs (R1–R18)
+ 
+@@ -335,6 +401,12 @@
+   confirms the other three sections survive the removal (`check-roadmap` caps
+   each at 3 bullets).
+ - R45 reads conventions only; the CHANGELOG entry itself is written in 6.7.
++- R35's branch when a bullet names a section that no longer exists
++  (`review-register.md:2979` cites a §5.3 section `ROADMAP.md` does not hold): if
++  the scheduled work is still live, 6.2 re-points the bullet at the section that
++  now owns it, and opens a 1–3-bullet section in 6.5 only if the work has no
++  home; if the work shipped, the bullet is record-and-closed in 6.4. No branch
++  leaves the row `UNSET`.
+ - R34/R37 sample the register but do not raise the 125 grandfathered undated
+   bullets as findings (EV26): the gate tolerates them and this increment may not
+   rewrite history. The row records the count and that new bullets are dated.
+@@ -367,47 +439,62 @@
+ 1. **(6.1)** Write `review.md` with 60 rows, `R1`–`R60`, header
+    `| Row | Unit | Predicate | Verdict | Tier |`, every row settled.
+ 2. **(6.2)** Apply only the bounded governance-prose fixes the review
+-   demonstrates — a stale count, a broken internal link, a licence pointer —
+-   inside `README.md`, `holonovel/README.md`, `holonovel/AGENTS.md`,
+-   `SECURITY.md`, `holonovel/NOTICE.md`, and `holonovel/Dockerfile`. A fix that
+-   needs a server, a gate, or a content regeneration is recorded and scheduled.
+-   Record each edited block's pre- and post-edit line count in `review.md`.
++   demonstrates — a stale count, a broken internal link, a licence pointer, a
++   stale register section pointer — inside `README.md`, `AGENTS.md`,
++   `holonovel/README.md`, `holonovel/AGENTS.md`, `SECURITY.md`,
++   `holonovel/NOTICE.md`, `holonovel/Dockerfile`, and
++   `spec/audit/review-register.md` (existing bullets only; new findings are
++   6.4's). A fix that needs a server, a gate, a content regeneration, or a
++   licence-text edit is recorded and scheduled. Record each edited block's pre-
++   and post-edit line count in `review.md`.
+    `lint` reads only `holonovel.md` and `README.md` (`package.json:7`), so the
+-   two server docs are ungated: hand-check that no edited paragraph exceeds 120
++   three other docs are ungated: hand-check that no edited paragraph exceeds 120
+    columns, and re-read the edited block for count agreement before moving on.
+-   Root `package.json` is read-only here; a finding there is scheduled (K3).
+-3. **(6.3)** Run the regeneration checks; regenerate only on drift:
+-   `npm run check-g7-attestation` (its G7 table lives in `DECISIONS.md`) and
+-   `npm run check-markers` (README `@spec:` markers). `npm run assemble` is
+-   expected to be a no-op (EV22); run it and record the hash as unchanged.
++   Root `package.json`, the licence texts, and the two dated `docs/` reports are
++   read-only here; a finding there is scheduled (K3).
++3. **(6.3)** Run the regeneration checks; regenerate only on drift, with the
++   writer named: `npm run check-g7-attestation`, then
++   `npx tsx holonovel/scripts/generate-g7-attestation.ts` (no `--check`) if it
++   reports drift; `npm run check-markers`, then `npm run refresh-properties` if
++   the markers are stale. `npm run assemble` is expected to be a no-op (EV22);
++   run it and record the hash as unchanged.
+ 4. **(6.3b)** Run `npm run check:fast` un-piped. It must print
+-   `check:fast: PASS` and `45 passed, 0 failed` before any record is written.
++   `check:fast: PASS` with the Phase 0 baseline's passed count and `0 failed`
++   before any record is written.
+ 5. **(6.4)** Write the register entry after 6.2/6.3, so every cited line is
+-   current, in the parser's shape (EV23): a
+-   `### 2026-11-15 U8 repo governance and content assets` topic heading under the
+-   bucket that matches the disposition (`## Resolved`, `## Scheduled-roadmap`,
+-   `## Closed-P3`, `## Deferred-by-user`), then one bullet per finding:
++   current, in the parser's shape (EV23): one
++   `### 2026-11-15 U8 repo governance and content assets` heading **per bucket
++   used** — `## Resolved`, `## Scheduled-roadmap`, `## Closed-P3`,
++   `## Deferred-by-user` — because the parser keys a section off `## `, then one
++   bullet per finding:
+    `- **U8-Fn — <claim>. <Disposition> (2026-11-15).** Predicate: <file:line>.`
+    A `Scheduled-roadmap` bullet cites the predicate file and adds the REQ to the
+    owning roadmap bullet if it must be named (`register-checks.ts:64-69`).
+-6. **(6.5)** Close the sweep in one edit: remove `ROADMAP.md:15-33` entirely
+-   (the chunk is the last one), leaving the three P1/P2 sections and the
+-   `## Non-goals` pointer. Update `worklist.md:98` to
++6. **(6.5)** Close the sweep in one edit: remove `ROADMAP.md:15-34` (the
++   section plus its trailing blank, so `:15` becomes the synthesis heading),
++   leaving the three P1/P2 sections and the `## Non-goals` pointer. If R35 found
++   scheduled work with no home, add its 1–3-bullet section here. Update
++   `worklist.md:98` to
+    `**reviewed 2026-11-15** — 60 rows, <a> P0 fixed, <b> P0 scheduled, <c> P1
+    scheduled, <d> P2 scheduled, <e> P3 closed (…/review.md)` with every count
+    substituted from `review.md`, and amend U8's `**Exit evidence:**` line
+-   (`:324-326`) to the observed result. Add the program-complete line under the
++   (`:314-316`) to the observed result. Add the program-complete line under the
+    status table.
+-7. **(6.5b)** Re-confirm every citation into `ROADMAP.md` after the removal.
+-   One exists today — `spec/audit/review-register.md:60` cites
+-   `ROADMAP.md:30-31` as the pointer's position at U5's close. Rewrite it to name
+-   the section, not the line, so the historical finding stays true after the
+-   section is gone. Then `sed -n` the new register entry's line citations.
++7. **(6.5b)** Re-confirm the live citations into `ROADMAP.md` after the removal:
++   the register (`spec/audit/review-register.md`), `AGENTS.md`, and the worklist.
++   No live register bullet names the sweep section; one,
++   `review-register.md:60`, cites `ROADMAP.md:30-31` and is rewritten to name the
++   section rather than the line. `docs/plans/` history is out of scope — this
++   program does not edit another increment's artifacts (`worklist.md:40`) — so
++   its old line citations stay as they were. Then `sed -n` the new register
++   entry's citations.
+ 8. **(6.6)** Verify `ROADMAP.md` admits the removal: each remaining `##`
+    section carries 1–3 bullets and a `**Trigger:**`, and `## Non-goals` stays a
+    three-line pointer (`check-roadmap.ts:20-30`).
+ 9. **(6.7)** Insert `CHANGELOG.md`'s dated section at the top, above the
+-   existing top heading (`CHANGELOG.md:3`), because `session:close` derives the
++   existing top heading (`CHANGELOG.md:3`), in the form
++   `## <YYYY-MM-DD> — <title>` with the date equal to the session date
++   (`scripts/session-close.ts:246-257`), because `session:close` derives the
+    commit subject from the top heading; the entry records the sweep's completion
+    (U1–U8), since the removed section's work "moves to CHANGELOG.md"
+    (`ROADMAP.md:7`). Then write `aar.md`, replacing the Phase 0
+@@ -422,33 +509,34 @@
+ 
+ | Surface | Files | Change |
+ |---|---|---|
+-| Prose (bounded) | `README.md`, `holonovel/README.md`, `holonovel/AGENTS.md`, `SECURITY.md`, `holonovel/NOTICE.md`, `holonovel/Dockerfile` | S–M — only demonstrated defects |
+-| Records | `spec/audit/review-register.md`, `spec/audit/req-coverage.md` (only if R38 regenerates it), `ROADMAP.md`, `worklist.md:98,324-326`, `CHANGELOG.md` | S–M |
++| Prose (bounded) | `README.md`, `AGENTS.md`, `holonovel/README.md`, `holonovel/AGENTS.md`, `SECURITY.md`, `holonovel/NOTICE.md`, `holonovel/Dockerfile` | S–M — only demonstrated defects |
++| Records | `spec/audit/review-register.md` (existing-bullet repairs plus the new entry), `spec/audit/req-coverage.md` (only if R38 regenerates it), `ROADMAP.md`, `worklist.md:98,314-316`, `CHANGELOG.md` | S–M |
+ | Generated (conditional) | the G7 table inside `holonovel/DECISIONS.md`; README `@spec:` marker values | S — only on drift from 6.3 |
+ | Increment | `docs/plans/2026-11-15-unscoped-u8/{plan,tasks,review,aar}.md`, optional `plan.cold/` | M — new files |
+ | Unchanged (verified) | `holonovel.md`, `holonovel/holonovel.md`, `spec/build-phase-map.md`, `holonovel/src/generated/contract-fingerprints.ts`, `holonovel/src/generated/g7-attestation.ts`, `spec/` sources | — — V1/V7/V12 prove it |
+-| Read-only | root `package.json`, `DECISIONS.md` (except the generated table), `spec/audit/*` baselines and reports, `holonovel/narrative_world_model/`, `holonovel/content/`, `holonovel/adventures/`, `docs/upstream/`, `docs/licenses/`, `docs/plans/README.md`, gate scripts, server source | — |
++| Read-only | root `package.json`, root `LICENSE`, `holonovel/LICENSE.md`, `DECISIONS.md` (except the generated table), `spec/audit/*` baselines and reports, `holonovel/narrative_world_model/`, `holonovel/content/`, `holonovel/adventures/`, `docs/upstream/`, `docs/licenses/`, `docs/e5-world-pack-gap-report.md`, `docs/ruleset-index-phase0.md`, `docs/plans/README.md` and the increment history, gate scripts, server source | — |
+ 
+ ## Verification
+ 
+-Run un-piped, each with its exit status captured:
++Run un-piped, each command's exit status captured; a row naming two commands
++records both statuses:
+ 
+ | # | Command | Expected |
+ |---|---|---|
+ | V1 | `npm run assemble` | exit 0; the build-phase-map content hash is unchanged (EV22) |
+-| V2 | `npm run check:fast` | the same passed count the Phase 0 baseline printed (45 when drafted), `0 failed`, `check:fast: PASS` — baseline, mid-session (6.3b), and close |
++| V2 | `npm run check:fast` | the passed count the Phase 0 baseline printed (45 at drafting, EV2), `0 failed`, `check:fast: PASS` — baseline, mid-session (6.3b), and close |
+ | V3 | `grep -cE '^[|] R[0-9]+ [|]' docs/plans/2026-11-15-unscoped-u8/review.md` | 60 |
+ | V4 | `npm run check-loop-artifacts` | pass — plan/tasks/AAR present with a terminal token |
+ | V5 | `npm run check-registers:strict` | pass — every bullet carries a disposition and a date |
+ | V6 | `npm run check-roadmap` | pass — the removed section is gone, every remaining section has 1–3 bullets and a trigger, the pointer resolves |
+ | V6b | `grep -c '^## ' ROADMAP.md` and `sed -n '15p' ROADMAP.md` | 4 (three items + `## Non-goals`); `:15` is the synthesis heading — the read V6 cannot make |
+ | V7 | `npm run check-fingerprint-sync` | pass — unchanged (no `spec/` source edited) |
+-| V8 | `npm run lint` and `npm run validate:sdd` | 0 errors; proofreading warnings are informational. Note: `lint` reads only `holonovel.md` and `README.md` (`package.json:7`), so `holonovel/README.md` and `AGENTS.md` need the manual column check in 6.2 |
++| V8 | `npm run lint` then `npm run validate:sdd` | 0 errors each; proofreading warnings are informational. Note: `lint` reads only `holonovel.md` and `README.md` (`package.json:7`), so `holonovel/README.md`, `AGENTS.md`, and `holonovel/AGENTS.md` need the manual column check in 6.2 |
+ | V9 | `npm run check-anchors` | pass — TypeScript source anchors resolve |
+-| V10 | `npm run tool-citation-check` and `npm run check-tool-surface` | pass — no prose fix moved a tool binding |
+-| V11 | `comm -23 <(grep -oE 'DEFECT U8-F[0-9]+' docs/plans/2026-11-15-unscoped-u8/review.md \| sed 's/^DEFECT //' \| sort -u) <(grep -oE 'U8-F[0-9]+' spec/audit/review-register.md \| sort -u)` | empty — every `DEFECT` ID has a register bullet |
+-| V11b | `grep -c '^- \*\*U8-F' spec/audit/review-register.md` | at least 1 — a presence floor, not an equality |
+-| V12 | `npm run check-g7-attestation` and `npm run check-markers` | pass — regenerated only if 6.3 reported drift |
++| V10 | `npm run tool-citation-check` then `npm run check-tool-surface` | pass each — no prose fix moved a tool binding |
++| V11 | `comm -23 <(grep -oE 'DEFECT U8-F[0-9]+' docs/plans/2026-11-15-unscoped-u8/review.md \| sed 's/^DEFECT //' \| sort -u) <(grep -oE 'U8-F[0-9]+' spec/audit/review-register.md \| sort -u)` | empty — every `DEFECT` ID has a register bullet. The pipe ban governs the command's own output, not the process substitutions inside it |
++| V11b | `grep -c '^- \*\*U8-F' spec/audit/review-register.md` | at least 1 — a presence floor. It holds because EV8's 36/37 drift is already confirmed at `holonovel/README.md:57`, so at least one bullet exists |
++| V12 | `npm run check-g7-attestation` then `npm run check-markers` | pass each — regenerated (R6's writer) only if 6.3 reported drift |
+ | V13 | `git status --porcelain` | only the intended files; no stray cold artifacts, no edited `spec/` source |
+ 
+ ## Risks and rollback
+@@ -458,7 +546,7 @@
+ | K1 | A dated `DECISIONS.md` entry is read as a stale current count | R28/R31 split the duties; EV11 states the history rule; every row cites the entry's date |
+ | K2 | Removing the sweep section breaks a cross-reference to it | 6.5 updates the worklist row, exit evidence, and program status in the same edit; V6/V6b verify |
+ | K3 | A P0 needs a gate or server change and cannot land here | The vocabulary schedules it with its predicate; the register records the reason (U6/U7 precedent) |
+-| K4 | 60 rows exceed the session | No commit: revert every edit — `git checkout -- README.md holonovel/README.md holonovel/AGENTS.md SECURITY.md holonovel/NOTICE.md holonovel/Dockerfile holonovel/DECISIONS.md spec/audit/review-register.md spec/audit/req-coverage.md ROADMAP.md docs/plans/2026-11-10-unscoped-surface-review/worklist.md CHANGELOG.md` — remove `docs/plans/2026-11-15-unscoped-u8/` after copying `review.md` to the ignored area, run no close, report. The chunk stays `scheduled`. |
++| K4 | 60 rows exceed the session | No commit: revert every edit — `git checkout -- README.md AGENTS.md holonovel/README.md holonovel/AGENTS.md SECURITY.md holonovel/NOTICE.md holonovel/Dockerfile holonovel/DECISIONS.md spec/audit/review-register.md spec/audit/req-coverage.md ROADMAP.md docs/plans/2026-11-10-unscoped-surface-review/worklist.md CHANGELOG.md` — remove `docs/plans/2026-11-15-unscoped-u8/` after copying `review.md` to the ignored area, run no close, report. The chunk stays `scheduled`. |
+ | K5 | A row wants to fetch an external URL | The trust boundary forbids network; external links are checked for shape only; a provenance claim with no in-tree evidence is `external-skill` |
+ | K6 | R33's Docker claim is asserted without a run | EV14 makes the gate full-tier and Docker-optional; the row records manifest evidence and names CI |
+ | K7 | A `Scheduled-roadmap` bullet cites a REQ absent from `ROADMAP.md` | 6.4 states the rule; V5 fails on it |
+@@ -479,13 +567,16 @@
+ 
+ ## Done bar
+ 
++**Done bar:** all six items below pass, and the AAR judges against this line.
++
+ 1. `review.md` carries 60 rows, `R1`–`R60`, in the declared shape, none `UNSET`.
+ 2. Every `DEFECT` has a dated, dispositioned register bullet; every
+    `builder-side` / `external-skill` row carries a record-and-close note.
+ 3. The sweep section is removed from `ROADMAP.md`, `worklist.md:98` reads
+    `reviewed 2026-11-15` with counts drawn from `review.md`, and the program
+    status line says the sweep is complete.
+-4. `npm run check:fast` is green at the close (`45 passed, 0 failed`), and every
+-   row of the verification table passes, recorded un-piped.
++4. `npm run check:fast` is green at the close — the Phase 0 baseline's passed
++   count and `0 failed` — and every row of the verification table passes,
++   recorded un-piped.
+ 5. `aar.md` states the verdict against this bar and ends `LOOP PAUSED`.
+ 6. One commit from `session:close`.

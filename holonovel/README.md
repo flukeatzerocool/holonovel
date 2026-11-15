@@ -54,7 +54,7 @@ mounted volume to keep campaigns across restarts.
 
 ## Tool surface
 
-The host exposes 36 action-discriminator tools covering persisted entity
+The host exposes 37 action-discriminator tools covering persisted entity
 types, the parser command layer, and base-mechanics resolvers. Retired tool
 aliases are hidden from the default listing. Every tool carries all four MCP
 mutation-class hints and a three-clause description (see `AGENTS.md` for the

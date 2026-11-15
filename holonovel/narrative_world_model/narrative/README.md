@@ -10,7 +10,7 @@ open-source licensed and freely incorporable.
 | DMCP | MIT | README.md, LICENSE | NPC voice, pause/resume, combat, factions, player choices |
 | Blades in the Dark SRD | CC-BY 3.0 | progress-clocks.md, LICENSE | Clock design, tension management |
 | Lonelog | CC BY-SA 4.0 | lonelog.md, LICENSE | Session notation |
-| IF Craft Corpus | CC-BY 4.0 | (59 documents) | Narrative structure, character voice, worldbuilding |
+| IF Craft Corpus | CC-BY 4.0 | README.md, LICENSE (the 59-document corpus is an upstream install, not vendored) | Narrative structure, character voice, worldbuilding |
 | Ironsworn: Starforged SRD | CC-BY 4.0 | INDEX.md, LICENSE | Vows, oracle moves, solo narrative structure, quest framing |
 | Sly Flourish Lazy GM | CC-BY 4.0 | INDEX.md, LICENSE | Session prep shortcuts, NPC design, scene pacing, encounter templates |
 | The Alexandrian | CC-BY 4.0 | INDEX.md, LICENSE | Node-based adventure design, Three Clue Rule, faction intrigue |

@@ -30,7 +30,7 @@ spec/                    Source files — edit here, not holonovel.md directly
   ├── 06-artifacts.md    §9 artifacts and handoff
   ├── 07-independent.md  §10 independent verification
   ├── 08-synthesis.md    §11 optional workflows (Synthesis)
-  ├── appendices-reference.md  # Appendices heading + A, D–S, T (reference material)
+  ├── appendices-reference.md  # Appendices heading + A, D–M, O–S, T (reference material)
   ├── appendices-fixtures.md   B, C, N, W–Z (golden, injection, complex, world, social fixtures)
   ├── appendices-licenses.md   U (content licenses)
   ├── appendices-runbooks.md   V (workflow runbooks)

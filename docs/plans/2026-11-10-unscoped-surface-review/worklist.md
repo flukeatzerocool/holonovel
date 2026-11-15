@@ -95,7 +95,9 @@ the 2026-11-09 sweep; `seam` = closed by the 2026-11-09 seam pass;
 | U5 | §9, §10, Appendix V, publication and cadence | drift + process | **reviewed 2026-11-15** — 46 rows, 8 P0 + 1 P3 fixed (`docs/plans/2026-11-15-unscoped-u5/review.md`) |
 | U6 | §11, Appendices B/C/N/W–Z, fixtures and playability | fixture exercise | **reviewed 2026-11-15** — 66 rows, 1 P0 prose fixed, 3 P1 scheduled, 2 process closed (`docs/plans/2026-11-15-unscoped-u6/review.md`) |
 | U7 | Appendices D–L/O–T/U, registries and manifests | catalog comparison | **reviewed 2026-11-15** — 67 rows, 1 P0 fixed, 1 P1 scheduled, 2 P3 closed (`docs/plans/2026-11-15-unscoped-u7/review.md`) |
-| U8 | repo governance docs, vendored and content assets | drift + code | **scheduled** |
+| U8 | repo governance docs, vendored and content assets | drift + code | **reviewed 2026-11-15** — 60 rows, 6 fixed (1 P0, 3 P1, 2 P2), 4 P3 closed (`docs/plans/2026-11-15-unscoped-u8/review.md`) |
+
+Program status: **complete** — U1–U8 reviewed; the roadmap section closed.
 
 ## Chunk U1 — foundations and constitution
 
@@ -312,8 +314,12 @@ P3 record-and-close notes (`docs/plans/2026-11-15-unscoped-u7/review.md`).**
 `check-reference-server-cleanliness`, `check-container-image`,
 `check-package-manifest`.
 **Exit evidence:** README/AGENTS claims match `tools/list` and the gates;
-vendored content hashes match the manifest; every borrowed mechanics source is
-named in the README License section and `docs/licenses/ATTRIBUTION.md`.
+vendored content hashes match the manifest (25/25); every borrowed mechanics
+source is named in the README License section and `docs/licenses/ATTRIBUTION.md`.
+**Reviewed 2026-11-15: 60 rows, 50 PASS, 6 Resolved (stale count, appendix range,
+corpus claim, Docker licence copy, register pointer, prerequisite), 1 P3
+record-and-close set (4 bullets), no `UNSET`; the residual zero-padded harness
+ID is scheduled on `ROADMAP.md` (`docs/plans/2026-11-15-unscoped-u8/review.md`).**
 
 ## Per-chunk close protocol
 
