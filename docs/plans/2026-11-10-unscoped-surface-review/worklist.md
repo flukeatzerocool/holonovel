@@ -89,7 +89,7 @@ the 2026-11-09 sweep; `seam` = closed by the 2026-11-09 seam pass;
 | Chunk | Surface | Lens | Status |
 |---|---|---|---|
 | U1 | §1–§4, Appendix A, Appendix M, validator surface | drift + spec | **reviewed 2026-11-14** — 80 rows, 3 P0 fixed, 1 P1 scheduled, 2 P3 closed (`docs/plans/2026-11-14-unscoped-u1/review.md`) |
-| U2 | §6, build-phase-map, build/update tooling, git hooks | drift + code | **scheduled** |
+| U2 | §6, build-phase-map, build/update tooling, git hooks | drift + code | **reviewed 2026-11-14** — 35 rows, 5 P0 fixed, 1 P3 closed (`docs/plans/2026-11-14-unscoped-u2/review.md`) |
 | U3 | §7, engine-contract remainder, adapter/server code | drift + code | **scheduled** |
 | U4 | §8, gate manifest and harnesses, CI | drift + gate coverage | **scheduled** |
 | U5 | §9, §10, Appendix V, publication and cadence | drift + process | **scheduled** |

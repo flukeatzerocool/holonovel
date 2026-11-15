@@ -11,6 +11,51 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-14 U2 build process and tooling
+
+Chunk U2 of the unscoped-surface review program
+(`docs/plans/2026-11-14-unscoped-u2/`, 35 verdict rows in `review.md`). Five P0
+prose defects were demonstrated against the predicates named in each entry and
+are fixed in this increment; no fingerprint-bearing section (§6.3, §6.4.2) was
+touched.
+
+- **F-U2-1 — the Holonovel coverage map claimed mechanical verification.
+  Resolved (2026-11-14).** Predicate: `checkPatternBufferCoverageMap` slices the
+  assembled text from the §6.6 marker (`scripts/validate.ts:922-925`) to
+  `**Fingerprint-driven Pattern Buffer scoping.**` (`spec/03-build.md:1690`), so
+  it reads the ruleset map at `:1428` and never the Holonovel map at `:1926`;
+  that map nonetheless said it "is mechanically verified by
+  `scripts/validate.ts`" and that its gaps "block assembly"
+  (`:1931-1937`). The prose now states that the §6.6 map's REQ completeness is
+  what validation enforces, and that a gap in the Holonovel table is a review
+  finding. Row 15.
+- **F-U2-2 — the map said every phase's directive names its files. Resolved
+  (2026-11-14).** Predicate: `grep -c '\*Prepare:\*' spec/03-build.md` = 6
+  (`:204,446,543,607,981,2002`) against 15 phase rows
+  (`spec/build-phase-map.md:13-27`), while `checkPreparePhaseMap`
+  (`scripts/validate.ts:1343-1377`) iterates directives only and cannot see a
+  row without one; the same page's header says the directives "do not
+  independently specify file lists" (`:7-9`). The loading convention now
+  distinguishes phases that carry a directive from those that load their row
+  alone. Row 33.
+- **F-U2-3 — the stated peak working set contradicted its own row. Resolved
+  (2026-11-14).** Predicate: the Convergence row is 9,200 tokens
+  (`spec/build-phase-map.md:18`) while the peak claim said "~8,000 tokens
+  (Convergence)" and derived a 73% reduction from it (`:33-34`);
+  (30,000−9,200)/30,000 = 69%. The claim now reads 9,200 / 69%. Row 35.
+- **F-U2-4 — the Editorial delta class claimed tooling-only edits. Resolved
+  (2026-11-14).** Predicate: `classifyDelta` returns `patch` only when nothing
+  was added, removed, or modified and no section changed
+  (`scripts/lib/spec-delta-classify.ts:47`), so a tooling-only change — which
+  touches no REQ — classifies `patch`, while the table assigned it to Editorial
+  (`spec/03-build.md:2022`). The Patch row now names spec-tooling and
+  verification-only edits; Editorial is REQ-body repair only. Row 16.
+- **F-U2-5 — "six steps" over a seven-row table. Resolved (2026-11-14).**
+  Predicate: the construction table carries Step 1–7 (`spec/03-build.md:464-470`,
+  Step 7 = Package) while the lead-in said "The six-step order below" and "built
+  in six steps" (`:455,460`). The prose now says seven steps, of which six are
+  construction and Step 7 is packaging. Row 4.
+
 ### 2026-11-14 U1 foundations and constitution
 
 Chunk U1 of the unscoped-surface review program
@@ -2696,6 +2741,19 @@ below.
 
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-14 U2 build process and tooling
+
+- **F-U2-6 — the map's freshness predicates are warnings, not errors.** Recorded
+  (2026-11-14), no action. `checkPhaseMapHash` and `checkBuildPhaseMapCounts`
+  increment `warnings` and print, never `errors`
+  (`scripts/validate.ts:2464-2471`), so a stale map hash or a wrong §5-subsection
+  count does not block a commit; `AGENTS.md`'s checklist describes the count as
+  "guarded". No failure is demonstrated: the hash is current and the count reads
+  35 against 35 headings. Promoting either warning to an error is a
+  validator-behaviour change with its own self-tests and a
+  `check-guarded-rule-change` consequence, and the AGENTS.md wording is U8's
+  surface. Rows 34–35.
 
 ### 2026-11-14 U1 foundations and constitution
 

@@ -1,6 +1,6 @@
 # Build Phase → Spec File Map
 
-<!-- content hash: 797a481031576d95c496988e8f29abbcdf353faef8ac4e2df16472eee2249502 -->
+<!-- content hash: 308cd32dce076c797be338e9c35513d36329a1cc0797254a27bb12d8118b9133 -->
 
 The builder reads files on demand per build phase. The assembled `holonovel.md` contains
 all content for distribution and REQ-105; this table enables per-phase targeted loading
@@ -30,7 +30,7 @@ independently specify file lists.**
 Actual token counts vary by tokenizer implementation. Convergence row estimate
 is per-iteration; a looping phase multiplies by iteration count.
 
-**Peak working set:** ~8,000 tokens (Convergence) vs. ~30,000 tokens (full spec) — a 73%
+**Peak working set:** ~9,200 tokens (Convergence) vs. ~30,000 tokens (full spec) — a 69%
 reduction in per-phase context.
 
 ## Loading conventions
@@ -38,7 +38,8 @@ reduction in per-phase context.
 - **Distributed artifact path:** Load `holonovel.md` — works identically to the
   pre-split specification. No changes to existing builder workflows.
 - **Per-phase path:** Load files listed in the table above for the current phase.
-  Each phase's `*Prepare:*` directive in §6 lists the exact files.
+  A phase whose §6 section carries a `*Prepare:*` directive names the same files
+  there; a phase without one loads its row alone.
 - Files not listed for a phase SHOULD NOT be loaded — they contain content
   irrelevant to the current task.
 

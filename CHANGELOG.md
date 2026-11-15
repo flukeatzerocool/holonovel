@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-14 — Build-process review: five spec claims corrected against their evidence
+
+Review of the build-process chapter (§6) and the build-phase map against the
+tooling that actually runs — assembly, the update scripts, and the three git
+hooks. Five claims were contradicted by the check or the data they pointed at,
+and each is now accurate. Nothing in the runtime contract moved: no tool,
+schema, saved state, or fingerprint changed.
+
+- The Holonovel Pattern Buffer coverage map no longer claims that validation
+  checks it. Validation enforces the §6.6 map's REQ completeness over the same
+  sections; the chapter now says so and treats a gap in this table as a review
+  finding rather than an assembly error.
+- The build-phase map told maintainers that every phase's `*Prepare:*` directive
+  lists its files. Six of fifteen do. The loading convention now separates a
+  phase that carries a directive from one that loads its row alone.
+- The map's headline context figure disagreed with the row it cited — 8,000
+  tokens and a 73% reduction against the Convergence row's 9,200. Both now read
+  9,200 and 69%.
+- A spec-tooling or verification-only change is documented as a Patch, which is
+  how the delta classifier already treats it; Editorial is now REQ-body repair
+  only, the sole case with a repaired REQ set to record. (REQ-419, REQ-394)
+- The construction section described "six steps" above a seven-row table. It now
+  says seven — six construction steps plus the package step.
+- The review program records U2 as reviewed, with one warning-severity item
+  closed as informational, and advances its trigger to U3.
+
 ## 2026-11-14 — REQ sentence-count enforcement: the ≤8-sentence rule gets a predicate
 
 - `checkReqSentenceCount` (`scripts/lib/req-checks.ts`) now backs Appendix M's

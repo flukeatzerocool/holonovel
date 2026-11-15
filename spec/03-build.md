@@ -452,12 +452,13 @@ establishes the `spec://build` resource (REQ-105). The published package SHALL
 include the copy (REQ-614). The builder records the
 specification's content hash in DECISIONS.md (1) alongside the ruleset intake hash.
 
-The six-step order below is a recommended construction sequence, not a
+The seven-step order below is a recommended construction sequence, not a
 requirement. A builder that organizes its work differently and passes the same
 acceptance checks (third column) is compliant. The steps are
 dependency-ordered — each builds on the previous — and skipping or reordering
 a step without an alternative acceptance check is a process-compliance
-finding. The server is built in six steps, each with an acceptance check:
+finding. The server is built in six construction steps (Steps 1–6) plus the
+package step (Step 7), each with an acceptance check:
 
 | Step | What it does                                                | Acceptance                                                   |
 | ----- | ----------------------------------------------------------- | ------------------------------------------------------------ |
@@ -1929,17 +1930,19 @@ The following table maps every
 requirement in §5.10 (World-Model Layer), §5.12 (Narrative Architecture), §5.13
 (Holodeck), and the world-model error contracts to at least one Holonovel Pattern
 Buffer sub-workflow that exercises its contract. This table is normative — it ships
-with the specification and is mechanically verified by `scripts/validate.ts`.
+with the specification and is maintained alongside the §6.6 coverage map, whose REQ
+completeness `scripts/validate.ts` enforces for the same covered sections.
 When a spec revision adds a new REQ to these sections, the maintainer SHALL add
 at least one row mapping it to a Holonovel PB sub-workflow (existing or new).
 When no existing sub-workflow exercises the new REQ's contract, the maintainer
-SHALL add a new sub-workflow. Gaps detected by validation are errors — they
-block assembly. Rows are keyed by REQ, not by sub-workflow: a sub-workflow
+SHALL add a new sub-workflow. Rows are keyed by REQ, not by sub-workflow: a sub-workflow
 appears in the map only when it exercises at least one covered-section REQ.
 Sub-workflows that exercise no covered-section REQ — merged stubs (S10, S11) and
 sub-workflows operating outside the traced surfaces (S8, S12) — SHALL NOT carry a
 row, and their absence is not a gap. REQ-108c checks the REQ-to-row direction
-only; it does not require every sub-workflow to appear as a row.
+only; it does not require every sub-workflow to appear as a row. A gap the §6.6 map
+check detects is an error that blocks assembly; a gap in this table is a review
+finding, not an assembly error.
 
 | REQ | Sub-workflows | Feature |
 |-----|---------------|---------|
@@ -2018,8 +2021,8 @@ _Check:_ T84, T84b.
 
 | Class    | Trigger                                                       | Verification workflow                                                  |
 | -------- | ------------------------------------------------------------- | --------------------------------------------------------- |
-| Patch    | Spec wording only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
-| Editorial | REQ bodies repaired or reworded with no scope change — REQ set, state model, and tool surface unchanged; spec tooling or verification-only edits | G0 only; record version bump and the repaired REQ set in DECISIONS.md; no Pattern Buffer; no fingerprint advance required |
+| Patch    | Spec wording only or spec-tooling/verification-only — no REQ added, removed, or scope-changed  | G0 only; record version bump in DECISIONS.md; no Pattern Buffer |
+| Editorial | REQ bodies repaired or reworded with no scope change — REQ set, state model, and tool surface unchanged | G0 only; record version bump and the repaired REQ set in DECISIONS.md; no Pattern Buffer; no fingerprint advance required |
 | Minor    | REQ bodies changed with a scope change, new REQs added, old REQs removed; no state model or tool-surface change | Full gap audit; Pattern Buffer sub-workflows per surface-to-scenario mapping (§6.6) |
 | Major    | State model changed, new tools/prompts/resources mandated, badge-gating contract altered | Full gap audit; full Pattern Buffer (§6.6 — 37 sub-workflows, scoped per the §6.6 surface-to-scenario and fingerprint rules) |
 

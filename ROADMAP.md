@@ -27,9 +27,9 @@
   every finding in `spec/audit/review-register.md` with the same P0–P3
   dispositions as the 2026-11-09 sweep.
 
-**Trigger:** the next allocated review session takes U2 (build process and
-tooling); each chunk closes when its findings are dispositioned, and this
-section closes when U8 is `Resolved`.
+**Trigger:** the next allocated review session takes U3 (runtime conventions and
+the engine-contract remainder); each chunk closes when its findings are
+dispositioned, and this section closes when U8 is `Resolved`.
 
 ## Harness test-ID label hygiene (P2)
 
