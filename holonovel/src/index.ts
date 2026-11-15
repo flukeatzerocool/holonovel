@@ -8631,6 +8631,7 @@ server.registerTool("manage_countdown", {
     }).optional().describe("Link two existing clocks (set): the child stays locked until the parent fires."),
     retreat_countdown: z.number().int().min(0).optional().describe("Ticks to retreat on a tug_of_war clock (advance)."),
     scope: z.string().optional().describe("Optional scope name (set)."),
+    badge_scope: z.enum(["game_master", "shared"]).optional().describe("Clock visibility (set): game_master hides the clock from the Player badge; shared (default) shows it (REQ-073)."),
     direction: z.string().optional().describe("Optional direction: increment or decrement (set)."),
     on_scene_transition: z.boolean().optional().describe("When true, advance on each scene transition (set)."),
     triggers: z.array(z.string()).optional().describe("Optional world-model triggers (set)."),
@@ -8679,7 +8680,7 @@ server.registerTool("manage_countdown", {
         audit("link_countdown", { parent: parentName, child: childName });
         return ok(`Countdown '${childName}' linked to '${parentName}' — it stays locked until the parent completes.`);
       }
-      const { name, ticks, total, type, scope, direction, on_scene_transition, triggers, world_effect, survival, clock_type, opposes } = args;
+      const { name, ticks, total, type, scope, direction, on_scene_transition, triggers, world_effect, survival, clock_type, opposes, badge_scope } = args;
       if (opposes !== undefined) {
         if (opposes === name) return err("INVALID_INPUT", "A clock cannot oppose itself.");
         if (!novel.countdowns.has(opposes)) {
@@ -8701,6 +8702,9 @@ server.registerTool("manage_countdown", {
         clock_type: clock_type ?? existingCd?.clock_type,
         opposes: opposes ?? existingCd?.opposes,
         scope: scope ?? existingCd?.scope,
+        // REQ-073 — every countdown carries a badge_scope; it persists with the
+        // clock and is preserved when a later set omits it.
+        badge_scope: badge_scope ?? existingCd?.badge_scope ?? "shared",
         direction: direction ?? existingCd?.direction,
         on_scene_transition: on_scene_transition ?? existingCd?.on_scene_transition,
         triggers: triggers ?? existingCd?.triggers,

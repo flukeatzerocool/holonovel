@@ -669,7 +669,10 @@ async function main() {
       await call(proc, "set_badge", { badge: "player" });
       const player = await briefing(proc);
       await call(proc, "set_badge", { badge: "game_master" });
-      assertNotContains(player, "Relationship changed:");
+      // REQ-281b — the Player leg still shows own-entity bonds, so the earlier
+      // Mara↔Kestrel marker is legitimate; only the NPC↔NPC pair must stay off
+      // the Player surface.
+      assertNotContains(player, "Relationship changed: Kestrel and Cora");
     });
 
     await test("T-new: a hostile NPC is not softened by a rival flip", async () => {

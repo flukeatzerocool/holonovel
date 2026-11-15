@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 119266,
+  "tools_list_bytes": 119458,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 119266,
-        "tokens": 29817
+        "bytes": 119458,
+        "tokens": 29865
       },
       "standard": {
         "tools": 37,
-        "bytes": 103319,
-        "tokens": 25830
+        "bytes": 103511,
+        "tokens": 25878
       },
       "small": {
         "tools": 6,
@@ -910,11 +910,12 @@
         "remove",
         "list"
       ],
-      "param_count": 14,
+      "param_count": 15,
       "required": [
         "action"
       ],
       "params": {
+        "badge_scope": "Clock visibility (set): game_master hides the clock from the Player badge; shared (default) shows it (REQ-073).",
         "clock_type": "Interaction model (set): danger (default), racing, linked, tug_of_war, faction, or mission.",
         "direction": "Optional direction: increment or decrement (set).",
         "link_countdown": "Link two existing clocks (set): the child stays locked until the parent fires.",
@@ -944,10 +945,10 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 15,
+        "paramCount": 16,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 15,
-        "paramsWithEnums": 3,
+        "paramsWithDescriptions": 16,
+        "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
         "requiredFieldCount": 1,
@@ -957,7 +958,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4475,
+        "definitionBytes": 4667,
         "descriptionBytes": 698
       },
       "category": "",
