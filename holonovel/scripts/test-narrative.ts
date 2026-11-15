@@ -1174,6 +1174,41 @@ async function main() {
       await call(proc, "manage_character", { action: "create", name: "Guard" });
       const other = await call(proc, "manage_belief", { action: "knowledge_query", entity_id: "character_02" });
       assertNotContains(other, "murder_confession");
+
+      // REQ-234c/REQ-234e — a faction is a secret holder, and the faction
+      // resource scopes the view by badge.
+      await call(proc, "manage_faction", { action: "create", name: "Ash Guild", description: "Smugglers with a ledger of debts.", goals: ["own the gate"] });
+      await call(proc, "manage_faction", { action: "create", name: "Salt Watch", description: "The harbour watch.", goals: ["keep order"] });
+      await call(proc, "manage_faction", { action: "create", name: "Grey Court", description: "Nobody's ally.", goals: ["wait"] });
+      const factionList = JSON.parse(await call(proc, "manage_faction", { action: "list" }));
+      const factionRows: any[] = factionList.factions ?? factionList;
+      const factionId = (name: string): string => String(factionRows.find((f: any) => f.name === name)?.id ?? "");
+      const ashId = factionId("Ash Guild");
+      const saltId = factionId("Salt Watch");
+      const greyId = factionId("Grey Court");
+      assert(ashId && saltId && greyId, `faction ids unresolved: ${JSON.stringify(factionRows).slice(0, 200)}`);
+      const revealAsh = await call(proc, "manage_lore", { action: "reveal", key: "murder_confession", entity_id: ashId });
+      assertContains(revealAsh, `revealed to '${ashId}'`);
+      const revealSalt = await call(proc, "manage_lore", { action: "reveal", key: "murder_confession", entity_id: saltId });
+      assertContains(revealSalt, `revealed to '${saltId}'`);
+      const ashKnows = await call(proc, "manage_lore", { action: "knowledge", entity_id: ashId });
+      assertContains(ashKnows, "murder_confession");
+      const greyKnows = await call(proc, "manage_lore", { action: "knowledge", entity_id: greyId });
+      assertNotContains(greyKnows, "murder_confession");
+      const factionGm = JSON.parse(await readResource(proc, `faction://${ashId}`));
+      assert(Array.isArray(factionGm.secrets) && factionGm.secrets.some((s: any) => s.key === "murder_confession"), `faction:// omits the faction's secret: ${JSON.stringify(factionGm).slice(0, 200)}`);
+      await call(proc, "set_badge", { badge: "player" });
+      const factionPlayer = await readResource(proc, `faction://${ashId}`);
+      assertNotContains(factionPlayer, "murder_confession");
+      await call(proc, "set_badge", { badge: "game_master" });
+      // The authoring-time path (REQ-234e) records holders, and an unknown id is refused.
+      const authored = await call(proc, "manage_lore", { action: "set_secret", key: "shared_pact", content: "The guild pays the watch to look away.", known_by: [ashId, saltId] });
+      assertContains(authored, "created");
+      const pactForSalt = await call(proc, "manage_lore", { action: "knowledge", entity_id: saltId, key: "shared_pact" });
+      assertContains(pactForSalt, "shared_pact");
+      const badHolder = await call(proc, "manage_lore", { action: "set_secret", key: "orphan_secret", content: "x", known_by: ["faction_that_does_not_exist"] });
+      assertContains(badHolder, "[NOT_FOUND]");
+      assertContains(badHolder, "faction_that_does_not_exist");
     });
 
     await kill(proc);

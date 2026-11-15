@@ -8833,6 +8833,16 @@ server.registerTool("manage_countdown", {
 // --- Lore (GM) ---
 
 // Lore (REQ-083, REQ-094, REQ-234, REQ-328) — consolidated CRUD + list/get + interchange surface.
+// REQ-234c/REQ-234e — a secret holder may be an entity or a faction (REQ-233).
+// §11.2 rule 6 keys its shared-secret tension branch on faction ids, and
+// REQ-234c requires reveal and knowledge to accept them, so both kinds resolve
+// here; entities win an id collision, which leaves entity behaviour unchanged.
+function resolveSecretHolder(novel: NovelState, id: string): { id: string; kind: "entity" | "faction" } | null {
+  if (novel.entities.has(id)) return { id, kind: "entity" };
+  const faction = novel.factions.find((f) => f.id === id);
+  return faction ? { id: faction.id, kind: "faction" } : null;
+}
+
 const MANAGE_LORE_SCHEMA = {
     action: z.enum(["set", "update", "remove", "toggle", "group", "suggest", "list", "get", "export", "import", "set_secret", "reveal", "secret_list", "knowledge"]).describe("set, update, remove, toggle, group, suggest, list, get, export, import, set_secret, reveal, secret_list, or knowledge."),
     key: z.string().optional().describe("Lore key (set/update/remove/toggle/group/get)."),
@@ -8845,7 +8855,8 @@ const MANAGE_LORE_SCHEMA = {
     sticky: z.number().optional().describe("Optional sticky weight (set/update)."),
     group: z.string().nullable().optional().describe("Group name, or null to clear (set/update/group)."),
     world_target: z.string().optional().describe("Optional world-model target reference (set/set_secret)."),
-    entity_id: z.string().optional().describe("Entity to reveal to / whose knowledge to read (reveal/knowledge)."),
+    known_by: z.array(z.string()).optional().describe("Entity or faction ids that already know the secret (set_secret)."),
+    entity_id: z.string().optional().describe("Entity or faction id to reveal to / whose knowledge to read (reveal/knowledge)."),
     format: z.string().optional().describe("Optional output format (export)."),
     data: z.string().optional().describe("JSON or Markdown lorebook data (import)."),
     mode: z.enum(["dry-run", "merge", "replace"]).optional().describe("dry-run, merge, or replace (import)."),
@@ -9072,7 +9083,15 @@ server.registerTool("manage_lore", {
       requireGM();
       const novel = requireNovel();
       if (novel.secrets.some(s => s.key === args.key)) return err("STATE_CONFLICT", `Secret '${args.key}' already exists.`);
-      novel.secrets.push({ key: args.key, content: args.content, triggers: args.triggers ?? [], badge_scope: args.badge_scope ?? "game_master", known_by: [], world_target: args.world_target });
+      // REQ-234e — the secret may open with holders already recorded, so the
+      // §11.2 rule 6 shared-secret case is authorable in one call.
+      const holders: string[] = [];
+      for (const holderId of args.known_by ?? []) {
+        const holder = resolveSecretHolder(novel, holderId);
+        if (!holder) return err("NOT_FOUND", `Secret holder '${holderId}' is not a registered entity or faction.`);
+        if (!holders.includes(holder.id)) holders.push(holder.id);
+      }
+      novel.secrets.push({ key: args.key, content: args.content, triggers: args.triggers ?? [], badge_scope: args.badge_scope ?? "game_master", known_by: holders, world_target: args.world_target });
       state.saveNovel(novel);
       return ok(`Secret '${args.key}' created.`);
     }
@@ -9082,7 +9101,9 @@ server.registerTool("manage_lore", {
       const secret = novel.secrets.find(s => s.key === args.key);
       if (!secret) {
         // REQ-083d/083f — reveal on a lore key marks the entry player-discovered
-        // and records the recipient as a knower for the presence gate.
+        // and records the recipient as a knower for the presence gate. The lore
+        // branch stays entity-scoped: a lore entry's player discovery is bound to
+        // a character, not to a faction.
         const loreEntry = novel.lore.get(args.key);
         if (!loreEntry) return err("NOT_FOUND", `Secret or lore entry '${args.key}' not found.`);
         if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
@@ -9091,28 +9112,34 @@ server.registerTool("manage_lore", {
         state.saveNovel(novel);
         return ok(`Lore entry '${args.key}' revealed to '${args.entity_id}'.`);
       }
-      if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
-      if (!secret.known_by.includes(args.entity_id)) secret.known_by.push(args.entity_id);
+      // REQ-234c — the secret's target may be an entity or a faction.
+      const holder = resolveSecretHolder(novel, args.entity_id);
+      if (!holder) return err("NOT_FOUND", `Entity or faction '${args.entity_id}' not found.`);
+      if (!secret.known_by.includes(holder.id)) secret.known_by.push(holder.id);
       // REQ-233a1 — a secret revelation is a connected change.
-      enqueueWorldChange(novel, "secret", `Secret '${secret.key}' revealed to '${args.entity_id}'.`, [args.entity_id]);
+      enqueueWorldChange(novel, "secret", `Secret '${secret.key}' revealed to '${holder.id}'.`, [holder.id]);
       // REQ-595 — an explicit reveal is a `told` perception for the recipient.
-      const recipient = novel.entities.get(args.entity_id);
-      const summary = `Secret '${secret.key}' revealed`;
-      if (!novel.perception_ledger.some((p) => p.entity_id === args.entity_id && p.witness === "told" && p.summary === summary)) {
-        appendPerceptionRecord(novel, {
-          entity_id: args.entity_id,
-          event_ordinal: novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : null,
-          kind: "message",
-          summary,
-          witness: "told",
-          sense: "telling",
-          source_entity: "game_master",
-          room_id: recipient?.current_room ?? null,
-          confidence: 0.8,
-        });
+      // The perception ledger is entity-scoped, so a faction holder records the
+      // world change only: a faction has no perception stream to write to.
+      if (holder.kind === "entity") {
+        const recipient = novel.entities.get(holder.id);
+        const summary = `Secret '${secret.key}' revealed`;
+        if (!novel.perception_ledger.some((p) => p.entity_id === holder.id && p.witness === "told" && p.summary === summary)) {
+          appendPerceptionRecord(novel, {
+            entity_id: holder.id,
+            event_ordinal: novel.event_log.length ? novel.event_log[novel.event_log.length - 1].ordinal : null,
+            kind: "message",
+            summary,
+            witness: "told",
+            sense: "telling",
+            source_entity: "game_master",
+            room_id: recipient?.current_room ?? null,
+            confidence: 0.8,
+          });
+        }
       }
       state.saveNovel(novel);
-      return ok(`Secret '${args.key}' revealed to '${args.entity_id}'.`);
+      return ok(`Secret '${args.key}' revealed to '${holder.id}'.`);
     }
     case "secret_list": {
       requireGM();
@@ -9122,8 +9149,10 @@ server.registerTool("manage_lore", {
     case "knowledge": {
       requireGM();
       const novel = requireNovel();
-      if (!novel.entities.has(args.entity_id)) return err("NOT_FOUND", `Entity '${args.entity_id}' not found.`);
-      const known = novel.secrets.filter(s => s.known_by.includes(args.entity_id));
+      // REQ-234c — faction ids are accepted alongside entity ids.
+      const holder = resolveSecretHolder(novel, args.entity_id);
+      if (!holder) return err("NOT_FOUND", `Entity or faction '${args.entity_id}' not found.`);
+      const known = novel.secrets.filter(s => s.known_by.includes(holder.id));
       if (args.key) {
         const s = known.find(s => s.key === args.key);
         return raw(JSON.stringify(s ?? { key: args.key, known: false }));
@@ -16072,7 +16101,12 @@ server.registerResource("faction-single", new ResourceTemplate("faction://{id}",
   const faction = novel.factions.find(f => f.id === id);
   if (!faction) return { contents: [{ uri: uri.href, text: JSON.stringify({ error: "not found" }), mimeType: "application/json" }] };
   const isGM = getBadge() === "game_master" || getBadge() === "none";
-  const body = isGM ? faction : factionProjection(faction);
+  // REQ-234c — faction-known secrets surface at `faction://<id>` for the GM
+  // badge; the Player/Observer projection (REQ-233) is unchanged, so no secret
+  // can leak through this resource.
+  const body = isGM
+    ? { ...faction, secrets: novel.secrets.filter(s => s.known_by.includes(faction.id)).map(s => ({ key: s.key, badge_scope: s.badge_scope, known_by: s.known_by })) }
+    : factionProjection(faction);
   return { contents: [{ uri: uri.href, text: JSON.stringify(body, null, 2), mimeType: "application/json" }] };
 });
 

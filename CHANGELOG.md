@@ -1,5 +1,48 @@
 # Changelog
 
+## 2026-11-15 — Secret holders: factions reveal, know, and surface at faction://
+
+REQ-234c already required `manage_lore (action: reveal)` and `(action: knowledge)`
+to accept faction identifiers, and `faction://<id>` to surface faction-known
+secrets. The server refused every faction id, so §11.2 rule 6's shared-secret
+tension branch was implemented but unreachable through the tool surface.
+
+- Faction holders. `manage_lore (action: reveal)` and `(action: knowledge)`
+  resolve their target across `novel.entities` and `novel.factions`
+  (`resolveSecretHolder`), entities winning an id collision so entity behaviour
+  is unchanged. A faction reveal records the world change (REQ-233a1) and skips
+  the `told` perception record, because REQ-595's ledger is entity-scoped and a
+  faction has no perception stream. The lore branch of `reveal` stays
+  entity-only (REQ-083d/083f).
+- Authoring-time holders. New `known_by` parameter on
+  `manage_lore (action: set_secret)`: each id resolves to a registered entity or
+  faction, and an unknown id returns `[ERROR] [NOT_FOUND]` naming it before
+  anything is saved. REQ-234a is at ~748 of the 800-char body limit, so the
+  parameter is normative under a new REQ-234e rather than by editing that body.
+- The faction resource. `faction://<id>` appends the secret keys, scopes, and
+  holders the faction knows, inside the Game Master branch only; the
+  Player/Observer projection (REQ-233) is untouched, so no secret can leak
+  through the resource.
+- Tests. T274 gains two factions sharing one secret, a third faction that does
+  not know it, the GM versus Player `faction://<id>` read, the `known_by`
+  authoring path, and the unknown-holder refusal; its name now cites REQ-234e and
+  its Appendix F row states the faction assertions. T789 now asserts the
+  `novel-tension-secret-` item — the fixture's two faction reveals had been
+  failing silently because the harness never checked the result, which is why the
+  shared-secret branch was unasserted. `test-narrative` 84 passed,
+  `test:backfill` 127 passed.
+- Regeneration. `holonovel/tool-definitions.json` and the recorded surface
+  baseline moved with the new parameter; the DECISIONS budget headers now read
+  29,902 full / 25,915 standard tokens; the coverage register, assembled spec,
+  staged package copy, phase map, and G7 attestation were regenerated. Thirteen
+  evidence anchors moved with the `index.ts` edits and were repaired with
+  `npm run fix-anchors`.
+- Records. U6-F5's tool-surface residual is `Resolved`; the U6 subsection moved
+  out of `## Scheduled-roadmap` into the dated `## Resolved` section it belonged
+  in. The relationship recommendations REQ-234b/REQ-234d remain unimplemented and
+  are scheduled as U6-F5b under a new roadmap section; the faction section is
+  removed.
+
 ## 2026-11-15 — Vendor provenance: the manifest carries the URL Appendix U admits it by
 
 Appendix U makes a `source_url` in the synthesis manifest an admission rule for

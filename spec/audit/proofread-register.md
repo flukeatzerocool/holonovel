@@ -384,3 +384,14 @@ since that batch, none of which re-ran the proofreading pass.
 
 **Disposition: all 286 warnings `Accepted` by policy.** No contract-bearing
 rewrite is outstanding.
+
+## Batch 15 — roadmap residuals (2026-11-15)
+
+Re-verified against live `npm run validate`: **0 errors, 288 warnings**.
+This increment adds REQ-234e (the secret `known_by` parameter) and REQ-451a
+(manifest provenance), plus the faction branch of REQ-234c. The +2 over Batch 14
+are one long-sentence clause in each new requirement body; the surrounding
+bodies were not rewritten.
+
+**Disposition: all 288 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding.

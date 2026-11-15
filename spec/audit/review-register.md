@@ -2972,6 +2972,54 @@ stale generated snapshot, and one incomplete layout description. Predicates are
 
 ## Resolved — 2026-11-15 roadmap residuals
 
+### 2026-11-15 U6 synthesis and fixtures — internal synthesis gaps
+
+All three gaps were repaired by the 2026-11-15 synthesis-surface increment
+(`docs/plans/2026-11-15-synthesis-surface-gaps/`); U6-F5's tool-surface residual
+closed in the 2026-11-15 roadmap-residuals increment.
+
+- **U6-F3 — the synthesis fingerprint has no writer. Resolved 2026-11-15.**
+  Predicate that failed: `spec/08-synthesis.md:43-51,250-258,277-287` require a
+  `synthesis_fingerprint` over the ruleset content hash, the intake answers and
+  the Novel state hash, plus per-module hashes; nothing wrote
+  `manifest._fingerprint` and the re-run guard was the boolean
+  `state.enriched`. Now: `holonovel/src/core/synthesis.ts`
+  `synthesisFingerprint` / `synthesisModuleSourceHashes` /
+  `synthesizeFromNovel` write the root hash and the per-module hashes, the Novel
+  persists them under its `synthesis` key (`core/state.ts`
+  `NovelState.synthesis`), and `run` returns
+  `[OK] Synthesis up to date — <ISO>` when the fingerprint is unchanged.
+  Exercised by T321a. Rows R3, R15, R18.
+- **U6-F4 — the `[LOW]` presentation tag is never rendered. Resolved
+  2026-11-15.** Predicate that failed: `spec/08-synthesis.md:238-243` requires a
+  visible `[LOW]` tag in the briefing and in synthesis resource output, and
+  `:301-302` requires it in every badge view; `wisdomTag` returned only the four
+  provenance tags and `grep -rn '\[LOW\]' holonovel/src` returned no match.
+  Now: `provenanceTag` (`holonovel/src/index.ts`) emits `[tag] [LOW]` for a LOW
+  item, every `synthesis://<module>` payload carries a `provenance` string, the
+  Markdown resources and `manage_synthesis (action: list)` rows carry it, and the
+  tag is computed independently of badge scope so every view that can display the
+  item displays it. Exercised by T325a/T325b. Row R13.
+- **U6-F5 — internal synthesis implements two of eight category rules and
+  enforces no cap. Resolved 2026-11-15.** Predicate that failed:
+  `spec/08-synthesis.md:57-69` maps seven source categories and `:70-124` gives
+  eight rules across six modules, with caps at `:198-217`;
+  `mergeNovelDerivedSynthesis` read entities, NPCs and the last journal entry,
+  wrote only two modules, and applied no cap. Now: `synthesizeFromNovel`
+  implements rules 1–8 (lore cross-reference, narrative voice profile, scene
+  hooks, faction/secret tension, countdown urgency, rooms/things advice and lore
+  links) and enforces the per-pass and total-Novel caps against the
+  `TTRPG_MAX_SYNTHESIS_ITEMS` ceiling, reporting overflow in the result and in
+  `spec_health.synthesis_health.caps`. Exercised by T789/T790. Rows R5, R6, R10.
+  Residual (P2), closed 2026-11-15: rule 6's shared-secret branch needs a faction
+  id in a secret's `known_by`, and `manage_lore (action: reveal)` accepted entity
+  ids only, so the branch was implemented but unreachable through the tool
+  surface. `reveal` and `knowledge` now resolve faction ids (REQ-234c),
+  `set_secret` accepts a `known_by` array (REQ-234e), `faction://<id>` lists the
+  faction's known secrets for the GM badge, and T789 asserts the
+  `novel-tension-secret-` item. See also the scheduled row below for the
+  relationship recommendations REQ-234b/REQ-234d still owe.
+
 ### 2026-11-15 U7 reference appendices and registries — vendor-manifest provenance
 
 Closed by the 2026-11-15 roadmap-residuals increment
@@ -3011,49 +3059,6 @@ re-measurement is date-gated and stays scheduled.
 
 ## Scheduled-roadmap
 
-### 2026-11-15 U6 synthesis and fixtures — internal synthesis gaps
-
-Scheduled under `ROADMAP.md` § *Synthesis-surface gaps (P1)*; all three were
-repaired by the 2026-11-15 increment (`docs/plans/2026-11-15-synthesis-surface-gaps/`).
-
-- **U6-F3 — the synthesis fingerprint has no writer. Resolved 2026-11-15.**
-  Predicate that failed: `spec/08-synthesis.md:43-51,250-258,277-287` require a
-  `synthesis_fingerprint` over the ruleset content hash, the intake answers and
-  the Novel state hash, plus per-module hashes; nothing wrote `manifest._fingerprint`
-  and the re-run guard was the boolean `state.enriched`. Now:
-  `holonovel/src/core/synthesis.ts` `synthesisFingerprint` /
-  `synthesisModuleSourceHashes` / `synthesizeFromNovel` write the root hash and
-  the per-module hashes, the Novel persists them under its `synthesis` key
-  (`core/state.ts` `NovelState.synthesis`), and `run` returns
-  `[OK] Synthesis up to date — <ISO>` when the fingerprint is unchanged.
-  Exercised by T321a. Rows R3, R15, R18.
-- **U6-F4 — the `[LOW]` presentation tag is never rendered. Resolved
-  2026-11-15.** Predicate that failed: `spec/08-synthesis.md:238-243` requires a
-  visible `[LOW]` tag in the briefing and in synthesis resource output, and
-  `:301-302` requires it in every badge view; `wisdomTag` returned only the four
-  provenance tags and `grep -rn '\[LOW\]' holonovel/src` returned no match.
-  Now: `provenanceTag` (`holonovel/src/index.ts`) emits `[tag] [LOW]` for a LOW
-  item, every `synthesis://<module>` payload carries a `provenance` string, the
-  Markdown resources and `manage_synthesis (action: list)` rows carry it, and the
-  tag is computed independently of badge scope so every view that can display the
-  item displays it. Exercised by T325a/T325b. Row R13.
-- **U6-F5 — internal synthesis implements two of eight category rules and
-  enforces no cap. Resolved 2026-11-15.** Predicate that failed:
-  `spec/08-synthesis.md:57-69` maps seven source categories and `:70-124` gives
-  eight rules across six modules, with caps at `:198-217`;
-  `mergeNovelDerivedSynthesis` read entities, NPCs and the last journal entry,
-  wrote only two modules, and applied no cap. Now: `synthesizeFromNovel`
-  implements rules 1–8 (lore cross-reference, narrative voice profile, scene
-  hooks, faction/secret tension, countdown urgency, rooms/things advice and lore
-  links) and enforces the per-pass and total-Novel caps against the
-  `TTRPG_MAX_SYNTHESIS_ITEMS` ceiling, reporting overflow in the result and in
-  `spec_health.synthesis_health.caps`. Exercised by T789/T790. Rows R5, R6, R10.
-  Residual (P2): rule 6's shared-secret branch requires a faction id in a
-  secret's `known_by`, and `manage_lore (action: reveal)` only accepts entity
-  ids, so the branch is implemented and spec-faithful but unreachable through the
-  tool surface. Scheduled under `ROADMAP.md` § *Faction knowledge on secrets
-  (P2)*, which extends the secret surface rather than weakening the rule.
-
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 
 Probe status: the 2026-11-09 assertion-repair session ran the Appendix F rows
@@ -3076,6 +3081,24 @@ depth findings F-P2-5 and F-P2-6 are also `Resolved` (2026-11-14) — see the
 `holonovel/scripts/test-narrative.ts:1205` (`T056`, which Appendix F does not
 define; the same comment also names the real `T723`), now corrected.
 
+
+### 2026-11-15 roadmap residuals — secret relationship recommendations
+
+Scheduled under `ROADMAP.md` § *Secret relationship recommendations (P1)*. The
+two clauses are normative and unimplemented; the increment that closed the
+faction-reveal surface did not build them, because they need a recommendation
+surface rather than a validation change.
+
+- **U6-F5b — the secret-reveal relationship recommendations are unimplemented.
+  Scheduled-roadmap (P1).** Predicate: REQ-234b
+  (`spec/02-requirements.md:2921`) requires a `suspicious` relationship
+  recommendation between a knowledge-holder and an entity or faction the secret
+  implicates, surfaced in `badge_briefing` for the GM badge, and REQ-234d
+  (`:2927`) requires a `rival` recommendation when a secret revealed to a faction
+  names another faction. The reveal path (`holonovel/src/index.ts`, the
+  `case "reveal"` block) emits the world change and the entity perception record
+  only, and `grep -n suspicious holonovel/src/index.ts` returns disposition
+  helpers at `:680` and `:1179` with no REQ-234b call site. Scheduled 2026-11-15.
 
 ## Resolved — 2026-11-15 badge guidance resources
 

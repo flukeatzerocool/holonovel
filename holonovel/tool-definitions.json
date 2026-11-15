@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 119458,
+  "tools_list_bytes": 119607,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 119458,
-        "tokens": 29865
+        "bytes": 119607,
+        "tokens": 29902
       },
       "standard": {
         "tools": 37,
-        "bytes": 103511,
-        "tokens": 25878
+        "bytes": 103660,
+        "tokens": 25915
       },
       "small": {
         "tools": 6,
@@ -1299,7 +1299,7 @@
         "secret_list",
         "knowledge"
       ],
-      "param_count": 14,
+      "param_count": 15,
       "required": [
         "action"
       ],
@@ -1308,10 +1308,11 @@
         "content": "Lore content (set/update).",
         "data": "JSON or Markdown lorebook data (import).",
         "detail": "Return full lore entries instead of summary entries (list).",
-        "entity_id": "Entity to reveal to / whose knowledge to read (reveal/knowledge).",
+        "entity_id": "Entity or faction id to reveal to / whose knowledge to read (reveal/knowledge).",
         "format": "Optional output format (export).",
         "group": "Group name, or null to clear (set/update/group).",
         "key": "Lore key (set/update/remove/toggle/group/get).",
+        "known_by": "Entity or faction ids that already know the secret (set_secret).",
         "mode": "dry-run, merge, or replace (import).",
         "priority": "Optional priority (set/update).",
         "sticky": "Optional sticky weight (set/update).",
@@ -1333,9 +1334,9 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 15,
+        "paramCount": 16,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 15,
+        "paramsWithDescriptions": 16,
         "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
@@ -1346,7 +1347,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3509,
+        "definitionBytes": 3658,
         "descriptionBytes": 967
       },
       "category": "",

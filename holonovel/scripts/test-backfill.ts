@@ -2018,8 +2018,11 @@ async function main() {
     const faId = factionId("Ash Guild");
     const fbId = factionId("Salt Watch");
     await call(proc, "manage_lore", { action: "set_secret", key: "shared_pact", content: "The guild pays the watch to look away." });
-    await call(proc, "manage_lore", { action: "reveal", key: "shared_pact", entity_id: faId });
-    await call(proc, "manage_lore", { action: "reveal", key: "shared_pact", entity_id: fbId });
+    // REQ-234c — a faction id is a valid reveal target; assert it was recorded
+    // rather than trusting the call to have succeeded.
+    const pactAsh = await call(proc, "manage_lore", { action: "reveal", key: "shared_pact", entity_id: faId });
+    const pactSalt = await call(proc, "manage_lore", { action: "reveal", key: "shared_pact", entity_id: fbId });
+    assert(pactAsh.includes(faId) && pactSalt.includes(fbId), `faction reveal did not record its holder: ${pactAsh} / ${pactSalt}`);
     await call(proc, "manage_lore", { action: "set_secret", key: "lost_relic", content: "A relic no one admits to holding." });
     await call(proc, "manage_relationship", { action: "set", entity_a: mira, entity_b: "npc_01", type: "suspicious", description: "Mira does not trust the warden." });
     // Rule 7 — an almost-expired clock and two sharing a scope.
@@ -2085,6 +2088,7 @@ async function main() {
         ["rule 3 lore cross-reference", "novel-lore-link-"],
         ["rule 4 narrative voice profile", "novel-voice-profile"],
         ["rule 5 scene hook", "novel-hook-"],
+        ["rule 6 shared-secret tension", "novel-tension-secret-"],
         ["rule 6 revelation opportunity", "novel-reveal-"],
         ["rule 6 secret suggestion", "novel-secret-suggestion-"],
         ["rule 7 countdown urgency", "novel-urgency-"],

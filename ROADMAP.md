@@ -12,15 +12,16 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Faction knowledge on secrets (P2)
+## Secret relationship recommendations (P1)
 
-- Let a secret name a faction in its `known_by` list: extend `manage_lore (action:
-  set_secret)` with an optional `known_by` array and accept faction ids in
-  `manage_lore (action: reveal)`, so §11.2 rule 6's shared-secret tension branch
-  is reachable through the tool surface (U6-F5 residual).
+- Implement REQ-234b and REQ-234d: when a secret implicates an entity or faction
+  other than its holder, surface a `suspicious` relationship recommendation in the
+  GM `badge_briefing`; when a secret revealed to a faction names another faction,
+  recommend a `rival` relationship between the two.
 
-**Trigger:** the next lore-surface session; closes when rule 6's shared-secret
-branch is exercisable by a harness assertion and the register row is updated.
+**Trigger:** the next lore- or briefing-surface session; closes when both
+recommendations surface for a Game Master briefing and a harness row asserts them
+(U6-F5b).
 
 ## Loop-gate fix-up rate re-measurement (P2)
 

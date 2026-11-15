@@ -209,7 +209,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-231 | Per-module synthesis toggle (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T307 | — |
 | REQ-232 | Pause/resume context (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T268 | — |
 | REQ-233 | Factions (Part b1) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T269, T358, T408, T413, T415 | — |
-| REQ-234 | Secrets and knowledge (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T274, T406, T414 | — |
+| REQ-234 | Secrets and knowledge (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T274, T406, T414 | — |
 | REQ-235 | Structured player choices (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T273 | — |
 | REQ-236 | Entity relationships (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T270, T410 | — |
 | REQ-237 | Session segmentation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T471, T275 | — |
