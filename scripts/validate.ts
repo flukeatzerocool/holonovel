@@ -2411,11 +2411,26 @@ function main(): void {
       if (/^(Source|Dungeon World SRD)$/.test(cells[1]) && cells[1] === "Source") return [];
       return [{ source: cells[1] }];
     });
-    const manifestRows = fs.readFileSync(manifestPath, "utf-8").split("\n").flatMap((line) => {
-      const cells = line.split("|").map((c) => c.trim());
-      if (cells.length !== 12) return [];
-      return [{ source: cells[1], module: cells[2], file: cells[3] }];
-    });
+    // Header-indexed: the manifest gains columns (the Source URL provenance
+    // column, REQ-451a), so a positional cell count would silently drop rows.
+    const manifestLines = fs.readFileSync(manifestPath, "utf-8").split("\n");
+    const manifestHeader = manifestLines.find((line) => /^\|\s*Source\s*\|/.test(line));
+    const manifestCols = new Map<string, number>();
+    if (manifestHeader) {
+      manifestHeader.split("|").map((c) => c.trim()).forEach((c, i) => {
+        if (c) manifestCols.set(c.toLowerCase(), i);
+      });
+    }
+    const manifestRows = manifestCols.has("source") && manifestCols.has("file")
+      ? manifestLines.flatMap((line) => {
+          if (!line.startsWith("|") || /^\|[\s-]+\|/.test(line)) return [];
+          const cells = line.split("|").map((c) => c.trim());
+          const source = cells[manifestCols.get("source")!] ?? "";
+          const file = cells[manifestCols.get("file")!] ?? "";
+          if (!source || !file || source.toLowerCase() === "source") return [];
+          return [{ source, module: cells[manifestCols.get("module")!] ?? "", file }];
+        })
+      : [];
     const vendorDirs = fs.readdirSync(narrativeDir, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => ({ name: d.name, hasLicense: fs.existsSync(path.join(narrativeDir, d.name, "LICENSE")) }));

@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-11-15 — Vendor provenance: the manifest carries the URL Appendix U admits it by
+
+Appendix U makes a `source_url` in the synthesis manifest an admission rule for
+every vendored Narrative-frameworks row; the manifest had no URL column at all,
+so the rule had no predicate. It has one now.
+
+- The column. `holonovel/narrative_world_model/MANIFEST.md` gains `Source URL`
+  after `Verified`, filled on all 25 data rows across the eight vendored sources,
+  with the URLs the licence table already records
+  (`docs/licenses/ATTRIBUTION.md:16-23`). A provenance paragraph states what the
+  column is for and that it is required independently of hash-audit state.
+- The gate. `check-vendor-manifest.ts` locates columns by header name instead of
+  by position, so a future column cannot shift the hash column. Provenance runs
+  over every parsed row *before* the `(build-time)` content-hash guard — the
+  guard today skips no row, because every row carries a real SHA-256, but it must
+  never be able to hide one. A blank URL reports `NOURL`, a non-absolute or
+  non-`https` URL reports `BADURL`, both per row with the manifest line number,
+  and `--strict` fails on either.
+- The requirement. New REQ-451a states the duty and the refusal; REQ-451's body
+  is 741 bytes against the 800-char body limit, so it could not absorb another
+  sentence. T541's row now asserts the provenance refusal beside the hash
+  refusal, and both bind to REQ-451/REQ-451a.
+- Verified. The strict check reports 25 rows, provenance 25 ok, 25 hashes
+  matching; deleting one row's URL in place produced `NOURL … line 27` and exit
+  1, and the restored file returns exit 0. U7-F4 is `Resolved`; the roadmap
+  section is removed.
+- A sibling positional parse, found by the gate. `scripts/validate.ts`'s
+  licence-source-parity check read manifest rows by the same fixed cell count
+  (`cells.length !== 12`), so the new column silently dropped every row and
+  reported all eight vendored directories as unlisted. It now resolves
+  `source`, `module`, and `file` by header name, matching the gate; parity is
+  green again.
+- Generated artifacts. `npm run assemble` refreshed `holonovel.md`, the package's
+  staged copy `holonovel/holonovel.md`, and `spec/build-phase-map.md`; the G7
+  attestation was regenerated because the spec content hash moved (§5.12 bodies
+  unchanged at 84, 82 server-side, 31/31 parents).
+
 ## 2026-11-15 — Harness labels: the padded ID goes, and comments are scanned
 
 One harness comment named `T056`, an ID Appendix F does not define, and the

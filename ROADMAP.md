@@ -34,16 +34,6 @@ branch is exercisable by a harness assertion and the register row is updated.
 **Trigger:** the date 2026-11-28, or 26 new commits, whichever comes first;
 closes when the re-measurement is recorded in the AAR of that session.
 
-## Vendor-manifest source provenance (P1)
-
-- Add a `source_url` column to `holonovel/narrative_world_model/MANIFEST.md` for
-  the eight vendored sources and extend `check-vendor-manifest` to require a
-  non-empty, well-formed URL per row, so Appendix U's admission rule (c) has a
-  predicate instead of a prose duty (U7-F4).
-
-**Trigger:** the next allocated content-provenance session; closes when the
-manifest carries the column, the checker enforces it, and U7-F4 is `Resolved`.
-
 ## Non-goals
 
 Authoritative list and rationale: `holonovel/DECISIONS.md` § Non-goals.

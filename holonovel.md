@@ -9019,6 +9019,9 @@ results for use in subsequent builds.
 **REQ-451 — Vendor manifest verification.**
 The builder SHALL verify the vendor content manifest (`MANIFEST.md`, §11.4) with a runnable checker (`scripts/check-vendor-manifest.ts`) before using the manifest's pre-verified confidence distributions and term-anchoring scores. The checker SHALL recompute each module's content hash from the source file named in the manifest and report a match or mismatch per row. A module whose hash differs from the manifest entry SHALL be re-audited per §11.4 and the manifest updated. The checker SHALL exit non-zero when any hash mismatches under `--strict`, and exit zero otherwise with the per-row report on stdout. *Acceptance criterion:* a modified vendor source file fails the strict check until its manifest entry is re-audited. _Check:_ T541.
 
+**REQ-451a — Vendor manifest provenance.**
+The manifest SHALL record a `source_url` for every vendored module row, each an absolute `https://` URL naming the upstream source of that row. The checker SHALL report a missing or malformed URL per row and SHALL exit non-zero under `--strict` when any row lacks one, independently of that row's content-hash state. *Acceptance criterion:* deleting one row's `source_url` fails the strict check naming that row, and restoring it passes. _Check:_ T541.
+
 ---
 
 # Appendices
@@ -10594,6 +10597,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-449 | Excessive-agency mutation ceiling | 2026-09-06 |
 | REQ-450 | TDQS-conformant tool definitions | 2026-09-06 |
 | REQ-451 | Vendor manifest verification | 2026-09-06 |
+| REQ-451a | Vendor manifest provenance | 2026-11-15 |
 | REQ-452 | Conversion evidence verification | 2026-09-06 |
 | REQ-453 | Extraction evidence-map parity | 2026-09-06 |
 | REQ-454 | Intended-gap whitelist discipline | 2026-09-08 |
@@ -11374,7 +11378,7 @@ diet.
 | T538 | Automated | Pattern Buffer coverage-map parity: assert every REQ in the REQ-108a covered sections (§5.5, §5.6, §5.7, §5.8, §5.10, §5.12, §5.13) has a coverage-map row or an explicit non-Pattern-Buffer disposition; assert a covered-section REQ lacking both fails validation. | REQ-108c |
 | T539 | Automated | Pattern Buffer partial-run disposition: a Pattern Buffer execution recording fewer verdicts than the scoped set without a fingerprint-rule reason or an operator-acceptance entry naming each skipped sub-workflow fails handoff verification; with such an entry, the run passes. | REQ-141l |
 | T540 | Automated | Blocking classification single source: assert every sub-workflow marked blocking in its prose pass criterion appears in the §6.6 exit-criteria blocking list, and vice versa; a conflict is a process-compliance finding. | REQ-142c |
-| T541 | Automated | Vendor manifest verification: run `scripts/check-vendor-manifest.ts` against `narrative_world_model/MANIFEST.md` — assert every hash-bearing row matches its source file's recomputed SHA-256, and that a modified vendor source file fails the strict check until its manifest entry is re-audited. | REQ-451 |
+| T541 | Automated | Vendor manifest verification: run `scripts/check-vendor-manifest.ts` against `narrative_world_model/MANIFEST.md` — assert every hash-bearing row matches its source file's recomputed SHA-256, that every row carries an absolute `https://source_url`, and that a modified vendor source file or a row with its URL deleted fails the strict check until the manifest entry is re-audited or the URL restored. | REQ-451, REQ-451a |
 | T542 | Automated | Conversion evidence verification: run `scripts/check-conversion-evidence.ts` against DECISIONS.md — assert a ruleset-free or Markdown-only build reports "conversion not selected — waived" and exits zero; assert a DECISIONS.md recording a fidelity rate below 90% or a `pending` artifact disposition fails the strict check. | REQ-452 |
 | T543 | Automated | Extraction evidence-map parity: assert every REQ in §5.2 has a coverage-map row or an explicit non-harness disposition; assert a §5.2 REQ lacking both fails validation. | REQ-453 |
 | T544 | Automated | Intended-gap whitelist discipline: assert `npm run validate` exits non-zero when a whitelisted REQ is cited in server source without a disposition; assert a builder-side whitelisted REQ passes; assert REQ-067 is absent from the intended-gap whitelist and buckets to C when source-cited and exercised. | REQ-454 |

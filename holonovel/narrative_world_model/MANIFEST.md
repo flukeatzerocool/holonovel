@@ -16,30 +16,36 @@ source at build time and the manifest is updated from the audit results.
 ruleset index terms) and is computed at build time; it is recorded as
 `(build-time)` here.
 
-| Source | Module | File | Content Hash | Items | HIGH | MEDIUM | LOW | Term Anchoring | Verified |
-|---|---|---|---|---|---|---|---|---|---|
-| Ironsworn: Starforged SRD (CC-BY 4.0) | narrative_voices | ironsworn-srd/INDEX.md | 436538c1c9962aba75d96c497e9c041a1b6a40cb63d5636fed6d6203d460b426 | 3 | 3 | 0 | 0 | (build-time) | 2026-08-22 |
-| Ironsworn: Starforged SRD (CC-BY 4.0) | action_patterns | ironsworn-srd/INDEX.md | 436538c1c9962aba75d96c497e9c041a1b6a40cb63d5636fed6d6203d460b426 | 4 | 4 | 0 | 0 | (build-time) | 2026-08-22 |
-| Ironsworn: Starforged SRD (CC-BY 4.0) | adventure_advice | ironsworn-srd/INDEX.md | 436538c1c9962aba75d96c497e9c041a1b6a40cb63d5636fed6d6203d460b426 | 4 | 4 | 0 | 0 | (build-time) | 2026-08-22 |
-| Ironsworn: Starforged SRD (CC-BY 4.0) | supplementary_guidance | ironsworn-srd/INDEX.md | 436538c1c9962aba75d96c497e9c041a1b6a40cb63d5636fed6d6203d460b426 | 3 | 2 | 1 | 0 | (build-time) | 2026-08-22 |
-| Sly Flourish Lazy GM (CC-BY 4.0) | supplementary_guidance | lazy-gm/INDEX.md | c94b88098603c2583b7c8b8fb365564e932a6cc5a1c82cb04a08c24f9eca37ba | 5 | 4 | 1 | 0 | (build-time) | 2026-08-22 |
-| Sly Flourish Lazy GM (CC-BY 4.0) | adventure_advice | lazy-gm/INDEX.md | c94b88098603c2583b7c8b8fb365564e932a6cc5a1c82cb04a08c24f9eca37ba | 4 | 3 | 1 | 0 | (build-time) | 2026-08-22 |
-| Sly Flourish Lazy GM (CC-BY 4.0) | briefing_order | lazy-gm/INDEX.md | c94b88098603c2583b7c8b8fb365564e932a6cc5a1c82cb04a08c24f9eca37ba | 1 | 1 | 0 | 0 | (build-time) | 2026-08-22 |
-| The Alexandrian (CC-BY 4.0) | adventure_advice | alexandrian/INDEX.md | 967839420d1610f430b6549c59f020ec03e027ec53636e426b5825bc822ada2e | 4 | 1 | 3 | 0 | (build-time) | 2026-08-22 |
-| The Alexandrian (CC-BY 4.0) | lore_templates | alexandrian/INDEX.md | 967839420d1610f430b6549c59f020ec03e027ec53636e426b5825bc822ada2e | 3 | 0 | 2 | 1 | (build-time) | 2026-08-22 |
-| DMCP (MIT) | voice_examples | dmcp/README.md | b6dcd6de151e76e1e648e79fb7e9840a2e616c57de448f3080966b468a0ad78a | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| DMCP (MIT) | supplementary_guidance | dmcp/README.md | b6dcd6de151e76e1e648e79fb7e9840a2e616c57de448f3080966b468a0ad78a | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| DMCP (MIT) | adventure_advice | dmcp/README.md | b6dcd6de151e76e1e648e79fb7e9840a2e616c57de448f3080966b468a0ad78a | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| Blades in the Dark SRD (CC-BY 3.0) | adventure_advice | bitd/progress-clocks.md | e204454b164bbe4236603fffb3acf771115135e6c663e977e0c34b2d4b1b1871 | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| Blades in the Dark SRD (CC-BY 3.0) | lore_templates | bitd/progress-clocks.md | e204454b164bbe4236603fffb3acf771115135e6c663e977e0c34b2d4b1b1871 | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| Blades in the Dark SRD (CC-BY 3.0) | supplementary_guidance | bitd/progress-clocks.md | e204454b164bbe4236603fffb3acf771115135e6c663e977e0c34b2d4b1b1871 | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| Lonelog (CC BY-SA 4.0) | supplementary_guidance | lonelog/lonelog.md | a06fee3ec1434f6b3717032089108fafac4fb3e340e30732a0a90929d85b566e | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| Lonelog (CC BY-SA 4.0) | briefing_order | lonelog/lonelog.md | a06fee3ec1434f6b3717032089108fafac4fb3e340e30732a0a90929d85b566e | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| IF Craft Corpus (CC-BY 4.0) | narrative_voices | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| IF Craft Corpus (CC-BY 4.0) | voice_examples | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| IF Craft Corpus (CC-BY 4.0) | supplementary_guidance | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| IF Craft Corpus (CC-BY 4.0) | adventure_advice | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) |
-| Dungeon World SRD (CC-BY 3.0) | supplementary_guidance | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 4 | 4 | 0 | 0 | (build-time) | 2026-10-21 |
-| Dungeon World SRD (CC-BY 3.0) | adventure_advice | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 4 | 4 | 0 | 0 | (build-time) | 2026-10-21 |
-| Dungeon World SRD (CC-BY 3.0) | lore_templates | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 2 | 1 | 1 | 0 | (build-time) | 2026-10-21 |
-| Dungeon World SRD (CC-BY 3.0) | narrative_voices | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 2 | 2 | 0 | 0 | (build-time) | 2026-10-21 |
+**Source provenance.** The `Source URL` column records each vendored module's
+upstream address, which satisfies Appendix U's admission rule (c) for *Narrative
+frameworks* sources; the same URL appears with the source's licence row in
+`docs/licenses/ATTRIBUTION.md`. The checker requires an absolute `https://` URL
+on every row, independently of whether that row's hash is audited yet.
+
+| Source | Module | File | Content Hash | Items | HIGH | MEDIUM | LOW | Term Anchoring | Verified | Source URL |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Ironsworn: Starforged SRD (CC-BY 4.0) | narrative_voices | ironsworn-srd/INDEX.md | 436538c1c9962aba75d96c497e9c041a1b6a40cb63d5636fed6d6203d460b426 | 3 | 3 | 0 | 0 | (build-time) | 2026-08-22 | https://ironswornrpg.com |
+| Ironsworn: Starforged SRD (CC-BY 4.0) | action_patterns | ironsworn-srd/INDEX.md | 436538c1c9962aba75d96c497e9c041a1b6a40cb63d5636fed6d6203d460b426 | 4 | 4 | 0 | 0 | (build-time) | 2026-08-22 | https://ironswornrpg.com |
+| Ironsworn: Starforged SRD (CC-BY 4.0) | adventure_advice | ironsworn-srd/INDEX.md | 436538c1c9962aba75d96c497e9c041a1b6a40cb63d5636fed6d6203d460b426 | 4 | 4 | 0 | 0 | (build-time) | 2026-08-22 | https://ironswornrpg.com |
+| Ironsworn: Starforged SRD (CC-BY 4.0) | supplementary_guidance | ironsworn-srd/INDEX.md | 436538c1c9962aba75d96c497e9c041a1b6a40cb63d5636fed6d6203d460b426 | 3 | 2 | 1 | 0 | (build-time) | 2026-08-22 | https://ironswornrpg.com |
+| Sly Flourish Lazy GM (CC-BY 4.0) | supplementary_guidance | lazy-gm/INDEX.md | c94b88098603c2583b7c8b8fb365564e932a6cc5a1c82cb04a08c24f9eca37ba | 5 | 4 | 1 | 0 | (build-time) | 2026-08-22 | https://slyflourish.com/lazy_gm_resource_document.html |
+| Sly Flourish Lazy GM (CC-BY 4.0) | adventure_advice | lazy-gm/INDEX.md | c94b88098603c2583b7c8b8fb365564e932a6cc5a1c82cb04a08c24f9eca37ba | 4 | 3 | 1 | 0 | (build-time) | 2026-08-22 | https://slyflourish.com/lazy_gm_resource_document.html |
+| Sly Flourish Lazy GM (CC-BY 4.0) | briefing_order | lazy-gm/INDEX.md | c94b88098603c2583b7c8b8fb365564e932a6cc5a1c82cb04a08c24f9eca37ba | 1 | 1 | 0 | 0 | (build-time) | 2026-08-22 | https://slyflourish.com/lazy_gm_resource_document.html |
+| The Alexandrian (CC-BY 4.0) | adventure_advice | alexandrian/INDEX.md | 967839420d1610f430b6549c59f020ec03e027ec53636e426b5825bc822ada2e | 4 | 1 | 3 | 0 | (build-time) | 2026-08-22 | https://thealexandrian.net |
+| The Alexandrian (CC-BY 4.0) | lore_templates | alexandrian/INDEX.md | 967839420d1610f430b6549c59f020ec03e027ec53636e426b5825bc822ada2e | 3 | 0 | 2 | 1 | (build-time) | 2026-08-22 | https://thealexandrian.net |
+| DMCP (MIT) | voice_examples | dmcp/README.md | b6dcd6de151e76e1e648e79fb7e9840a2e616c57de448f3080966b468a0ad78a | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://github.com/shawnrushefsky/dmcp |
+| DMCP (MIT) | supplementary_guidance | dmcp/README.md | b6dcd6de151e76e1e648e79fb7e9840a2e616c57de448f3080966b468a0ad78a | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://github.com/shawnrushefsky/dmcp |
+| DMCP (MIT) | adventure_advice | dmcp/README.md | b6dcd6de151e76e1e648e79fb7e9840a2e616c57de448f3080966b468a0ad78a | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://github.com/shawnrushefsky/dmcp |
+| Blades in the Dark SRD (CC-BY 3.0) | adventure_advice | bitd/progress-clocks.md | e204454b164bbe4236603fffb3acf771115135e6c663e977e0c34b2d4b1b1871 | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://bladesinthedark.com/ |
+| Blades in the Dark SRD (CC-BY 3.0) | lore_templates | bitd/progress-clocks.md | e204454b164bbe4236603fffb3acf771115135e6c663e977e0c34b2d4b1b1871 | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://bladesinthedark.com/ |
+| Blades in the Dark SRD (CC-BY 3.0) | supplementary_guidance | bitd/progress-clocks.md | e204454b164bbe4236603fffb3acf771115135e6c663e977e0c34b2d4b1b1871 | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://bladesinthedark.com/ |
+| Lonelog (CC BY-SA 4.0) | supplementary_guidance | lonelog/lonelog.md | a06fee3ec1434f6b3717032089108fafac4fb3e340e30732a0a90929d85b566e | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://lonelog.org |
+| Lonelog (CC BY-SA 4.0) | briefing_order | lonelog/lonelog.md | a06fee3ec1434f6b3717032089108fafac4fb3e340e30732a0a90929d85b566e | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://lonelog.org |
+| IF Craft Corpus (CC-BY 4.0) | narrative_voices | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://pvliesdonk.github.io/if-craft-corpus/ |
+| IF Craft Corpus (CC-BY 4.0) | voice_examples | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://pvliesdonk.github.io/if-craft-corpus/ |
+| IF Craft Corpus (CC-BY 4.0) | supplementary_guidance | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://pvliesdonk.github.io/if-craft-corpus/ |
+| IF Craft Corpus (CC-BY 4.0) | adventure_advice | if-craft-corpus/README.md | e8ca4e8df94816f552f71f81ade67755823b532294c3aa72a508d4a3b824541f | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | (build-time) | https://pvliesdonk.github.io/if-craft-corpus/ |
+| Dungeon World SRD (CC-BY 3.0) | supplementary_guidance | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 4 | 4 | 0 | 0 | (build-time) | 2026-10-21 | https://www.dungeonworldsrd.com |
+| Dungeon World SRD (CC-BY 3.0) | adventure_advice | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 4 | 4 | 0 | 0 | (build-time) | 2026-10-21 | https://www.dungeonworldsrd.com |
+| Dungeon World SRD (CC-BY 3.0) | lore_templates | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 2 | 1 | 1 | 0 | (build-time) | 2026-10-21 | https://www.dungeonworldsrd.com |
+| Dungeon World SRD (CC-BY 3.0) | narrative_voices | dungeon-world/INDEX.md | af50df6a4cb777243212f594951baf707d4fc98a024de7346af3a70552e412d3 | 2 | 2 | 0 | 0 | (build-time) | 2026-10-21 | https://www.dungeonworldsrd.com |

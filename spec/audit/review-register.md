@@ -2972,6 +2972,27 @@ stale generated snapshot, and one incomplete layout description. Predicates are
 
 ## Resolved — 2026-11-15 roadmap residuals
 
+### 2026-11-15 U7 reference appendices and registries — vendor-manifest provenance
+
+Closed by the 2026-11-15 roadmap-residuals increment
+(`docs/plans/2026-11-15-roadmap-residuals/`), which added the column and the
+predicate the admission rule needed.
+
+- **U7-F4 — the vendored sources carried no `source_url` in the synthesis
+  manifest. Resolved (2026-11-15).** Predicate: `spec/appendices-licenses.md:29`
+  makes a `source_url` field in the synthesis manifest an admission rule for
+  every vendored *Narrative frameworks* row, while
+  `holonovel/narrative_world_model/MANIFEST.md:19-30` recorded eight vendor
+  sources (Ironsworn: Starforged, Sly Flourish, The Alexandrian, BitD, DMCP,
+  IF Craft Corpus, Lonelog, Dungeon World) with no URL column at all —
+  `grep -c http` over the file returned 0 — and only four of the eight appeared
+  with a `source_url` anywhere, in `holonovel/src/core/wisdom.ts:82-113`. The
+  manifest now carries a `Source URL` column on all 25 rows, sourced from
+  `docs/licenses/ATTRIBUTION.md:16-23`; REQ-451a states the duty and
+  `holonovel/scripts/check-vendor-manifest.ts` enforces it per row — before the
+  content-hash guard, so an unaudited row cannot skip it — failing `--strict`
+  with `NOURL`/`BADURL`. T541 exercises the refusal.
+
 ### 2026-11-15 roadmap-residuals session
 
 Closes three of the four ROADMAP sections open at `e8c79d1`
@@ -2989,23 +3010,6 @@ re-measurement is date-gated and stays scheduled.
   was one hit before the fix and zero after.
 
 ## Scheduled-roadmap
-
-### 2026-11-15 U7 reference appendices and registries — vendor-manifest provenance
-
-Scheduled under `ROADMAP.md` § *Vendor-manifest source provenance (P1)*. The
-finding cites the predicate that fails; it is not repaired here, because closing
-it adds a column to a content manifest and an assertion to a gate.
-
-- **U7-F4 — the vendored sources carry no `source_url` in the synthesis manifest.
-  Scheduled-roadmap (P1).** Predicate: `spec/appendices-licenses.md:29` makes a
-  `source_url` field in the synthesis manifest an admission rule for every
-  vendored *Narrative frameworks* row, while
-  `holonovel/narrative_world_model/MANIFEST.md:19-30` records eight vendor
-  sources (Ironsworn: Starforged, Sly Flourish, The Alexandrian, BitD, DMCP,
-  IF Craft Corpus, Lonelog, Dungeon World) with no URL column at all —
-  `grep -c http` over the file returns 0 — and only four of the eight appear with
-  a `source_url` anywhere, in `holonovel/src/core/wisdom.ts:82-113`. The manifest
-  therefore records no provenance for the eight rows the appendix admits.
 
 ### 2026-11-15 U6 synthesis and fixtures — internal synthesis gaps
 
