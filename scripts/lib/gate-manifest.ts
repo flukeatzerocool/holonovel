@@ -20,6 +20,12 @@ export interface Gate {
   // A gate whose blocking status is contractual (a spec workflow or the
   // increment contract). The retirement policy must not downgrade it.
   protected?: boolean;
+  // Gates that fail on the same finding class as this one. The retirement
+  // policy downgrades a gate only when a declared cover still blocks the run,
+  // so a green streak alone can never retire a safeguard. Each entry must name
+  // another gate in this manifest; a gate name that does not resolve makes the
+  // cover inert (scripts/lib/gate-retirement.ts).
+  coveredBy?: string[];
 }
 
 export const npm = (script: string, ...extra: string[]): string[] =>

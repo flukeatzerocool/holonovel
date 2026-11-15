@@ -13,6 +13,8 @@
 import { contentIssues, shellIssues } from "./lib/script-discipline.js";
 import { isReqHeaderRegex, topLevelHelpers, duplicateHelperPairs } from "./lib/script-quality.js";
 import { jobHygiene } from "./lib/workflow-hygiene.js";
+import { candidateReason, manifestGateNames, savingMs } from "./lib/gate-retirement.js";
+import type { Gate } from "./lib/gate-manifest.js";
 
 let passed = 0;
 let failed = 0;
@@ -181,6 +183,63 @@ exit 0
       - name: note
         run: echo "npm run check is documented elsewhere"`;
   check(jobHygiene("docs.yml", "docs", commentOnlyJob).length === 0, "a gate mention in a non-gate command is not flagged");
+
+  // ── Retirement predicate (scripts/lib/gate-retirement.ts) ────────────────
+  const fixtureGates: Gate[] = [
+    { name: "alpha", description: "a", fast: ["a"], full: ["a"] },
+    { name: "beta", description: "b", fast: ["b"], full: ["b"], coveredBy: ["alpha"] },
+    { name: "gamma", description: "c", fast: ["c"], full: ["c"], protected: true, coveredBy: ["alpha"] },
+    { name: "delta", description: "d", fast: ["d"], full: ["d"], coveredBy: ["nope", "delta"] },
+    { name: "epsilon", description: "e", fast: null, full: ["e"] },
+  ];
+  const row = (gate: string, streak: number, failures = 0) => ({ gate, medianMs: 1000, zeroFindingStreak: streak, failures });
+
+  check(
+    candidateReason(row("alpha", 19), fixtureGates[0], fixtureGates, 20).reason === "streak below threshold",
+    "under-threshold streak is not a candidate",
+  );
+  check(
+    candidateReason(row("gamma", 99), fixtureGates[2], fixtureGates, 20).reason === "protected",
+    "protected gate is not a candidate even with a cover",
+  );
+  check(
+    candidateReason(row("alpha", 99), fixtureGates[0], fixtureGates, 20).reason === "no cover declared",
+    "candidate without a cover is not writable",
+  );
+  check(
+    candidateReason(row("delta", 99), fixtureGates[3], fixtureGates, 20).reason === "cover does not resolve: nope, delta",
+    "self-referential and unknown covers do not resolve",
+  );
+  check(
+    candidateReason(row("beta", 99), fixtureGates[1], fixtureGates, 20).writable,
+    "candidate with a resolving cover is writable",
+  );
+  check(
+    candidateReason(row("alpha", 99, 1), fixtureGates[0], fixtureGates, 20).reason === "has failed in the log",
+    "a gate that ever failed is not a candidate",
+  );
+  const tierMedians = {
+    fast: new Map([["alpha", 8000], ["beta", 2000], ["gamma", 9000]]),
+    full: new Map([["alpha", 5000], ["epsilon", 3000]]),
+  };
+  check(
+    savingMs(fixtureGates[0], tierMedians).fast === 0,
+    "a non-critical-path fast gate buys no wall clock",
+  );
+  const criticalPath = savingMs({ name: "gamma", fast: ["g"], full: ["g"] }, tierMedians);
+  check(criticalPath.fast === 1000, "the slowest fast gate buys its margin over the next-slowest");
+  check(
+    savingMs(fixtureGates[4], tierMedians).fast === 0 && savingMs(fixtureGates[4], tierMedians).full === 3000,
+    "a full-only gate buys nothing in the fast tier",
+  );
+  check(
+    manifestGateNames(fixtureGates).has("alpha") && !manifestGateNames(fixtureGates).has("playability"),
+    "a telemetry row absent from the manifest is not a manifest gate",
+  );
+  check(
+    candidateReason(row("playability", 99), undefined, fixtureGates, 20).reason === "not in the manifest",
+    "a row absent from the manifest is never a candidate",
+  );
 
   console.log(`\nscript-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

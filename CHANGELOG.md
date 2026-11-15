@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-11-15 — Gate retirement: a green streak is a candidate, not a decision
+
+The monthly ritual told the operator to run `npm run gate-cost -- --apply`, and that
+command would have downgraded 36 of the 49 blocking gates to advisory on the next sweep —
+`validate`, `typecheck`, `lint`, and `check-fingerprint-sync` among them — because the
+predicate counted green runs and asked nothing about what a gate protects.
+
+- The predicate. A gate is now writable only when its manifest entry declares a
+  `coveredBy` cover that resolves to another gate failing on the same finding class
+  (`scripts/lib/gate-retirement.ts`). The streak stays as a necessary condition; it is no
+  longer a sufficient one. No gate declares a cover today, so `--apply` writes nothing:
+  replayed at `675daeb` in a scratch worktree the old code wrote 36 advisory names, and the
+  new report writes none while printing the reason for each refusal.
+- The cost claim. Fast mode runs every gate concurrently, so retiring anything but the
+  slowest gate saves nothing — measured 12.53 s wall for 45 gates, critical path
+  `test:ruleset-gates` at 12.32 s. The report now prints `fastSavingMs` and `fullSavingMs`
+  per row, so the full-tier seconds a retirement would buy sit next to the fast-tier zero
+  instead of behind an unqualified "gate retirement saves build time".
+- The report. `TimingRecord` reads the `mode` the runner already wrote, per-tier medians are
+  kept beside the blended one, every row carries `cover`/`reason`/both savings in the table
+  and in `--json`, and timing rows for gates no longer in the manifest (`playability`) are
+  excluded with a one-line notice.
+- The evidence. `docs/plans/2026-11-15-gate-retirement-sweep/review.md` records all 36
+  candidates with their finding class and why no neighbouring gate is a cover;
+  `spec/audit/review-register.md` carries `F-GR-1`. Eight new cases in
+  `npm run test:script-tooling` cover the predicate, cover resolution, the tier-saving rule,
+  and the manifest filter. The monthly ritual in `docs/workflow-cadence.md` now states the
+  redundancy requirement.
+
 ## 2026-11-15 — Secret relationship recommendations: suspicious and rival surface for the GM
 
 REQ-234b and REQ-234d were normative and unimplemented: a secret that named

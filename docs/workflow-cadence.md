@@ -47,9 +47,15 @@ scheduled are explicitly parked, not "in progress".
   every design-relevant delta, and update the pin and delta log. A delta that
   changes a pending chunk amends that chunk's plan; a new capability waits for
   the weekly replenishment point.
-- Gate-retirement review: `npm run gate-cost -- --apply` downgrades gates with
-  no findings across 20 consecutive runs to advisory. Deleting a gate is still a
-  manual decision.
+- Gate-retirement review: `npm run gate-cost -- --apply` downgrades a gate to
+  advisory only when it has no findings across 20 consecutive runs **and** its
+  manifest entry declares a `coveredBy` cover that still blocks the same finding
+  class. A green streak is a candidate, not a decision: gates stay green
+  precisely when the tree is healthy. The report prints each gate's fast-tier
+  and full-tier saving, so the trade is visible — the fast tier runs
+  concurrently, where retiring anything but the slowest gate saves nothing,
+  while a full-tier gate's saving is its whole median. Deleting a gate is still
+  a manual decision.
 
 ## Quarterly
 

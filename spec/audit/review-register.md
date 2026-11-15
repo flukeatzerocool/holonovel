@@ -11,6 +11,31 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-15 gate-retirement sweep — the streak is a candidate, not a decision
+
+Closed by the 2026-11-15 gate-retirement sweep
+(`docs/plans/2026-11-15-gate-retirement-sweep/`, 36 verdict rows in `review.md`). The
+monthly ritual (`docs/workflow-cadence.md:50`) instructed a bare `npm run gate-cost --
+--apply`, and the predicate behind it (`scripts/gate-cost-report.ts:96` at `675daeb`) was
+`streak >= threshold && failures === 0` — a green-run count with no notion of what the
+gate protects.
+
+- **F-GR-1 — the retirement policy downgrades by streak alone, and the downgrade buys no
+  wall clock. Resolved 2026-11-15.** Predicate that failed: `scripts/gate-cost-report.ts:96`
+  marks a gate a candidate on the streak, and fast mode launches every gate concurrently
+  (`scripts/run-gates.ts:217-224`), so an advisory gate still runs — measured
+  `npx tsx scripts/run-gates.ts --fast` → 45 gates in 12.53 s wall with `test:ruleset-gates`
+  at 12.32 s. At threshold 20 the old code nominated 36 of the 49 manifest gates, including
+  `validate`, `typecheck`, `lint`, `check-script-discipline`, and `check-fingerprint-sync`.
+  Replayed at `675daeb` in a scratch worktree, `--apply` wrote 36 advisory names; the new
+  predicate writes nothing, because writability now requires a `coveredBy` cover in the
+  manifest that resolves to another gate failing on the same finding class, and no gate
+  declares one. `review.md` carries all 36 rows with the reason each has no cover. The
+  report also prints the per-tier saving, so the full-mode seconds a retirement would buy
+  are visible next to the fast-mode zero. The policy is not deleted: it can retire a gate
+  once a genuine covering surface exists. No gate is retired by this entry, and
+  `spec/audit/gate-retirement.json` still does not exist.
+
 ### 2026-11-15 U8 repo governance and content assets
 
 Chunk U8 of the unscoped-surface review program
