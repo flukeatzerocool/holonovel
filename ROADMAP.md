@@ -27,9 +27,9 @@
   every finding in `spec/audit/review-register.md` with the same P0–P3
   dispositions as the 2026-11-09 sweep.
 
-**Trigger:** the next allocated review session takes U3 (runtime conventions and
-the engine-contract remainder); each chunk closes when its findings are
-dispositioned, and this section closes when U8 is `Resolved`.
+**Trigger:** the next allocated review session takes U4 (verification workflows and
+CI); each chunk closes when its findings are dispositioned, and this section
+closes when U8 is `Resolved`.
 
 ## Harness test-ID label hygiene (P2)
 
@@ -74,6 +74,35 @@ longer need hand-editing.
 
 **Trigger:** the date 2026-11-28, or 26 new commits, whichever comes first;
 closes when the re-measurement is recorded in the AAR of that session.
+
+## Identifier-derivation conformance (P1)
+
+- Add the underscore role-marker branch to `deriveAnchor`
+  (`holonovel/src/core/anchors.ts:18-24`) so `_GM only_` is stripped like
+  `*GM only*`, or narrow §7.1 to asterisk markers — the spec currently claims
+  both (`spec/04-runtime.md:18-20`).
+- Implement §7.1a's slug rules: Windows-reserved-name avoidance
+  (CON/PRN/AUX/NUL/COM1–COM9/LPT1–LPT9, `-1` on collision) and the
+  240-character state-path ceiling (`spec/04-runtime.md:29-34`;
+  `holonovel/src/core/state.ts:1268` implements neither).
+
+**Trigger:** the next `anchors.ts` or Novel-slug edit; closes when the anchor
+deriver and the slug builder implement every clause of §7.1 and §7.1a.
+
+## §7.3a documentation and P60 vocabulary (P1)
+
+- Add the prompt-construction note §7.3a requires to
+  `holonovel/DECISIONS.md`, covering the four clauses (narrative output
+  archived not re-injected, voice profiles as standing directives, scene-type
+  anchoring, anti-slop precedence) (`spec/04-runtime.md:102-104`).
+- Resolve P60's `Surface` target (`spec/04-runtime.md:499`): make `Surface` an
+  archetype (with `VALID_ARCHETYPES` and REQ-369a) or retarget the rule to an
+  existing archetype, and add a predicate that compares pattern-rule tuples to
+  the vocabulary so the class cannot recur.
+
+**Trigger:** the next §7.7.0 or archetype-taxonomy edit; closes when no
+pattern-rule token falls outside the declared vocabulary and the §7.3a note
+exists.
 
 ## Non-goals
 

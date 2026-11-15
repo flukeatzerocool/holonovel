@@ -113,7 +113,7 @@ do not alter meaning are editorial and do not require a version bump.
 | Minor version | The next versioned release after the release that introduces a compatibility alias, recorded with its date in `ROADMAP.md`. |
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
-| Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P59) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
+| Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P61) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
 | Pattern Buffer         | The §6.6 operational verification suite, in two families: the Ruleset Pattern Buffer (sub-workflows S1–S37) gates ruleset (TTRPG) builds; the Holonovel Pattern Buffer (sub-workflows I1–I18) gates the holonovel host package. Named "the Gauntlet" in revisions before 2026-08-10; that term is retired (Appendix R). |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |

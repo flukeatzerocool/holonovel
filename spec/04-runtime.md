@@ -645,7 +645,7 @@ define interaction categories; the table instantiates them as specific
 property-group pairs. The table is curated — not every combinatorially possible
 archetype-pair instantiation is a meaningful coupling.
 
-`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P59,
+`npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P61,
 excluding content-source-excluded rules) has at least one coupling row in
 §7.7.1a. A pattern rule with zero coupling rows is a spec defect. A coupling
 row citing a pattern rule whose source or target archetypes do not match the

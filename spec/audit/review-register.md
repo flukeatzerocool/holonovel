@@ -11,6 +11,24 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-14 U3 runtime conventions
+
+Chunk U3 of the unscoped-surface review program
+(`docs/plans/2026-11-14-unscoped-u3/`, 28 verdict rows in `review.md`). One P0
+prose defect was demonstrated against its predicate and is fixed here; the
+increment touches no code.
+
+- **F-U3-5 — the pattern-rule range was stale in seven places. Resolved
+  (2026-11-14).** Predicate: §7.7.0 defines P1–P61
+  (`spec/04-runtime.md:339-500`), §7.6 cites P60/P61 (`:136,224-226`), and
+  §7.7.1a cites both (`:619,632`), while `spec/04-runtime.md:648`,
+  `spec/01a-constitution.md:116`, the REQ-369a body
+  (`spec/02-requirements.md:3811`), the REQ-370a body (`:3816`), and Appendix T
+  rows at `spec/appendices-reference.md:1880,1881,1894` still bounded the set
+  at P1–P59. The range now reads P1–P61 at all seven sites; the validator
+  iterates parsed rules (`scripts/validate.ts:1165-1174`), so no gate depended
+  on the literal. `validate:sdd` stays at 0 errors, 296 warnings. Row 12.
+
 ### 2026-11-14 U2 build process and tooling
 
 Chunk U2 of the unscoped-surface review program
@@ -2698,6 +2716,35 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
   report, and a reinstall serves again. REQ-389c.
 
 ## Scheduled-roadmap
+
+### 2026-11-14 U3 runtime conventions
+
+Four P1 findings from chunk U3
+(`docs/plans/2026-11-14-unscoped-u3/`). Each rests on a demonstrated predicate
+and needs a code or documentation change, which this review increment does not
+make. Scheduled under `ROADMAP.md` § *Identifier-derivation conformance (P1)*
+and § *§7.3a documentation and P60 vocabulary (P1)*.
+
+- **F-U3-1 — §7.1's role-marker rule outruns the anchor deriver
+  (2026-11-14).** `holonovel/src/core/anchors.ts:18-24` strips `*…*` emphasis
+  only; `_GM only_` derives as `gm-only` instead of being removed, while
+  `spec/04-runtime.md:18-20` names asterisk **or** underscore markers. Row 1.
+- **F-U3-2 — §7.1a's slug rules are unimplemented (2026-11-14).**
+  `holonovel/src/core/state.ts:1268` slugifies and trims hyphens only; the
+  Windows-reserved-name avoidance and the 240-character path ceiling required
+  by `spec/04-runtime.md:29-34` have no branch anywhere in `holonovel/src`.
+  Row 2.
+- **F-U3-3 — §7.3a's builder documentation duty is unmet (2026-11-14).**
+  `spec/04-runtime.md:102-104` requires builders to document prompt
+  construction per clause in `holonovel/DECISIONS.md`; no such entry exists
+  (grep for narrative-output, voice-profile, scene-type, and anti-slop yields
+  only unrelated rows). Row 5.
+- **F-U3-4 — P60's target token is outside the archetype vocabulary
+  (2026-11-14).** `spec/04-runtime.md:499` reads `Session → Surface`;
+  `scripts/validate.ts:1051` defines twelve archetypes and `:1054-1068` has no
+  `Surface` alias. The citing coupling row is `[non-property]` (`:619`), exempt
+  from archetype matching (`scripts/validate.ts:1181`), and no predicate tests
+  pattern tuples, so no gate can catch it. Row 10.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 

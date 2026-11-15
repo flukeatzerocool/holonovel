@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-11-14 — Runtime-conventions review: the pattern-rule range corrected, four gaps scheduled
+
+Review of §7 runtime conventions, the engine-contract remainder, and the
+adapter/server code that implements them. Twenty-eight verdicts were recorded
+against cited predicates: one prose defect was fixed, and four implementation
+gaps — each demonstrated against the code — are now scheduled. The only
+behavioural-format change is the state-model fingerprint regeneration forced by
+the corrected §7.7.1b text.
+
+- The pattern-rule range was stale in seven places. §7.7.0 defines P1–P61,
+  §7.6 and §7.7.1a cite P60/P61, but §7.7.1b, the §4 terminology row, the
+  REQ-369a and REQ-370a bodies, and three Appendix T rows still bounded the set
+  at P1–P59. All seven now read P1–P61; the validator iterates parsed rules, so
+  no check depended on the literal.
+- §7.1's role-marker rule claims asterisk **or** underscore emphasis, but the
+  anchor deriver strips asterisk emphasis only. Scheduled.
+- §7.1a requires Windows-reserved-name avoidance and a 240-character path
+  ceiling for slugs; the Novel slug builder implements neither. Scheduled.
+- §7.3a requires builders to document prompt construction in `DECISIONS.md`;
+  no such entry exists. Scheduled.
+- P60's target token `Surface` is outside the archetype vocabulary, and no
+  predicate compares pattern-rule tuples to it. Scheduled.
+
+The review register carries the dated U3 heading in both `Resolved` and
+`Scheduled-roadmap`; the worklist records chunk U3 closed and the roadmap
+trigger now names U4.
+
 ## 2026-11-14 — Build-process review: five spec claims corrected against their evidence
 
 Review of the build-process chapter (§6) and the build-phase map against the

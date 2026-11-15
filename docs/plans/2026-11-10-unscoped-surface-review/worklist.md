@@ -90,7 +90,7 @@ the 2026-11-09 sweep; `seam` = closed by the 2026-11-09 seam pass;
 |---|---|---|---|
 | U1 | §1–§4, Appendix A, Appendix M, validator surface | drift + spec | **reviewed 2026-11-14** — 80 rows, 3 P0 fixed, 1 P1 scheduled, 2 P3 closed (`docs/plans/2026-11-14-unscoped-u1/review.md`) |
 | U2 | §6, build-phase-map, build/update tooling, git hooks | drift + code | **reviewed 2026-11-14** — 35 rows, 5 P0 fixed, 1 P3 closed (`docs/plans/2026-11-14-unscoped-u2/review.md`) |
-| U3 | §7, engine-contract remainder, adapter/server code | drift + code | **scheduled** |
+| U3 | §7, engine-contract remainder, adapter/server code | drift + code | **reviewed 2026-11-14** — 28 rows, 1 P0 fixed, 4 P1 scheduled (`docs/plans/2026-11-14-unscoped-u3/review.md`) |
 | U4 | §8, gate manifest and harnesses, CI | drift + gate coverage | **scheduled** |
 | U5 | §9, §10, Appendix V, publication and cadence | drift + process | **scheduled** |
 | U6 | §11, Appendices B/C/N/W–Z, fixtures and playability | fixture exercise | **scheduled** |
@@ -165,7 +165,29 @@ clause-to-source appendix (`:313`).
 engine-contract clause in the appendix resolves to a live `file:line`; the §7.7
 property groups match the coupling tables.
 **Boundary:** §7.7 is fingerprint-bearing — a REQ-body edit requires
-`build-order`; review-only chunks change no body.
+`build-order`; review-only chunks change no body. *Amended 2026-11-14:* this
+chunk is not review-only — it fixes a P0 prose defect (F-U3-5) atomically, so
+it edits four spec files and regenerates the fingerprint through `build-order`.
+
+**Exit evidence recorded (2026-11-14):** `docs/plans/2026-11-14-unscoped-u3/`
+holds `plan.md`, `tasks.md`, `review.md` (28 verdict rows: 14 §7 rows, 6
+engine-contract rows, 8 code rows), the cold pass under `plan.cold/`, and
+`aar.md`. Findings: F-U3-5 fixed in the increment (pattern-rule range
+P1–P59 → P1–P61 at seven sites); F-U3-1/F-U3-2/F-U3-3/F-U3-4 scheduled on
+`ROADMAP.md` under *Identifier-derivation conformance (P1)* and *§7.3a
+documentation and P60 vocabulary (P1)*. Every §7 block maps to code or a gate;
+all 13 engine-contract appendix clauses resolve; the `Surface` token is the one
+vocabulary gap and is scheduled. `spec/audit/review-register.md` carries the
+dated `### 2026-11-14 U3 runtime conventions` heading in both sections.
+
+**Vocabulary note:** `builder-side` is a terminal verdict for prose that
+addresses the builder with no repository check (here §7.3a and the
+engine-contract's non-normative §8). It records the mapping honestly rather
+than claiming code-or-gate coverage.
+
+**Boundary note:** `holonovel/src/index.ts` is reviewed at its dispatch wrapper
+only; its body is §5's surface (swept in sweep phase 1–8). `world/*` is the
+§5.9/§5.10 seam.
 
 ## Chunk U4 — verification workflows and CI
 
