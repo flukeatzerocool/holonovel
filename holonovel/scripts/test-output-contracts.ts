@@ -825,9 +825,51 @@ async function main() {
     await call(p, "set_badge", { badge: "game_master" });
     await call(p, "manage_countdown", { action: "set",  name: "Doom", ticks: 3 });
     await call(p, "manage_npc", { action: "create",  name: "Grumpy", disposition: "hostile" });
+    // REQ-281b — thread sources for the Player filter: two characters with one
+    // bond each, an unresolved decision, and a shared plus a GM-scope vow.
+    await call(p, "manage_character", { action: "create", name: "Mira" });
+    await call(p, "manage_character", { action: "create", name: "Tov" });
+    const ents = JSON.parse(await proto(p, "resources/read", { uri: "entities://" }));
+    const ids = Object.keys(ents);
+    await call(p, "manage_character", { action: "set_active", entity_id: ids[0] });
+    await call(p, "manage_story", { action: "record", type: "bond", entry: "Mira owes the ferryman" });
+    await call(p, "manage_character", { action: "set_active", entity_id: ids[1] });
+    await call(p, "manage_story", { action: "record", type: "bond", entry: "Tov owes the guild" });
+    await call(p, "manage_story", { action: "record", type: "decision", entry: "The bridge collapses" });
+    await call(p, "manage_vow", { action: "set", name: "Shared Oath", description: "Oath to the ferryman", difficulty: "troublesome", scope: "shared", parties: [ids[0]] });
+    await call(p, "manage_vow", { action: "set", name: "Secret Oath", description: "Oath kept from the party", difficulty: "troublesome", scope: "game_master" });
+    // REQ-356 — a vow-lore coupling advisory, GM/observer guidance.
+    await call(p, "manage_lore", { action: "set", key: "oath_lore", content: "Oaths bind the living and the dead", triggers: ["oath"] });
     const brief = await proto(p, "prompts/get", { name: "badge_briefing" });
     assertContains(brief, "Countdown: Doom", "REQ-281 countdown in threads");
     assertContains(brief, "Grumpy (hostile)", "REQ-281 NPC disposition in threads");
+    assertContains(brief, "Unresolved: The bridge collapses", "REQ-281 unresolved decision in threads");
+    assertContains(brief, "Promise: Tov owes the guild", "REQ-281 bond in threads");
+    assertContains(brief, "Vow: Secret Oath", "REQ-289 GM vow in threads");
+    assertContains(brief, "Vow countdown suggestion:", "REQ-322a suggestion in threads");
+    assertContains(brief, "[vow-relevant] oath_lore", "REQ-356 coupling advisory in threads");
+    // REQ-281b/REQ-281c — the Player leg keeps own-entity bonds and shared-scope
+    // content only; decisions, dispositions, advisories, and the GM vow are out.
+    await call(p, "manage_character", { action: "set_active", entity_id: ids[0] });
+    await call(p, "set_badge", { badge: "player" });
+    const player = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(player, "Promise: Mira owes the ferryman", "REQ-281b Player sees the own-entity bond");
+    assertContains(player, "Countdown: Doom", "REQ-281b Player sees the shared countdown");
+    assertContains(player, "Vow: Shared Oath", "REQ-289e Player sees the shared vow");
+    assertNotContains(player, "Promise: Tov owes the guild", "REQ-281b Player does not see another entity's bond");
+    assertNotContains(player, "Unresolved: The bridge collapses", "REQ-109c3 Player does not see the story-journal decision");
+    assertNotContains(player, "Grumpy (hostile)", "REQ-281b Player does not see NPC dispositions");
+    assertNotContains(player, "Vow: Secret Oath", "REQ-289e Player does not see the GM-scope vow");
+    assertNotContains(player, "Vow countdown suggestion:", "REQ-322a Player does not see the GM suggestion");
+    assertNotContains(player, "[vow-relevant] oath_lore", "REQ-356 Player does not see the coupling advisory");
+    assertContains(player, "### Narrative threads", "REQ-281b Player renders the section");
+    // REQ-281c — an empty Player surface renders the marker, not a missing section.
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_novel", { action: "create", name: "w3f-empty" });
+    await call(p, "set_badge", { badge: "player" });
+    const empty = await proto(p, "prompts/get", { name: "badge_briefing" });
+    assertContains(empty, "### Narrative threads", "REQ-281c Player renders the empty section");
+    assertContains(empty, "[No unresolved threads.]", "REQ-281c empty-state marker");
     passed++;
     await kill(p);
   });

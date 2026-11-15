@@ -12,18 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Player narrative threads (P1)
-
-- Render `### Narrative threads` for the Player badge with badge-filtered
-  content — own-entity bonds, `shared`-scope entries, and visible countdowns —
-  per REQ-281b, and extend T330 or add a harness that asserts the Player path
-  (review-register F-S4).
-- Keep the decision-critical ordering already asserted by T109; the section's
-  position does not change, only its badge reach.
-
-**Trigger:** the next narrative-surface session; closes when F-S4 is `Resolved`
-and a harness asserts the Player threads content.
-
 ## Unscoped-surface review sweep (P2)
 
 - Foundations through verification: review §1–§4 and Appendices A/M against the

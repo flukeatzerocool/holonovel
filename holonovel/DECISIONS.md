@@ -89,6 +89,17 @@ dated entries below record changes to this list.
 - **`countdowns` is a view token, not a section.** REQ-281c requires countdowns
   inside narrative threads, so the token selects that sub-block; omitting it
   suppresses the countdown lines and leaves the rest of the thread list.
+- **The Player leg filters per item source.** REQ-281b restricts the Player to
+  own-entity bonds and shared-scope content, and each REQ-281a source resolves
+  against the REQ that owns its scope: unresolved decisions omitted (REQ-109c3,
+  REQ-246), bonds filtered by active-entity membership, countdowns by
+  `badge_scope` (REQ-073, the `countdown://active` rule), vows by scope
+  (REQ-289e: `shared` or `party`), dispositions GM-strict as before, and
+  coupling advisories plus the vow-countdown suggestion omitted (REQ-322a,
+  REQ-355/REQ-356). The predicate is `badge !== "player"` rather than
+  `badge === "game_master"` so observer content is unchanged, and each filter
+  precedes its source's `slice(-3)` cap so a visible thread is never crowded
+  out by one the Player cannot see. (REQ-281b, REQ-281c)
 - **Truncation follows the layer order.** `applyPromptBudget` keeps sections in
   emission order, so a tight budget now truncates supplementary sections and
   preserves decision-critical ones. The never-truncated tier keeps its members
@@ -415,10 +426,11 @@ dated entries below record changes to this list.
   like the pacing session. Rejected: a persisted Novel field, which would need
   a §7.7 class contract and the REQ-240a/241a/334b enumerations for a transient
   briefing line. A restart mid-scene drops it. (REQ-236b)
-- **D2 — The marker is a GM advisory.** The Player briefing does not render the
-  `narrative_threads` section in this build; the marker never reaches the
-  Player. The helper retains the active-entity filter for a future Player
-  section. (REQ-236b, REQ-236a)
+- **D2 — The marker reaches the Player, filtered to own entities.** Until
+  2026-11-14 the Player briefing omitted the `narrative_threads` section
+  entirely (review-register F-S4); it now renders the section and the marker
+  with the active-entity filter live, so a Player sees only markers naming the
+  active entity. (REQ-236b, REQ-236a, REQ-281b)
 - **D3 — P48's reachable target is suspicious.** A flip to `rival` shifts each
   involved NPC one step toward `suspicious`; a more-hostile NPC is not
   softened. `hostile` is not a valid relationship type, so no path exists.

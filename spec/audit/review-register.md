@@ -2569,20 +2569,21 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
   directive (REQ-306c). Predicate: the four `_Check:_` lines at
   `spec/02-requirements.md:1239`, `:1309`, `:1336`, `:1355`.
 
+## Resolved — 2026-11-14 player narrative threads
+
+- **F-S4 — REQ-281b's Player narrative-threads clause (resolved):** the
+  `narrative_threads` registry entry now carries
+  `badges: ["game_master", "observer", "player"]` and filters each REQ-281a
+  source for the Player leg — own-entity bonds, `badge_scope`-filtered
+  countdowns (REQ-073), and `shared`/`party`-scope vows (REQ-289e) — while
+  leaving decisions, dispositions, coupling advisories, and the vow-countdown
+  suggestion to GM/observer. Predicate: `spec/02-requirements.md:1344-1348`
+  (REQ-281b/281c); registry entry at `holonovel/src/index.ts:17568-17571`.
+  Verified by T330 (`holonovel/scripts/test-output-contracts.ts:822+`), which
+  now asserts the GM list, the Player filtered list, and the empty-state marker.
+  Closed under `ROADMAP.md` § *Player narrative threads (P1)*.
+
 ## Scheduled-roadmap
-
-### 2026-11-14 briefing section ordering — follow-ups
-
-- **F-S4 — REQ-281b's Player narrative-threads clause has no implementation or
-  assertion (scheduled):** `### Narrative threads` renders only inside the
-  GM/observer branch (the `narrative_threads` registry entry carries
-  `badges: ["game_master", "observer"]`), so a Player briefing carries no
-  unresolved-thread signal; REQ-281b requires the Player to see own-entity bonds
-  and `shared`-scope content. T330 (`test-output-contracts.ts:760-772`) asserts
-  the GM path only. A Player surface needs badge-filtered bond, countdown, and
-  disposition content, so it is its own increment rather than part of the
-  ordering change. Scheduled under `ROADMAP.md` § *Player narrative threads
-  (P1)*.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 

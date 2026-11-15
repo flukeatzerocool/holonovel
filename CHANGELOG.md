@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-14 — Player narrative threads
+
+- The Player badge now receives a narrative-threads section: the character's
+  own open promises, shared countdowns, and shared or party-scoped vows, so a
+  player-facing briefing carries what is still unresolved without exposing GM
+  material. Unresolved decisions, NPC dispositions, coupling advisories, and
+  the vow-countdown suggestion stay with the GM and observer seats. (REQ-281b,
+  REQ-281c, REQ-289e, REQ-073)
+- The GM's thread list and the observer seat's content are unchanged; the
+  Player surface filters each source before its tail cap, so a visible thread is
+  never crowded out by one the Player cannot see.
+
 ## 2026-11-14 — §5.3 prompt health and resource presence
 
 - `spec_health.prompt_health` now reports what REQ-138a asks for: every host

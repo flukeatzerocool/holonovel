@@ -17564,24 +17564,40 @@ const BRIEFING_SECTIONS: BriefingSection[] = [
   },
   {
     // REQ-281/REQ-073a1 — narrative threads. REQ-281b fixes this section after
-    // entities and before combat state (the countdown sub-block is REQ-281c).
+    // entities and before combat state (the countdown sub-block is REQ-281c)
+    // and requires it under the Player badge too.
     token: "narrative_threads",
     group: "narrative threads",
     layer: "critical",
-    badges: GM_OR_OBSERVER,
+    badges: ["game_master", "observer", "player"],
     empty: "marker",
     hasContent: () => true,
     render: (c) => {
       const threadLines: string[] = [];
+      // REQ-281b — the Player leg sees only own-entity bonds and shared-scope
+      // content; GM and observer keep the full list. The predicate is
+      // `!== "player"` (not `=== "game_master"`) so observer content is
+      // unchanged.
+      const player = c.badge === "player";
       const pacing = pacingSignalText(c.novel);
       if (pacing) threadLines.push(pacing);
       // REQ-236b — relationship-change markers for the current scene.
       threadLines.push(...relationshipMarkerLines(c.novel, c.badge, c.entity?.id));
-      const unresolvedDecisions = c.novel.story_journal.filter((s: any) => s.type === "decision" && !c.novel.story_journal.some((x: any) => x.type === "consequence" && x.scene_anchor === s.scene_anchor));
-      for (const s of unresolvedDecisions.slice(-3)) threadLines.push(`Unresolved: ${s.entry}`);
-      const openBonds = c.novel.story_journal.filter((s: any) => s.type === "bond" && !c.novel.story_journal.some((x: any) => x.type === "consequence" && x.entry === s.entry));
+      // REQ-109c3/REQ-246 — story-journal navigation is GM/observer guidance.
+      if (!player) {
+        const unresolvedDecisions = c.novel.story_journal.filter((s: any) => s.type === "decision" && !c.novel.story_journal.some((x: any) => x.type === "consequence" && x.scene_anchor === s.scene_anchor));
+        for (const s of unresolvedDecisions.slice(-3)) threadLines.push(`Unresolved: ${s.entry}`);
+      }
+      // REQ-281b — own-entity bonds only for the Player. The visibility filter
+      // precedes the tail cap so a visible bond is never crowded out by bonds
+      // the Player cannot see.
+      const openBonds = c.novel.story_journal.filter((s: any) => s.type === "bond" && !c.novel.story_journal.some((x: any) => x.type === "consequence" && x.entry === s.entry))
+        .filter((s: any) => !player || (!!c.entity && (s.entity_ids ?? []).includes(c.entity.id)));
       for (const s of openBonds.slice(-3)) threadLines.push(`Promise: ${s.entry}`);
       for (const v of c.novel.vows) {
+        // REQ-289e — the Player reads vow state only when the vow is shared or
+        // party-scoped; the GM sees every active vow.
+        if (player && v.scope !== "shared" && v.scope !== "party") continue;
         if (v.state === "active") {
           const description = v.description ? ` — ${v.description}` : "";
           const parties = (v.parties ?? []).length > 0 ? ` (parties: ${v.parties.join(", ")})` : "";
@@ -17589,13 +17605,17 @@ const BRIEFING_SECTIONS: BriefingSection[] = [
         }
       }
       // REQ-073a1 — a linked chain renders as an indented tree: parents first.
+      // REQ-073 — the Player leg honors `badge_scope` per clock, the same rule
+      // `countdown://active` applies.
       if (c.includeCountdowns) {
         const clockLines: string[] = [];
+        const visibleClock = (cd: any) => !player || cd.badge_scope !== "game_master";
         for (const [name, cd] of c.novel.countdowns) {
           if (cd.linked_parent) continue;
-          if (cd.ticks > 0 || cd.clock_type === "mission") clockLines.push(`Countdown: ${name} (${countdownDisplay(cd)})`);
+          if ((cd.ticks > 0 || cd.clock_type === "mission") && visibleClock(cd)) clockLines.push(`Countdown: ${name} (${countdownDisplay(cd)})`);
           for (const [childName, child] of c.novel.countdowns) {
             if (child.linked_parent !== name) continue;
+            if (!visibleClock(child)) continue;
             clockLines.push(`  Countdown: ${childName} (${countdownDisplay(child)})`);
           }
         }
@@ -17606,11 +17626,15 @@ const BRIEFING_SECTIONS: BriefingSection[] = [
           if (npc.disposition && npc.disposition !== "neutral") threadLines.push(`${npc.name} (${npc.disposition})`);
         }
       }
-      threadLines.push(...collectCouplingAdvisories(c.novel, c.entity));
-      // REQ-322 — vow-countdown coupling suggestion surfaced in narrative_threads.
-      if (c.novel.pending_vow_countdown_suggestion) {
-        const s = c.novel.pending_vow_countdown_suggestion;
-        threadLines.push(`Vow countdown suggestion: create '${s.countdown_name}' (${s.tick_count} ticks, mission) tied to vow '${s.vow_name}' — respond \`accept\` or \`decline\`.`);
+      // REQ-355/REQ-356 and REQ-322a — coupling advisories and the
+      // vow-countdown suggestion are GM/observer guidance ("The GM may accept").
+      if (!player) {
+        threadLines.push(...collectCouplingAdvisories(c.novel, c.entity));
+        // REQ-322 — vow-countdown coupling suggestion surfaced in narrative_threads.
+        if (c.novel.pending_vow_countdown_suggestion) {
+          const s = c.novel.pending_vow_countdown_suggestion;
+          threadLines.push(`Vow countdown suggestion: create '${s.countdown_name}' (${s.tick_count} ticks, mission) tied to vow '${s.vow_name}' — respond \`accept\` or \`decline\`.`);
+        }
       }
       return threadLines.length > 0
         ? `\n\n### Narrative threads\n${threadLines.join("\n")}`
