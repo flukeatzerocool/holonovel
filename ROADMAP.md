@@ -12,21 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Verification-surface reachability (P1)
-
-- Wire the 56-command server suite into a running surface: `test:all`
-  (`holonovel/scripts/run-test-suite.ts`) carries the Pattern Buffer (I1–I18,
-  S1–S37) and `test:harness-guard`, and appears in no gate, CI step, or hook, so
-  §8 G5's blocking sub-workflows and G6's re-run rule are unscheduled.
-- Wire the two orphan harnesses: `test:loop-artifacts` (the `check-loop-artifacts`
-  self-test) and `test:holosuite-mutation` (the only producer of the catch rate
-  §8 makes a precondition for Understudies evidence); the first also declares
-  `[informational]` while exiting non-zero on failure.
-
-**Trigger:** the next harness-maintenance session, or any session that changes
-`holonovel/scripts/test-*.ts`; closes when each of the three runs in a gate, CI,
-or a hook and the role header matches the exit behaviour.
-
 ## G7 attestation predicate (P1)
 
 - Replace the self-attesting G7 disposition: `G7_ATTESTATION_RECORDED = true`

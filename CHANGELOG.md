@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-11-15 — Verification-surface reachability: the server suite and two orphan harnesses now run
+
+`test:all` was green at the last close and red again at HEAD — 49 of 56 commands
+passed, with 23 stale evidence anchors across the five Holosuite tier libraries
+and two Player-surface leaks. The roadmap item that scheduled this wiring also
+owes the two orphan harnesses a running surface. This session clears the reds,
+wires all three, and removes the surfaces the suite now subsumes.
+
+- `test:all` is a full-only manifest gate (56 commands, about three minutes at
+  4-way concurrency). It runs in `check`, CI, and the first pre-push on a tree,
+  and §8 G5's Pattern Buffer is now blocking rather than scheduled. The gate is
+  protected, so the retirement policy cannot downgrade it.
+- Cleared the anchors: 23 stale `path:line#symbol` sites (19 unique targets) in
+  `holosuite-{conformance,invariants,novel,adversarial,differential}.ts`, each
+  repointed and reviewed against the declaration it names.
+- Cleared the two reds. `manage_countdown (action: set)` never declared or
+  persisted `badge_scope`, so a Game-Master-scoped clock was stored as shared and
+  reached the Player briefing; the tool now accepts the parameter, persists it,
+  and preserves it when a later set omits it (REQ-073c1/073c2, T139).
+  `test-narrative`'s second-rival-pair assertion forbade every relationship
+  marker on the Player surface although REQ-281b keeps own-entity bonds visible;
+  it now checks the NPC↔NPC pair only.
+- `test:loop-artifacts` is a blocking fast gate instead of an unwired harness
+  that declared `[informational]` while exiting non-zero; its header now matches
+  its behaviour.
+- `test:holosuite-mutation` runs as an advisory, protected gate: the method audit
+  is report-only by §8, so it publishes the catch rate in every gate and CI log
+  without blocking.
+- Deduped the surfaces the suite subsumes: the full-only `playability` gate
+  (covered by `test:playability` inside the suite), CI's tool-definition/security,
+  starter-Novel, and Holosuite-tier steps, and pre-push's two harness blocks.
+  `check:fast` keeps its own cheap coverage and is unchanged.
+- Regenerated `tool-definitions.json` for the new parameter, refreshed the surface
+  baseline, and recorded the moved budgets in `holonovel/DECISIONS.md` (full
+  29,865; standard 25,878).
+
 ## 2026-11-15 — §8 verification workflows: the check line, the test convention, and gate reachability
 
 Chunk U4 of the unscoped-surface review program read spec §8 against the gate

@@ -348,7 +348,9 @@ This runs (the table is generated from the gate manifest):
 | `check-vendor-manifest` | yes | yes | Vendored content hashes match the manifest |
 | `check-starter-freshness` | yes | yes | Starter Novel artifacts are current |
 | `check-fixture-emitter` | yes | yes | Covered reference package re-emits byte-identically |
-| `playability` | no | yes | Headless playability run for every shipped Novel |
+| `test:all` | no | yes | Server harness suite: 56 commands incl. the Pattern Buffer and harness guard |
+| `test:loop-artifacts` | yes | yes | Self-tests for the increment artifact contract |
+| `test:holosuite-mutation` (advisory) | yes | yes | Holosuite mutation-audit catch rate (report-only) |
 | `check-package-manifest` | yes | yes | Published package manifest assertions |
 | `test:package-manifest` | yes | yes | Self-tests for the package manifest gate |
 | `check:conformance` | yes | yes | Spec-to-code bundle dependence |
@@ -358,6 +360,13 @@ This runs (the table is generated from the gate manifest):
 | `test:pipeline` | no | yes | Hermetic publication-pipeline harness |
 | `typecheck` | yes | yes | TypeScript type checking |
 <!-- gate-manifest:end -->
+
+`test:all` is full-only: it runs the 56-command server harness suite (about three
+minutes at 4-way concurrency) and covers the Pattern Buffer, the harness guard,
+and the six Holosuite tiers; `test:holosuite-mutation` is advisory and publishes
+the method-audit catch rate without ever blocking. Both are protected from the
+retirement policy, so a green streak cannot downgrade them.
+
 
 Also available separately:
 

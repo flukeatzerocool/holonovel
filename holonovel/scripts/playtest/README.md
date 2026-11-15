@@ -154,8 +154,10 @@ exercise, and the runner emits a per-REQ coverage aggregate.
 The **method audit** (`scripts/holosuite.ts --tier=mutation`, `npm run
 test:holosuite-mutation`) is report-only: it seeds a deterministic mutant set,
 checks that the oracle catches each, and prints the catch rate. It is excluded
-from `--tier=all` and from every gate. A persona campaign is not treated as
-evidence unless its accompanying catch rate is published.
+from `--tier=all`; it runs as the `test:holosuite-mutation` manifest gate, which
+is advisory — it publishes the rate in every `check`/CI log and never blocks. A
+persona campaign is not treated as evidence unless its accompanying catch rate
+is published.
 
 ### Understudies data contract
 

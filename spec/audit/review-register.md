@@ -2762,6 +2762,28 @@ gate messages.
   and `holonovel/scripts/test-*.ts`. The sentence now states the convention the
   tree uses. Row 8.
 
+## Resolved — 2026-11-15 verification-surface reachability
+
+Findings from chunk U4 (`docs/plans/2026-11-15-unscoped-u4/review.md`) that the
+wiring increment (`docs/plans/2026-11-15-verification-surface-reachability/`)
+closed. Both predicates are re-checked against the shipped tree; the third U4
+finding in this class (F-U4-7, the CI↔manifest split) stays scheduled.
+
+- **F-U4-4 — the 56-command server suite is in no running surface. Resolved
+  (2026-11-15).** Predicate: `holonovel/scripts/run-test-suite.ts:25-82` and the
+  absence of `test:all` from `scripts/lib/gate-manifest.ts`,
+  `.github/workflows/ci.yml`, and `.githooks/pre-push`. `test:all` is now a
+  full-only manifest gate (`scripts/lib/gate-manifest.ts`, protected), so
+  `npm run check`, CI's full-gate step, and a first pre-push all run the suite;
+  the full run is `56 passed, 0 failed`.
+
+- **F-U4-6 — two harnesses exist and never run. Resolved (2026-11-15).**
+  Predicate: `package.json:25` and `holonovel/package.json:129` had no manifest
+  entry, CI step, hook, or suite entry. `test:loop-artifacts` is now a blocking
+  fast gate (role header `[gate]`), and `test:holosuite-mutation` is an advisory,
+  protected gate that publishes the catch rate every run; both are in
+  `check:fast`/`check` and CI.
+
 ## Scheduled-roadmap
 
 ### 2026-11-15 U4 verification workflows
@@ -2771,26 +2793,12 @@ cites the predicate that carries it. Scheduled under `ROADMAP.md` §
 *Verification-surface reachability (P1)*, § *G7 attestation predicate (P1)*, and
 § *Verification evidence record and the CI-manifest split (P2)*.
 
-- **F-U4-4 — the 56-command server suite is in no running surface (2026-11-15):**
-  `holonovel/scripts/run-test-suite.ts:25-82` lists `test:pattern-buffer`,
-  `test:pattern-buffer-ruleset`, and `test:harness-guard`, but `test:all` appears
-  in no manifest gate (`scripts/lib/gate-manifest.ts:25-292`), no CI step
-  (`.github/workflows/ci.yml:18-47`), and no hook (`.githooks/pre-push:101-124`).
-  §8 G5 makes the Pattern Buffer blocking and G6 requires a re-run after every
-  server change. Scheduled under *Verification-surface reachability (P1)*.
 - **F-U4-5 — G7's attestation cannot fail (2026-11-15):** `SECTION_512_REQS`
   lists 31 base families and `G7_ATTESTATION_RECORDED = true`
   (`holonovel/src/index.ts:375-385`), and the disposition is `pass` whenever the
   counts match (`:15392`), while §5.12 carries 84 REQ bodies
   (`spec/02-requirements.md:3566-3813`). An attestation that cannot report `fail`
   is not evidence for REQ-346. Scheduled under *G7 attestation predicate (P1)*.
-- **F-U4-6 — two harnesses exist and never run (2026-11-15):**
-  `test:loop-artifacts` (`package.json:25`) and `test:holosuite-mutation`
-  (`holonovel/package.json:129`) appear in no manifest entry, CI step, hook, or
-  `run-test-suite.ts` entry; the mutation tier is the only producer of the
-  catch rate §8 makes a precondition for Understudies evidence, and
-  `scripts/test-loop-artifacts.ts:3-12` declares `[informational]` while exiting
-  1 on failure. Scheduled under *Verification-surface reachability (P1)*.
 - **F-U4-1 — the G7 evidence record omits the §8 contract fields (2026-11-15):**
   `spec/05-verification.md:3-6` requires workflow name, timestamp, environment
   pins, commands and output, pass/fail, and findings; the only
