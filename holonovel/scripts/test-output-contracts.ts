@@ -281,6 +281,48 @@ async function main() {
     await kill(p);
   });
 
+  // ── REQ-071a/REQ-062 + §11.3 — badge guidance views render live synthesis state ──
+  await test("T791/REQ-071: badge guidance renders live synthesis state", async () => {
+    const p = await boot();
+    await call(p, "manage_novel", { action: "create",  name: "w1cg" });
+    // (1) the ruleset tone branch is always present, tag intact (DP-7).
+    const pt = await proto(p, "resources/read", { uri: "guidance://player/tone" });
+    const gt = await proto(p, "resources/read", { uri: "guidance://game_master/tone" });
+    assertContains(pt, "[narrative-tone]", "REQ-071a player tone tag");
+    assertContains(pt, "provenance: [ruleset]", "REQ-071a player tone provenance");
+    assertContains(gt, "[narrative-tone]", "REQ-071a GM tone tag");
+    // (2) the vendor tier is present before synthesis; the Player view is empty
+    // by badge scope and never carries a GM-scoped profile (REQ-032a).
+    await call(p, "set_badge", { badge: "game_master" });
+    const gv = await proto(p, "resources/read", { uri: "guidance://game_master/voice" });
+    assertContains(gv, "Atmospheric Dread", "REQ-022a GM voice vendor tier");
+    assertContains(gv, "[vendor]", "REQ-022a GM voice provenance");
+    await call(p, "set_badge", { badge: "player" });
+    const pv = await proto(p, "resources/read", { uri: "guidance://player/voice" });
+    assertContains(pv, "(no voice profiles — module empty)", "REQ-022a player voice empty marker");
+    assertNotContains(pv, "Atmospheric Dread", "REQ-032a player voice excludes GM scope");
+    // a Player caller never sees GM-scoped items through the GM view.
+    const pgm = await proto(p, "resources/read", { uri: "guidance://game_master/voice" });
+    assertNotContains(pgm, "Atmospheric Dread", "REQ-032a player caller filters GM view content");
+    // (3) the live manifest replaces the vendor tier without losing Ruleset Wisdom (§11.3).
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_synthesis", { action: "run" });
+    const gv2 = await proto(p, "resources/read", { uri: "guidance://game_master/voice" });
+    assertContains(gv2, "Atmospheric Dread", "§11.3 vendor tier survives a synthesis run");
+    // (4) presence + badge-filtered listing (REQ-139/REQ-022b/REQ-032a).
+    const health = JSON.parse(await call(p, "manage_diagnostics", { action: "health" }));
+    for (const uri of ["guidance://{badge}/voice", "guidance://{badge}/tone"]) {
+      const row = (health.resource_uris ?? []).find((r: any) => r.uri === uri);
+      if (!row || row.presence !== "present") throw new Error(`REQ-022b ${uri} presence=${row?.presence}`);
+    }
+    await call(p, "set_badge", { badge: "player" });
+    const list = await send(p, { method: "resources/list", params: {} });
+    const listed = (list.result?.resources ?? []).map((r: any) => r.uri);
+    if (listed.includes("guidance://game_master/voice")) throw new Error("REQ-032a GM voice listed for the Player badge");
+    if (!listed.includes("guidance://player/voice")) throw new Error("REQ-022b player voice missing from the Player list");
+    await kill(p);
+  });
+
   // ── REQ-004 truncation channel + REQ-179/REQ-179c badge-scoped pointers ──
   await test("T13/REQ-004 + T221/REQ-179 + REQ-179c/REQ-180c: truncation channel, badge-scoped pointers, ledger", async () => {
     // (1) the ruleset search surface still truncates, and the key is the

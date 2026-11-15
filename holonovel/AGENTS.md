@@ -43,7 +43,7 @@ src/tool-registry.ts    Tool registry: the single definition site. `ToolRegistry
                         `bindMcp` binds them to the MCP adapter. Dynamic
                         definitions register immediately once bound.
         ↓
-src/index.ts            McpServer adapter: 37 action-discriminator tools, 40 resources and 22 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
+src/index.ts            McpServer adapter: 37 action-discriminator tools, 47 resources and 23 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
                         Registers tools through the registry, then binds MCP.
                         Entry point for STDIO transport, guarded by
                         HOLONOVEL_NO_AUTOSTART. Badge gating via

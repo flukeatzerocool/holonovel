@@ -14478,6 +14478,8 @@ const REQ022_URI_CATALOG: { template: string; title: string }[] = [
   { template: "guidance://game_master", title: "GM Guidance" },
   { template: "guidance://{badge}/anti-slop", title: "Anti-Slop Guidance" },
   { template: "guidance://{badge}/foundations", title: "Badge Foundations" },
+  { template: "guidance://{badge}/voice", title: "Badge Voice Guidance" },
+  { template: "guidance://{badge}/tone", title: "Badge Tone Guidance" },
   { template: "guidance://shared/badge-switch", title: "Badge Switch Guidance" },
   { template: "room://{id}", title: "Room" },
   { template: "thing://{id}", title: "Thing" },
@@ -16288,6 +16290,120 @@ function badgeCanSeeWisdom(item: any): boolean {
   return item?.badge_scope !== "game_master";
 }
 
+// REQ-022a/REQ-071a + §11.3 — badge guidance views that draw from the Novel's
+// live synthesis state. `viewBadge` selects the view (the badge named by the
+// URI); the caller's badge is a separate content filter (`canSeeGuidanceItem`),
+// so a Player caller never receives a GM-scoped item through the GM view.
+interface GuidanceItemBase {
+  badge_scope?: string;
+  provenance: string;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+}
+
+interface GuidanceVoiceItem extends GuidanceItemBase {
+  key: string;
+  name: string;
+  media_title: string;
+  media_type: string;
+  source: string;
+  description: string;
+}
+
+interface GuidanceToneItem extends GuidanceItemBase {
+  text: string;
+  anchor: string | null;
+}
+
+const GUIDANCE_CONFIDENCE_RANK: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+
+function guidanceConfidence(item: any): "HIGH" | "MEDIUM" | "LOW" {
+  const c = String(item?.confidence ?? "").toUpperCase();
+  return c === "MEDIUM" || c === "LOW" ? (c as "MEDIUM" | "LOW") : "HIGH";
+}
+
+// Parameterised mirror of `badgeCanSeeWisdom`: the caller badge is an argument,
+// never read from global state, so view selection and content filtering cannot
+// be confused (REQ-032a).
+function canSeeGuidanceItem(item: { badge_scope?: string }, callerBadge: string): boolean {
+  if (callerBadge === "game_master" || callerBadge === "none") return true;
+  return item?.badge_scope !== "game_master";
+}
+
+function guidanceRank(a: GuidanceItemBase, b: GuidanceItemBase): number {
+  return (GUIDANCE_CONFIDENCE_RANK[a.confidence] ?? 0) - (GUIDANCE_CONFIDENCE_RANK[b.confidence] ?? 0);
+}
+
+// Ruleset Wisdom is always present (§11.3): before synthesis has run there is no
+// manifest, so the shipped vendor profiles stand in for it. `withWisdomKeys`
+// normalises their keys so the payload is stable and addressable.
+function guidanceVoiceItems(viewBadge: string): GuidanceVoiceItem[] {
+  const source = state.wisdomManifest
+    ? effectiveWisdomItems("narrative_voices")
+    : withWisdomKeys(DEFAULT_WISDOM).narrative_voices;
+  return (Array.isArray(source) ? source : [])
+    .filter((i: any) => i?.badge_scope === viewBadge || i?.badge_scope === "shared")
+    .map((i: any) => ({
+      badge_scope: i?.badge_scope,
+      key: String(i?.key ?? ""),
+      name: String(i?.name ?? ""),
+      media_title: String(i?.media_title ?? ""),
+      media_type: String(i?.media_type ?? ""),
+      source: String(i?.source ?? ""),
+      description: String(i?.description ?? ""),
+      confidence: guidanceConfidence(i),
+      provenance: provenanceTag(i),
+    }))
+    .sort((a, b) => guidanceRank(a, b) || a.name.localeCompare(b.name) || a.key.localeCompare(b.key));
+}
+
+// REQ-071a — `[narrative-tone]` samples: the ruleset composer's lines (always
+// present, no anchor) plus synthesis items filed under the narrative-tone
+// category. The tag survives rendering so the resource is the same retrievable
+// artifact the briefing composes.
+function guidanceToneItems(viewBadge: string): { ruleset: GuidanceToneItem[]; synthesis: GuidanceToneItem[] } {
+  const ruleset = composeNarrativeTone(promptInputsFor(state.activeNovel))
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("[narrative-tone]"))
+    .map((text) => ({
+      badge_scope: "shared",
+      text,
+      anchor: null,
+      confidence: "HIGH" as const,
+      provenance: provenanceTag({ tag: "ruleset" }),
+    }));
+  const synthesis = effectiveWisdomItems("supplementary_guidance")
+    .filter((i: any) => i?.category === "narrative-tone")
+    .filter((i: any) => i?.badge_scope === viewBadge || i?.badge_scope === "shared")
+    .map((i: any) => ({
+      badge_scope: i?.badge_scope,
+      text: `[narrative-tone] ${String(i?.content ?? i?.text ?? "")}`,
+      anchor: typeof i?.anchor === "string" && i.anchor ? String(i.anchor) : null,
+      confidence: guidanceConfidence(i),
+      provenance: provenanceTag(i),
+    }))
+    .sort((a, b) => guidanceRank(a, b) || a.text.localeCompare(b.text));
+  return { ruleset, synthesis };
+}
+
+function renderGuidanceVoice(badgeLabel: string, items: GuidanceVoiceItem[]): string {
+  const body = items.length === 0
+    ? "(no voice profiles — module empty)"
+    : items.map((i) => {
+      const heading = [i.name, i.media_title, i.media_type ? `(${i.media_type})` : ""].filter(Boolean).join(" — ");
+      const source = i.source ? `\n\nsource: ${i.source}` : "";
+      return `## ${i.provenance} ${heading}\n${i.description}${source}\n\nconfidence: ${i.confidence}`;
+    }).join("\n\n");
+  return `# ${badgeLabel} Voice Guidance\n\n## Ruleset Wisdom\n${body}`;
+}
+
+function renderGuidanceTone(badgeLabel: string, payload: { ruleset: GuidanceToneItem[]; synthesis: GuidanceToneItem[] }): string {
+  const section = (items: GuidanceToneItem[], empty: string): string => items.length === 0
+    ? empty
+    : items.map((i) => `${i.text}\n\nprovenance: ${i.provenance}\nconfidence: ${i.confidence}${i.anchor ? `\nanchor: ${i.anchor}` : ""}`).join("\n\n");
+  return `# ${badgeLabel} Tone Guidance\n\n## Ruleset Wisdom\n${section(payload.ruleset, "(no tone items — module empty)")}\n\n## Synthesis\n${section(payload.synthesis, "(no tone items — module empty)")}`;
+}
+
 // Provenance tag rendered in the briefing (§11.3, REQ-159) and in synthesis
 // resource output. Unknown tags are Tier-2 supplementary. §11.3 LOW-confidence
 // presentation (REQ-264a) — a LOW item carries the visible `[LOW]` marker with
@@ -16323,6 +16439,34 @@ server.registerResource("guidance-player-foundations", "guidance://player/founda
 }));
 server.registerResource("guidance-gm-foundations", "guidance://game_master/foundations", { title: "GM Foundations" }, async () => ({
   contents: [{ uri: "guidance://game_master/foundations", text: "Describe situations and surface information. Never take action or make decisions on behalf of the player. Separate mechanics from fiction.", mimeType: "text/markdown" }],
+}));
+
+// REQ-022a/REQ-071a + §11.3 — badge guidance views rendered from the Novel's
+// live synthesis state. The URI badge selects the view; the caller's badge
+// filters content (`canSeeGuidanceItem`), so both roles stay explicit.
+function guidanceViewText(badgeLabel: string, viewBadge: string, kind: "voice" | "tone"): string {
+  const caller = getBadge();
+  if (kind === "voice") {
+    return renderGuidanceVoice(badgeLabel, guidanceVoiceItems(viewBadge).filter((i) => canSeeGuidanceItem(i, caller)));
+  }
+  const payload = guidanceToneItems(viewBadge);
+  return renderGuidanceTone(badgeLabel, {
+    ruleset: payload.ruleset.filter((i) => canSeeGuidanceItem(i, caller)),
+    synthesis: payload.synthesis.filter((i) => canSeeGuidanceItem(i, caller)),
+  });
+}
+
+server.registerResource("guidance-player-voice", "guidance://player/voice", { title: "Player Voice Guidance" }, async () => ({
+  contents: [{ uri: "guidance://player/voice", text: guidanceViewText("Player", "player", "voice"), mimeType: "text/markdown" }],
+}));
+server.registerResource("guidance-gm-voice", "guidance://game_master/voice", { title: "GM Voice Guidance" }, async () => ({
+  contents: [{ uri: "guidance://game_master/voice", text: guidanceViewText("Game Master", "game_master", "voice"), mimeType: "text/markdown" }],
+}));
+server.registerResource("guidance-player-tone", "guidance://player/tone", { title: "Player Tone Guidance" }, async () => ({
+  contents: [{ uri: "guidance://player/tone", text: guidanceViewText("Player", "player", "tone"), mimeType: "text/markdown" }],
+}));
+server.registerResource("guidance-gm-tone", "guidance://game_master/tone", { title: "GM Tone Guidance" }, async () => ({
+  contents: [{ uri: "guidance://game_master/tone", text: guidanceViewText("Game Master", "game_master", "tone"), mimeType: "text/markdown" }],
 }));
 
 // Synthesis status + per-module resources (REQ-230, REQ-160)

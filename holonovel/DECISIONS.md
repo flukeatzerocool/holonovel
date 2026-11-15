@@ -58,6 +58,51 @@ the Novel, and enforces the budget table. Three decisions carry the shape.
   (REQ-129c). The precedence is written into §11.3 so the two tables cannot
   disagree silently.
 
+### Badge guidance resources — 2026-11-15
+
+§11.3's two badge guidance renderers (`guidance://<badge>/voice`,
+`guidance://<badge>/tone`) now exist and read the Novel's live synthesis state.
+Four decisions carry the shape.
+
+- **D1 — four concrete registrations, two catalog templates.** The views are
+  registered per badge (`player`/`game_master` × `voice`/`tone`), following the
+  anti-slop precedent; `REQ022_URI_CATALOG` carries `guidance://{badge}/voice`
+  and `guidance://{badge}/tone` so the REQ-025 presence report and REQ-022b's
+  acceptance criterion resolve them. No `ResourceTemplate` is registered, so
+  `resources/templates/list` is unchanged. `guidance://shared/voice` is not
+  served: `shared` carries one static badge-switch note today. (REQ-022a,
+  REQ-071a, REQ-062)
+- **D2 — Ruleset Wisdom is the vendor tier before synthesis runs.**
+  `guidanceVoiceItems` reads the live manifest when one exists and
+  `withWisdomKeys(DEFAULT_WISDOM).narrative_voices` otherwise, because
+  `state.wisdomManifest` is `null` until hydration or a synthesis run — without
+  the fallback both voice views would be empty on a stock build, against §11.3's
+  "Ruleset Wisdom always present". (REQ-071a, §11.3)
+- **D3 — badge scope is two parameters.** The URI badge selects the view; the
+  caller's badge filters content through `canSeeGuidanceItem(item, callerBadge)`,
+  a parameterised mirror of `badgeCanSeeWisdom`. Consequence: both shipped
+  `narrative_voices` profiles are GM-scoped, so `guidance://player/voice`
+  returns the explicit empty marker on a stock build, and a Player caller
+  reading the GM URI receives no GM-scoped item. Asserted by T791 rather than
+  left to prose; player-scoped voice content is a content decision, not a
+  contract one. (REQ-032a, REQ-071a)
+- **D4 — tone items keep their tag; the ruleset branch has no anchor.**
+  `[narrative-tone]` survives rendering so the resource is the same retrievable
+  artifact the briefing composes (REQ-071a). The ruleset branch renders the
+  composer's lines with `anchor: null` and `confidence: "HIGH"` — the composer
+  supplies neither — while synthesis items filed under the
+  `narrative-tone` category carry both. The deviation is recorded here rather
+  than papered over.
+
+Two surface facts recorded with the change. **REQ-429/REQ-571 do not move:** the
+recorded tool budget and catalog budgets measure `tool-definitions.json`, and
+resources never enter it, so the earlier U6-F6 scheduling note that a new
+resource family moves those budgets was wrong. **The documented counts were
+already stale:** measured live at HEAD `822228f` the server served 43 resources
+and 23 templates against the documented 40 / 22 (only the tool count is gated),
+so this increment's measured 47 / 23 is recorded with the pre-existing drift
+stated rather than presented as a four-resource jump.
+
 ### Prompt construction conventions — 2026-11-15
 
 §7.3a states four narrative-freshness conventions as builder-level constraints

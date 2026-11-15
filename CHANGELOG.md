@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-15 — Badge guidance renderers: `voice` and `tone` from live synthesis state
+
+§11.3 named two badge guidance renderers that did not exist. Both now read the
+Novel's live synthesis state, and the register row that scheduled them is closed
+with its own rationale corrected.
+
+- New resources. `guidance://player/voice`, `guidance://game_master/voice`,
+  `guidance://player/tone` and `guidance://game_master/tone` render from the live
+  wisdom manifest, falling back to the shipped vendor tier
+  (`withWisdomKeys(DEFAULT_WISDOM)`) while no manifest exists, so Ruleset Wisdom
+  is present before synthesis runs. Voice profiles carry name, media title and
+  type, source, confidence and a provenance tag; tone items keep their
+  `[narrative-tone]` tag and carry provenance, confidence and anchor.
+- Badge scope is explicit in two places. The URI badge selects the view; the
+  caller's badge filters content (`canSeeGuidanceItem`), so a Player caller never
+  receives a GM-scoped profile through the GM view. On a stock build
+  `guidance://player/voice` is the explicit empty marker — both shipped profiles
+  are GM-scoped — and T791 asserts that rather than leaving it to prose.
+- Catalogue and counts. `REQ022_URI_CATALOG` carries `guidance://{badge}/voice`
+  and `guidance://{badge}/tone`; REQ-022a's catalogue sentence now names `voice`;
+  `holonovel/AGENTS.md` records the measured surface (47 resources, 23
+  templates), with the pre-existing 43/23-vs-40/22 drift stated in DECISIONS.md.
+- Tests and records. New Appendix F row T791, bound through REQ-071b's `_Check:`,
+  covering both tone views, the vendor tier, the Player empty marker, the caller
+  filter, synthesis survival, presence, and the badge-filtered listing. U6-F6 is
+  `Resolved` with its wrong scheduling rationale (REQ-429/REQ-571 moving, "both
+  templates") corrected on the record; the roadmap section is removed; the
+  coverage register is regenerated. (REQ-022a, REQ-062, REQ-071a, REQ-071b,
+  REQ-032a, §11.3)
+
 ## 2026-11-15 — Synthesis surface: a real fingerprint, persisted items, eight rules, and the `[LOW]` tag
 
 The three P1 findings the U6 sweep scheduled are repaired. Internal synthesis

@@ -3031,17 +3031,6 @@ repaired by the 2026-11-15 increment (`docs/plans/2026-11-15-synthesis-surface-g
   tool surface. Scheduled under `ROADMAP.md` § *Faction knowledge on secrets
   (P2)*, which extends the secret surface rather than weakening the rule.
 
-### 2026-11-15 synthesis-surface session — guidance renderers
-
-- **U6-F6 — §11.3 names two badge guidance renderers that do not exist.**
-  Scheduled-roadmap (P1). Predicate: `spec/08-synthesis.md:265-274` requires
-  `guidance://<badge>/voice` and `guidance://<badge>/tone` to render from the
-  Novel's live synthesis state, and neither URI is registered
-  (`grep -n 'guidance://' holonovel/src/index.ts` lists player,
-  game_master, anti-slop, foundations, and badge-switch only). Scheduled under
-  `ROADMAP.md` § *Synthesis badge-guidance renderers (P1)* because a new resource
-  family moves the documented surface (REQ-429/REQ-571).
-
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 
 Probe status: the 2026-11-09 assertion-repair session ran the Appendix F rows
@@ -3064,6 +3053,28 @@ depth findings F-P2-5 and F-P2-6 are also `Resolved` (2026-11-14) — see the
 `holonovel/scripts/test-narrative.ts:1205` (`T056`, which Appendix F does not
 define; the same comment also names the real `T723`).
 
+
+## Resolved — 2026-11-15 badge guidance resources
+
+### 2026-11-15 synthesis-surface session — guidance renderers
+
+- **U6-F6 — §11.3 names two badge guidance renderers that do not exist. Resolved
+  2026-11-15.** Predicate that failed: `spec/08-synthesis.md:265-274` required
+  `guidance://<badge>/voice` and `guidance://<badge>/tone` to render from the
+  Novel's live synthesis state, and neither URI was registered
+  (`grep -n 'guidance://' holonovel/src/index.ts` listed player, game_master,
+  anti-slop, foundations, and badge-switch only). Now: `guidance://player/voice`,
+  `guidance://game_master/voice`, `guidance://player/tone` and
+  `guidance://game_master/tone` are registered and render from the live wisdom
+  manifest (vendor tier before synthesis, manifest after), badge-filtered at the
+  view and the caller; `REQ022_URI_CATALOG` carries the two `{badge}` templates
+  and REQ-022a names `voice`. Exercised by T791.
+  The scheduling rationale in this row was wrong on both counts and is corrected
+  here rather than left standing: a new resource family moves **no** tool budget
+  (REQ-429/REQ-571 measure `tool-definitions.json`, so neither value changes), and
+  the two catalog entries are not `resources/templates/list` entries, so "both
+  resource templates render" was the wrong closure condition. The closure
+  condition is the two URIs rendering live state, which T791 asserts.
 
 ## Closed-P3 (recorded, no action)
 

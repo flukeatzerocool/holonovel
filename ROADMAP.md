@@ -12,16 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Synthesis badge-guidance renderers (P1)
-
-- Register `guidance://<badge>/voice` and `guidance://<badge>/tone` and render them
-  from the Novel's live synthesis state with the `[LOW]` tag carried through, per
-  §11.3 (`spec/08-synthesis.md:265-274`), then record the surface-count change in
-  `holonovel/AGENTS.md`, `DECISIONS.md`, and the REQ-429/REQ-571 budgets (U6-F6).
-
-**Trigger:** the next allocated synthesis-surface session; closes when both
-resource templates render live synthesis state and U6-F6 is `Resolved`.
-
 ## Faction knowledge on secrets (P2)
 
 - Let a secret name a faction in its `known_by` list: extend `manage_lore (action:

@@ -51,7 +51,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-067 | Help and tool discovery (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T62, T118, T636 | — |
 | REQ-069 | Player feedback signal (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T142, T313, T314, T450 | — |
 | REQ-070 | Anti-slop guidance (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T223 | — |
-| REQ-071 | Narrative tone samples (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T26 | — |
+| REQ-071 | Narrative tone samples (Part a) (2 sub-parts) | 5.1 Output and Error Contracts | C | T26, T791 | — |
 | REQ-072 | Session recap (Part a1) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T90, T212, T213, T214, T215, T261, T272, T518, T699 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T54, T90, T136, T139, T261, T271, T312, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T55, T216, T218, T220, S17 | — |

@@ -226,7 +226,7 @@ A slug SHALL be a filename-safe identifier derived by the algorithm REQ-194a def
 `[narrative-tone]`-tagged guidance items per badge — example-of-play prose extracted from the ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<badge>/tone`. Each carries source anchor and confidence. Discovery (§6.3) extracts these snippets as a guidance subcategory. When the ruleset provides none, the Synthesis workflow (§11.1) may source community examples.
 
 **REQ-071b — Narrative tone samples (Part b).**
-Entity-level voice_examples (REQ-077) form a separate category — dialogue snippets for specific characters. *Acceptance criterion:* `badge_briefing` includes at least one `[narrative-tone]`-tagged item per badge — a prose excerpt from the ruleset demonstrating its narrative voice, with source anchor and confidence. _Check:_ T26.
+Entity-level voice_examples (REQ-077) form a separate category — dialogue snippets for specific characters. *Acceptance criterion:* `badge_briefing` includes at least one `[narrative-tone]`-tagged item per badge — a prose excerpt from the ruleset demonstrating its narrative voice, with source anchor and confidence. _Check:_ T26, T791.
 **REQ-064a — Badge behavioral boundaries (Part a).**
 The server respects badge boundaries in all tool output. The AI's behavioral boundaries depend on its role. When the AI's narrative role is Game Master, it describes situations and surfaces information; it never takes action or decides on behalf of the player except as delegated by the human under REQ-306 autonomy or REQ-305 observer mode. When the AI's narrative role is Player, it describes character intent; it never prescribes world facts or narrative outcomes without Game Master confirmation. The `badge_briefing` orientation content delivers these boundaries, determined by the AI's role per REQ-304. When the AI has no narrative role (Editor-badge), tool output follows the active badge's boundary conventions.
 
@@ -693,7 +693,7 @@ verbosity. _Check:_ T488.
 **REQ-022a — Resources (Part a).**
 The server provides resources covering ruleset content (with badge filtering). The
 resource catalog also includes entities at collection and individual URIs, the audit log,
-the roster, and badge-specific guidance (foundations, anti-slop, tone, badge-switch). The
+the roster, and badge-specific guidance (foundations, anti-slop, tone, voice, badge-switch). The
 catalog further includes scene state, countdowns, the party roster, and NPCs at collection
 and individual URIs. The catalog covers entity personality and voice examples, lore
 entries, synthesis modules, and adventure content. Finally, the catalog includes novel
