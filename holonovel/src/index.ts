@@ -67,6 +67,14 @@ import {
 } from "./core/server.js";
 import { DEFAULT_WISDOM, verifyCitation, withWisdomKeys } from "./core/wisdom.js";
 import {
+  SYNTHESIS_MODULES,
+  isSynthesisModule,
+  isInternalSynthesisItem,
+  persistedSynthesis,
+  synthesizeFromNovel,
+  synthesisCapStatus,
+} from "./core/synthesis.js";
+import {
   WorldModel, WorldRoom, WorldThing, WorldKind, Direction, ROOM_DIRECTIONS,
   WORLD_MODEL_KINDS,
   createEmptyWorldModel, convertSource, linkAnnotations, annotationName, worldMap, worldKinds, containmentChain, verbCatalog,
@@ -15279,7 +15287,12 @@ function buildSpecHealth(): Record<string, unknown> {
       module_counts: synthesisCounts,
       stale_count: state.getWisdomHealth().stale_count,
       activated_count: novel ? Object.values(novel.synthesis_activated ?? {}).reduce<number>((a, b) => a + (Array.isArray(b) ? b.length : 0), 0) : 0,
-      fingerprint: state.wisdomManifest ? SPEC_HASH : "",
+      // §11.3 idempotence — the synthesis fingerprint, not the spec hash.
+      fingerprint: state.wisdomManifest?._fingerprint ?? "",
+      // REQ-129c/§11.3 budgets — internal item count against the effective cap,
+      // with the per-module breakdown the overflow report needs.
+      caps: synthesisCapStatus(state.wisdomManifest),
+      empty: state.wisdomManifest?._empty ?? {},
     },
     // REQ-388a–d — behavioral-config coverage, available to every badge and
     // reported from server-level defaults when no Novel is active.
@@ -16124,7 +16137,8 @@ server.registerResource("constraints-active", "constraints://active", { title: "
 // REQ-260/231/265 — single read-time resolver consulted by every synthesis
 // surface: module toggle (REQ-231), per-item activation (REQ-260), and badge
 // scope (REQ-265). This is the "effective view" the whole subsystem reads.
-const SYNTHESIS_MODULES = ["voice_examples", "briefing_order", "lore_templates", "action_patterns", "supplementary_guidance", "adventure_advice", "narrative_voices"];
+// §11.2 — `SYNTHESIS_MODULES` now lives beside the analysis that produces them
+// (`core/synthesis.ts`) so the module list, the caps and the rules cannot drift.
 
 // REQ-231b — modules default to enabled; only an explicit disable turns one off.
 // REQ-266 — Novel-derived synthesis items: MEDIUM-confidence voice examples for
@@ -16145,32 +16159,10 @@ function adventureSynthesisLines(): string {
   return parts.length > 0 ? `\n\n${parts.join(" ")}` : "";
 }
 
-function mergeNovelDerivedSynthesis(manifest: any, novel: NovelState): void {
-  const voice: any[] = [];
-  const addVoice = (id: string, name: string, personality: any): void => {
-    const text = [personality?.voice, personality?.description].filter(Boolean).join(" — ");
-    if (!text) return;
-    voice.push({ key: `novel-voice-${id}`, content: `${name}: ${text}`, source_url: `novel://${id}`, confidence: "MEDIUM", tag: "supplementary", badge_scope: "game_master" });
-  };
-  for (const id of [...novel.entities.keys()].sort()) {
-    const entity = novel.entities.get(id)!;
-    addVoice(id, entity.name, (entity as any).personality);
-  }
-  for (const id of [...novel.npcs.keys()].sort()) {
-    const npc = novel.npcs.get(id)!;
-    addVoice(id, npc.name, (npc as any).personality);
-  }
-  const guidance: any[] = [];
-  if (novel.story_journal.length > 0) {
-    guidance.push({ key: "novel-theme", content: `Recurring theme from the story journal: ${novel.story_journal[novel.story_journal.length - 1].entry}`, source_url: "novel://story_journal", confidence: "LOW", tag: "supplementary", badge_scope: "game_master" });
-  }
-  const dedupe = (existing: any[], extra: any[]): any[] => {
-    const keys = new Set(existing.map((i: any) => String(i?.key)));
-    return [...extra.filter((i) => !keys.has(String(i.key))), ...existing];
-  };
-  manifest.voice_examples = dedupe(manifest.voice_examples ?? [], voice);
-  manifest.supplementary_guidance = dedupe(manifest.supplementary_guidance ?? [], guidance);
-}
+// §11.2/§11.3 — Novel-derived synthesis now lives in `core/synthesis.ts`
+// (`synthesizeFromNovel`): all eight category rules, the per-pass and total
+// caps, the fingerprint and the per-module hashes. This file only wires it to
+// state, the Novel and the read surfaces.
 
 function isModuleEnabled(module: string): boolean {
   return state.activeNovel?.synthesis_module_enabled?.[module] !== false;
@@ -16296,14 +16288,14 @@ function badgeCanSeeWisdom(item: any): boolean {
   return item?.badge_scope !== "game_master";
 }
 
-// Provenance tag rendered in the briefing (§11.3, REQ-159). Unknown tags are
-// Tier-2 supplementary.
-function wisdomTag(item: any): string {
+// Provenance tag rendered in the briefing (§11.3, REQ-159) and in synthesis
+// resource output. Unknown tags are Tier-2 supplementary. §11.3 LOW-confidence
+// presentation (REQ-264a) — a LOW item carries the visible `[LOW]` marker with
+// its provenance tag so the pair reads `[supplementary] [LOW]` on every view.
+function provenanceTag(item: any): string {
   const t = String(item?.tag ?? "");
-  if (t === "vendor") return "[vendor]";
-  if (t === "ruleset") return "[ruleset]";
-  if (t === "player") return "[player]";
-  return "[supplementary]";
+  const base = t === "vendor" ? "[vendor]" : t === "ruleset" ? "[ruleset]" : t === "player" ? "[player]" : "[supplementary]";
+  return String(item?.confidence ?? "").toUpperCase() === "LOW" ? `${base} [LOW]` : base;
 }
 
 // Lore groups (REQ-083a, REQ-083b) — grouped entries keyed by group name.
@@ -16354,7 +16346,7 @@ function synthesisModuleCounts(): Record<string, { total: number; activated: num
 // stored at synthesis://narrative_voices; ruleset-free/vendor-absent → empty.
 server.registerResource("synthesis-narrative-voices", "synthesis://narrative_voices", { title: "Narrative Voice Profiles" }, async () => {
   const profiles = effectiveWisdomItems("narrative_voices").filter(badgeCanSeeWisdom);
-  const list = (Array.isArray(profiles) ? profiles : []).map((p: any) => `## ${p?.name ?? "voice"}\n${p?.description ?? ""}`).join("\n\n");
+  const list = (Array.isArray(profiles) ? profiles : []).map((p: any) => `## ${provenanceTag(p)} ${p?.name ?? "voice"}\n${p?.description ?? ""}`).join("\n\n");
   return { contents: [{ uri: "synthesis://narrative_voices", text: `# Narrative Voice Profiles\n\n${list || "(no profiles — module empty)"}`, mimeType: "text/markdown" }] };
 });
 
@@ -16371,7 +16363,7 @@ for (const module of SYNTHESIS_MODULES.filter((m) => m !== "narrative_voices")) 
       const rank = (i: any): number => (i?.confidence === "LOW" ? 2 : i?.confidence === "MEDIUM" ? 1 : 0);
       const items = effectiveWisdomItems(module)
         .filter(badgeCanSeeWisdom)
-        .map((i: any) => ({ ...i, confidence: i?.confidence ?? "HIGH", collected_at: manifest?.collected_at ?? i?.collected_at ?? null }))
+        .map((i: any) => ({ ...i, provenance: provenanceTag(i), confidence: i?.confidence ?? "HIGH", collected_at: manifest?.collected_at ?? i?.collected_at ?? null }))
         .sort((a: any, b: any) => rank(a) - rank(b));
       return { contents: [{ uri: `synthesis://${module}`, text: JSON.stringify(items, null, 2), mimeType: "application/json" }] };
     },
@@ -16381,10 +16373,20 @@ for (const module of SYNTHESIS_MODULES.filter((m) => m !== "narrative_voices")) 
 server.registerResource("synthesis-status", "synthesis://status", { title: "Synthesis Status" }, async () => {
   const counts = synthesisModuleCounts();
   const active = state.enriched;
+  const caps = synthesisCapStatus(state.wisdomManifest);
   let md = "Synthesis Status\n";
   for (const [m, c] of Object.entries(counts)) {
-    md += `## ${m}\nRuleset Wisdom: ${active ? c.total : 0}\nSynthesis activated/total: ${c.activated}/${active ? c.total : 0}\n`;
+    const lowItems: any[] = state.wisdomManifest
+      ? (m === "adventure_advice"
+        ? [...(state.wisdomManifest.adventure_advice?.templates ?? []), ...(state.wisdomManifest.adventure_advice?.scenario_starters ?? []), ...(state.wisdomManifest.adventure_advice?.table_expansions ?? [])]
+        : (Array.isArray(state.wisdomManifest[m]) ? state.wisdomManifest[m] : []))
+      : [];
+    const low = lowItems.filter((i: any) => String(i?.confidence ?? "").toUpperCase() === "LOW").length;
+    md += `## ${m}\nRuleset Wisdom: ${active ? c.total : 0}\nSynthesis activated/total: ${c.activated}/${active ? c.total : 0}\nLOW confidence: ${low}\nCap: ${caps.modules[m]?.count ?? 0}/${caps.modules[m]?.max ?? 0}${caps.modules[m]?.overflow ? " [OVERFLOW]" : ""}\n`;
   }
+  const empties = Object.entries((state.wisdomManifest?._empty ?? {}) as Record<string, string>);
+  if (empties.length > 0) md += `Empty modules: ${empties.map(([m, why]) => `${m} [empty — ${why}]`).join(", ")}\n`;
+  if (state.wisdomManifest?._fingerprint) md += `Fingerprint: ${state.wisdomManifest._fingerprint}\n`;
   return { contents: [{ uri: "synthesis://status", text: md, mimeType: "text/markdown" }] };
 });
 
@@ -16924,21 +16926,41 @@ server.registerTool("manage_synthesis", {
     case "run": {
       requireGM();
       const novel = requireNovel();
-      if (state.enriched && !args.force) {
-        return ok(`Synthesis up to date (${state.wisdomManifest?.collected_at ?? "unknown"}). Use force=true to re-synthesize.`);
+      // REQ-129c — a zero maximum disables the group: refuse before any work, so
+      // the reply is the mandated conflict and never a stale "up to date".
+      const storage = groupCaps().synthesis;
+      if (storage.max <= 0) {
+        const status = synthesisCapStatus(state.wisdomManifest);
+        return err("STATE_CONFLICT", `Synthesis is disabled: ${status.count}/${storage.max} ${storage.group} (${storage.variable}=0).`);
       }
+      const pass = synthesizeFromNovel(state.wisdomManifest ?? withWisdomKeys(DEFAULT_WISDOM), novel, {
+        force: args.force === true,
+        rulesetHash: state.buildFingerprint.rulesetHash,
+      });
+      // REQ-262b — an unchanged fingerprint is a no-op with the spec's message.
+      if (pass.up_to_date) return ok(`Synthesis up to date — ${pass.manifest?.collected_at ?? "unknown"}`);
+      state.wisdomManifest = pass.manifest;
       state.enriched = true;
-      state.wisdomManifest = withWisdomKeys(DEFAULT_WISDOM);
-      mergeNovelDerivedSynthesis(state.wisdomManifest, novel);
+      // §11.3 — persist the internal items and the hashes with the Novel.
+      novel.synthesis = persistedSynthesis(pass.manifest);
       state.saveNovel(novel);
+      const changed = pass.per_module.filter((m) => m.produced > 0 || m.replaced > 0).map((m) => m.module);
+      audit("synthesis_run", { fingerprint: pass.fingerprint, modules: changed, overflow: pass.overflow });
       const counts = synthesisModuleCounts();
-      return ok(`Synthesis complete. Modules: ${Object.entries(counts).map(([m, c]) => `${m}=${c.total}`).join(", ")}.`);
+      const parts = [`Synthesis complete. Modules: ${Object.entries(counts).map(([m, c]) => `${m}=${c.total}`).join(", ")}.`];
+      if (pass.overflow > 0) parts.push(`Overflow: ${pass.overflow} item(s) beyond the cap; deactivate items to make room.`);
+      const empties = Object.entries(pass.empty);
+      if (empties.length > 0) parts.push(`Empty: ${empties.map(([m, why]) => `${m} [empty — ${why}]`).join(", ")}.`);
+      if (changed.length > 0) parts.push(`Refreshed: ${changed.join(", ")}.`);
+      else if (pass.per_module.every((m) => m.preserved > 0)) parts.push("All modules unchanged; activated items preserved.");
+      return ok(parts.join(" "));
     }
     case "revert": {
       requireGM();
       const novel = requireNovel();
       state.enriched = false;
       state.wisdomManifest = null;
+      novel.synthesis = null;
       state.saveNovel(novel);
       return ok("Synthesis state reverted. Server state restored to pre-synthesis baseline.");
     }
@@ -16971,6 +16993,7 @@ server.registerTool("manage_synthesis", {
         module,
         key: item?.key,
         tag: item?.tag ?? "vendor",
+        provenance: provenanceTag(item),
         badge_scope: item?.badge_scope,
         content,
         confidence: item?.confidence ?? "HIGH",
@@ -17002,6 +17025,7 @@ server.registerTool("manage_synthesis", {
       if (wantsDetail(args.detail)) return raw(JSON.stringify(filtered, null, 2));
       const summary = filtered.map((i: any) => ({
         module: i.module, key: i.key, tag: i.tag, badge_scope: i.badge_scope,
+        provenance: i.provenance ?? provenanceTag({ tag: i.tag, confidence: i.confidence }),
         confidence: i.confidence ?? "HIGH", collected_at: i.collected_at ?? null,
         activated: i.activated, module_enabled: i.module_enabled, stale: i.stale === true,
         ...(i.adventure_slug ? { adventure_slug: i.adventure_slug } : {}),
@@ -17015,7 +17039,7 @@ server.registerTool("manage_synthesis", {
       requireGM();
       requireNovel();
       const moduleFilter = args.module ? String(args.module) : null;
-      if (moduleFilter && !SYNTHESIS_MODULES.includes(moduleFilter)) {
+      if (moduleFilter && !isSynthesisModule(moduleFilter)) {
         return err("INVALID_INPUT", `Unknown synthesis module '${moduleFilter}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
       }
       const keyFilter = args.key !== undefined ? String(args.key) : null;
@@ -17063,7 +17087,7 @@ server.registerTool("manage_synthesis", {
       const ruling = String(args.ruling ?? "").trim();
       if (!query || !ruling) return err("INVALID_INPUT", "record_ruling requires non-empty query and ruling.");
       const moduleFilter = args.module ? String(args.module) : null;
-      if (moduleFilter && !SYNTHESIS_MODULES.includes(moduleFilter)) {
+      if (moduleFilter && !isSynthesisModule(moduleFilter)) {
         return err("INVALID_INPUT", `Unknown synthesis module '${moduleFilter}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
       }
       const keyFilter = args.key !== undefined ? String(args.key) : null;
@@ -17124,7 +17148,7 @@ server.registerTool("manage_synthesis", {
     case "activate": {
       const novel = requireNovel();
       const module = String(args.module ?? "");
-      if (!SYNTHESIS_MODULES.includes(module)) return err("INVALID_INPUT", `Unknown synthesis module '${module}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
+      if (!isSynthesisModule(module)) return err("INVALID_INPUT", `Unknown synthesis module '${module}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
       const key = typeof args.key === "string" ? args.key : undefined;
       const playerKeys = (novel.player_synthesis?.[module] ?? []).map((i: any) => i.key);
       // REQ-260c — Player badge may activate only its own [player] items.
@@ -17155,7 +17179,7 @@ server.registerTool("manage_synthesis", {
     case "deactivate": {
       const novel = requireNovel();
       const module = String(args.module ?? "");
-      if (!SYNTHESIS_MODULES.includes(module)) return err("INVALID_INPUT", `Unknown synthesis module '${module}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
+      if (!isSynthesisModule(module)) return err("INVALID_INPUT", `Unknown synthesis module '${module}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
       const key = typeof args.key === "string" ? args.key : undefined;
       const playerKeys = (novel.player_synthesis?.[module] ?? []).map((i: any) => i.key);
       // REQ-260c — Player badge may deactivate only its own [player] items.
@@ -17192,7 +17216,7 @@ server.registerTool("manage_synthesis", {
     case "toggle": {
       requireGM();
       const novel = requireNovel();
-      if (!SYNTHESIS_MODULES.includes(args.module)) return err("INVALID_INPUT", `Unknown synthesis module '${args.module}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
+      if (!isSynthesisModule(String(args.module ?? ""))) return err("INVALID_INPUT", `Unknown synthesis module '${args.module}'. Valid modules: ${SYNTHESIS_MODULES.join(", ")}.`);
       const m = novel.synthesis_module_enabled ?? {};
       m[args.module] = !!args.enabled;
       novel.synthesis_module_enabled = m;
@@ -18253,9 +18277,11 @@ Characters: ${setupMark(c.novel.characters_present)} | Story source: ${setupMark
         synthLines.push(`${label}:`);
         const rank = (i: any): number => (i?.confidence === "LOW" ? 2 : i?.confidence === "MEDIUM" ? 1 : 0);
         [...items].sort((a, b) => rank(a) - rank(b)).slice(0, 5).forEach((i: any) => {
-          const conf = i.confidence ? ` [${i.confidence}]` : "";
+          // §11.3 — the LOW marker is part of the provenance pair, not a second
+          // confidence bracket.
+          const conf = i.confidence && String(i.confidence).toUpperCase() !== "LOW" ? ` [${i.confidence}]` : "";
           const src = i.source_url ? ` (${i.source_url})` : "";
-          synthLines.push(`- ${wisdomTag(i)}${conf} ${pick(i)}${src}`);
+          synthLines.push(`- ${provenanceTag(i)}${conf} ${pick(i)}${src}`);
         });
       };
       renderItems("Supplementary guidance", effectiveWisdomItems("supplementary_guidance").filter(badgeCanSeeWisdom), (i) => i.content);

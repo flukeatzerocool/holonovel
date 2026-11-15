@@ -25,6 +25,7 @@ import { normalizeIdentityMap } from "./identity.js";
 import { deriveArcTier, deriveCampaignTier } from "./memory.js";
 import { deriveSlug, fitSlug } from "./slug.js";
 import { auditNotation } from "./lonelog.js";
+import { hydrateSynthesisManifest } from "./synthesis.js";
 
 const SPEC_VERSION: string = JSON.parse(
   fs.readFileSync(new URL("../../package.json", import.meta.url), "utf-8")
@@ -838,6 +839,16 @@ export interface NovelState {
   synthesis_module_enabled: Record<string, boolean>;
   // REQ-261 — player-authored synthesis items, per module, tagged [player].
   player_synthesis: Record<string, Array<{ key: string; content: string; triggers?: string[]; badge_scope: string; created_at: string; active?: boolean }>>;
+  // §11.3 — persisted internal synthesis: the fingerprint, the per-module source
+  // hashes, the empty-module reasons, and the Novel-derived items only. Build
+  // output (vendor/ruleset) is never stored here (REQ-080).
+  synthesis: {
+    fingerprint: string | null;
+    module_hashes: Record<string, string>;
+    empty: Record<string, string>;
+    collected_at: string | null;
+    modules: Record<string, any[]>;
+  } | null;
   // REQ-589 — GM-only ruling ledger. Survives whole-synthesis revert.
   ruling_ledger: RulingLedgerEntry[];
   // REQ-310 — campaign memory: engine-recorded per-NPC/thread/location facts
@@ -1104,6 +1115,9 @@ export class StateManager {
 
   enriched = false;
   wisdomManifest: any = null;
+  // §11.3 — the last hydrated `slug|fingerprint` signature, so a Novel switch,
+  // undo, checkpoint restore or import re-derives the manifest exactly once.
+  private synthesisHydratedFor = "none";
   maxLoreTokens: number | null = null;
   serverNotes: Map<string, { content: string; narrative_tag?: string }> = new Map();
   codex: Map<string, CodexEntry> = new Map();
@@ -1206,7 +1220,19 @@ export class StateManager {
   }
 
   get activeNovel(): NovelState | undefined {
-    return this.activeNovelId ? this.novels.get(this.activeNovelId) : undefined;
+    const novel = this.activeNovelId ? this.novels.get(this.activeNovelId) : undefined;
+    // §11.3 persistence — the manifest is derived from the Novel's `synthesis`
+    // key. Undo, redo, checkpoint restore and archive import replace that key
+    // in place without changing the Novel object, so the signature covers the
+    // stored fingerprint as well as the object identity.
+    const signature = novel ? `${novel.slug}|${novel.synthesis?.fingerprint ?? "none"}` : "none";
+    if (signature !== this.synthesisHydratedFor) {
+      this.synthesisHydratedFor = signature;
+      const hydrated = hydrateSynthesisManifest(novel);
+      this.wisdomManifest = hydrated.manifest;
+      this.enriched = hydrated.enriched;
+    }
+    return novel;
   }
 
   // ── Badge Gating ────────────────────────────────────────────────
@@ -1321,6 +1347,7 @@ export class StateManager {
       synthesis_deactivated: {},
       synthesis_module_enabled: {},
       player_synthesis: {},
+      synthesis: null,
       ruling_ledger: [],
       campaign_memory: [],
       compression_ladder: emptyCompressionLadder(),
@@ -1796,6 +1823,7 @@ export class StateManager {
       synthesis_deactivated: normalizeActivationMap(data.synthesis_deactivated),
       synthesis_module_enabled: data.synthesis_module_enabled ?? {},
       player_synthesis: data.player_synthesis ?? {},
+      synthesis: data.synthesis ?? null,
       ruling_ledger: data.ruling_ledger ?? [],
       campaign_memory: data.campaign_memory ?? [],
       compression_ladder: data.compression_ladder ?? emptyCompressionLadder(),
@@ -3305,6 +3333,7 @@ function novelToJSON(novel: NovelState): any {
     synthesis_deactivated: novel.synthesis_deactivated,
     synthesis_module_enabled: novel.synthesis_module_enabled,
     player_synthesis: novel.player_synthesis,
+    synthesis: novel.synthesis ?? null,
     ruling_ledger: novel.ruling_ledger,
     campaign_memory: novel.campaign_memory,
     compression_ladder: novel.compression_ladder,
@@ -3504,6 +3533,7 @@ function novelFromJSON(data: any): NovelState {
     campaign_memory: data.campaign_memory ?? [],
     compression_ladder: data.compression_ladder ?? emptyCompressionLadder(),
     player_synthesis: data.player_synthesis ?? {},
+    synthesis: data.synthesis ?? null,
     ruling_ledger: data.ruling_ledger ?? [],
     notes: data.notes ?? [],
     vows: data.vows ?? [],

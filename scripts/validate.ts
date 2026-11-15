@@ -1853,6 +1853,7 @@ const INTENDED_GAP_CITED_DISPOSITIONS: Record<string, string> = {
   "REQ-123": "§5.6 builder-defined NPC stat fields — derived from a ruleset's own stat-block conventions at discovery; the ruleset-free reference host's package format carries no stat-block schema, so the NPC surface exposes narrative fields only. Re-activate with a stat-block ruleset (spec-code comparison SC-6)",
   "REQ-187": "spec-content-hash computation is builder-side; the runtime stored-hash read and spec_hash_current surfacing (REQ-187a/b) are implemented in holonovel/src (index.ts build-fingerprint load, core/state.ts loadBuildFingerprint, 2026-09-30)",
   "REQ-210": "§5.2 extraction badge scope (REQ-210c) is builder-side; the server only consumes the declared entry field (index.ts rulesetEntryVisible, 2026-11-14)",
+  "REQ-130": "synthesis rebuild contract — the runtime implements REQ-130a/c (partial refresh preserves activated items; full replacement requires revert) in core/synthesis.ts; REQ-130b's DECISIONS.md replacement record is the builder-side half this citation names (2026-11-15)",
 };
 function checkIntendedGapDispositions(sourceCites: Set<string>): string[] {
   const issues: string[] = [];

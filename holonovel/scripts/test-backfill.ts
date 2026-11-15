@@ -1982,8 +1982,217 @@ async function main() {
       assert(Date.parse(low2.collected_at) >= Date.parse(before), "rerun did not refresh collected_at");
     });
 
+    await kill(proc);
+  }
+
+  // ── §11.2/§11.3 internal synthesis: fingerprint, rules, caps, and [LOW] ──
+  // T321a (fingerprint + refresh + restart/undo), T325a/T325b (LOW on every
+  // badge view that can display the item), T789 (the six category rules). T790
+  // runs in its own env-scoped blocks below.
+  {
+    let proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "synth-surface" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    // Rules 1/2 — more than five NPCs, each with an explicit description.
+    for (let i = 1; i <= 6; i++) {
+      await call(proc, "manage_npc", { action: "create", name: `Warden${i}`, description: `Warden${i} keeps the eastern gate and speaks in clipped tones.`, disposition: i === 1 ? "hostile" : "neutral", goals: "secure the gate" });
+    }
+    const ch = await call(proc, "manage_character", { action: "create", name: "Mira" });
+    const mira = (ch.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1] ?? "character_01";
+    await call(proc, "manage_character", { action: "update", entity_id: mira, voice: "clipped military cadence" });
+    // Rule 3 — lore naming an NPC; rule 4/5 — themed journal with a decision.
+    await call(proc, "manage_lore", { action: "set", key: "gate_legend", content: "The Warden1 oath binds the eastern gate.", triggers: ["oathgate"] });
+    await call(proc, "manage_story", { action: "record", type: "decision", entry: "Mira swore to hold the gate against betrayal." });
+    await call(proc, "manage_story", { action: "record", type: "moment", entry: "A discovery in the archive changed everything." });
+    // Rule 5 — three distinct scene anchors.
+    await call(proc, "manage_scene", { action: "set", description: "The eastern gate at dusk", location: "East Gate" });
+    await call(proc, "manage_scene", { action: "set", description: "The archive below the keep", location: "Archive" });
+    await call(proc, "manage_scene", { action: "set", description: "The hall of statues", location: "Hall" });
+    await call(proc, "manage_scene", { action: "set", description: "The keep roof at midnight", location: "Roof" });
+    // Rule 6 — two factions sharing a secret, a holderless secret, a hostile bond.
+    await call(proc, "manage_faction", { action: "create", name: "Ash Guild", description: "Smugglers with a ledger of debts.", goals: ["own the gate"] });
+    await call(proc, "manage_faction", { action: "create", name: "Salt Watch", description: "The harbour watch.", goals: ["keep order"] });
+    const factionList = JSON.parse(await call(proc, "manage_faction", { action: "list" }));
+    const factionRows: any[] = factionList.factions ?? factionList;
+    const factionId = (name: string): string => String(factionRows.find((f: any) => f.name === name)?.id ?? name.toLowerCase().replace(/\s+/g, "-"));
+    const faId = factionId("Ash Guild");
+    const fbId = factionId("Salt Watch");
+    await call(proc, "manage_lore", { action: "set_secret", key: "shared_pact", content: "The guild pays the watch to look away." });
+    await call(proc, "manage_lore", { action: "reveal", key: "shared_pact", entity_id: faId });
+    await call(proc, "manage_lore", { action: "reveal", key: "shared_pact", entity_id: fbId });
+    await call(proc, "manage_lore", { action: "set_secret", key: "lost_relic", content: "A relic no one admits to holding." });
+    await call(proc, "manage_relationship", { action: "set", entity_a: mira, entity_b: "npc_01", type: "suspicious", description: "Mira does not trust the warden." });
+    // Rule 7 — an almost-expired clock and two sharing a scope.
+    await call(proc, "manage_countdown", { action: "set", name: "gate_falls", ticks: 1, total: 4, scope: "East Gate" });
+    await call(proc, "manage_countdown", { action: "set", name: "guild_moves", ticks: 3, total: 6, scope: "East Gate" });
+    // Rule 8 — three connected rooms and a readable thing naming a proper noun.
+    await call(proc, "manage_world", { action: "create_room", name: "East Gate", description: "A gate under watch." });
+    await call(proc, "manage_world", { action: "create_room", name: "Archive", description: "Shelves below the keep." });
+    await call(proc, "manage_world", { action: "create_room", name: "Hall", description: "Statues line the hall." });
+    await call(proc, "manage_world", { action: "create_exit", room_a: "East Gate", direction: "north", room_b: "Archive" });
+    await call(proc, "manage_world", { action: "create_exit", room_a: "Archive", direction: "east", room_b: "Hall" });
+    await call(proc, "manage_world", { action: "create_thing", name: "Cracked Tablet", description: "A tablet graven with the name Mira.", location: "Archive", readable: true, read_text: "Mira swore the gate oath here." });
+    await call(proc, "manage_synthesis", { action: "run", force: true });
+
+// ── §11.2/§11.3 internal synthesis: fingerprint, rules, caps, [LOW] ──
+    // T321a/T325a/T325b/T789 (this fixture) and T790 (its own env-scoped block).
+    await test("T321a/REQ-262: synthesis fingerprint makes a re-run a no-op and refreshes only the changed module", async () => {
+      const health0 = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      const fp = health0.synthesis_health?.fingerprint;
+      assert(typeof fp === "string" && /^[0-9a-f]{64}$/.test(fp), `synthesis fingerprint absent or malformed: ${JSON.stringify(fp)}`);
+      const again = await call(proc, "manage_synthesis", { action: "run" });
+      assertContains(again, "Synthesis up to date");
+      const activatedKey = "novel-theme";
+      await call(proc, "manage_synthesis", { action: "activate", module: "supplementary_guidance", key: activatedKey });
+      await call(proc, "manage_story", { action: "record", type: "revelation", entry: "The ledger named a second patron." });
+      const changed = await call(proc, "manage_synthesis", { action: "run" });
+      assertNotContains(changed, "Synthesis up to date");
+      assertContains(changed, "Refreshed:");
+      const rows = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "supplementary_guidance" }));
+      const theme = (rows.items ?? rows).find((r: any) => r.key === activatedKey);
+      assert(theme && theme.activated === true, `activated item lost across refresh: ${JSON.stringify(theme)}`);
+      const health1 = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      assert(health1.synthesis_health.fingerprint !== fp, "fingerprint did not change after a state mutation");
+    });
+
+    await test("T321a/REQ-262: a restart and an undo re-hydrate the persisted synthesis state", async () => {
+      const before = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      await kill(proc);
+      proc = await boot();
+      await call(proc, "manage_novel", { action: "resume", slug: "synth-surface" });
+      await call(proc, "set_badge", { badge: "game_master" });
+      const after = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      assert(after.synthesis_active === true, "synthesis did not survive the restart");
+      assert(after.synthesis_health.fingerprint === before.synthesis_health.fingerprint, "persisted fingerprint changed across restart");
+      const listed = JSON.parse(await call(proc, "manage_synthesis", { action: "list" }));
+      assert((listed.items ?? listed).length > 0, "persisted synthesis items vanished across restart");
+      await call(proc, "manage_history", { action: "undo" });
+      const undone = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      assert(undone.synthesis_active === true, "an unrelated undo dropped the synthesis manifest");
+      await call(proc, "manage_novel", { action: "create", name: "synth-other" });
+      const other = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      assert(other.synthesis_active === false, "a Novel with no synthesis inherited the previous manifest");
+      await call(proc, "manage_novel", { action: "switch", slug: "synth-surface" });
+      const back = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      const want = undone.synthesis_health.fingerprint;
+      assert(back.synthesis_active === true && back.synthesis_health.fingerprint === want, `switching back did not re-derive the persisted manifest: ${JSON.stringify({ active: back.synthesis_active, fp: back.synthesis_health.fingerprint, want })}`);
+    });
+
+    await test("T789/REQ-262: the six remaining category rules each produce a Novel-derived item", async () => {
+      const all = JSON.parse(await call(proc, "manage_synthesis", { action: "list" }));
+      const keys = new Set((all.items ?? all).map((r: any) => String(r.key)));
+      const expected = [
+        ["rule 3 lore cross-reference", "novel-lore-link-"],
+        ["rule 4 narrative voice profile", "novel-voice-profile"],
+        ["rule 5 scene hook", "novel-hook-"],
+        ["rule 6 revelation opportunity", "novel-reveal-"],
+        ["rule 6 secret suggestion", "novel-secret-suggestion-"],
+        ["rule 7 countdown urgency", "novel-urgency-"],
+        ["rule 8 room hook", "novel-room-hook-"],
+      ];
+      for (const [label, prefix] of expected) {
+        assert([...keys].some((k) => k === prefix || k.startsWith(prefix)), `${label} produced no item (keys: ${[...keys].slice(0, 20).join(", ")})`);
+      }
+      const all2 = JSON.parse(await call(proc, "manage_synthesis", { action: "list", detail: true }));
+      const internal = (all2.items ?? all2).filter((r: any) => String(r.key).startsWith("novel-"));
+      assert(internal.length > 0 && internal.every((r: any) => String(r.content ?? r.preview ?? "").length > 0 || r.key === "novel-voice-profile"), "a Novel-derived item carries no content");
+    });
+
+    await test("T325a/REQ-266: LOW confidence renders [LOW] in the briefing, the resource payload and the list", async () => {
+      await call(proc, "manage_synthesis", { action: "activate", module: "supplementary_guidance", key: "novel-theme" });
+      await call(proc, "manage_synthesis", { action: "activate", module: "narrative_voices", key: "novel-voice-profile" });
+      const brief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(brief, "[supplementary] [LOW]");
+      const voices = await readResource(proc, "synthesis://narrative_voices");
+      assertContains(voices, "[LOW]");
+      const resource = JSON.parse(await readResource(proc, "synthesis://supplementary_guidance"));
+      const low = (Array.isArray(resource) ? resource : []).find((i: any) => i.key === "novel-theme");
+      assert(low && String(low.provenance ?? "").includes("[LOW]"), `resource item carries no LOW provenance: ${JSON.stringify(low)?.slice(0, 200)}`);
+      const rows = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "supplementary_guidance" }));
+      const row = (rows.items ?? rows).find((r: any) => r.key === "novel-theme");
+      assert(row && String(row.provenance ?? "").includes("[LOW]"), "list row carries no LOW provenance");
+      const status = await readResource(proc, "synthesis://status");
+      assertContains(status, "LOW confidence:");
+    });
+
+    await test("T325b/REQ-265: the provenance tag holds on every badge view that can see the item", async () => {
+      await call(proc, "set_badge", { badge: "none" });
+      const editorBrief = await getPrompt(proc, "badge_briefing", {});
+      assertContains(editorBrief, "[LOW]");
+      await call(proc, "set_badge", { badge: "player" });
+      const playerBrief = await getPrompt(proc, "badge_briefing", {});
+      assertNotContains(playerBrief, "Recurring theme from the story journal");
+      const playerResource = await readResource(proc, "synthesis://supplementary_guidance");
+      assertNotContains(playerResource, "novel-theme");
+      await call(proc, "set_badge", { badge: "game_master" });
+    });
+
+    await kill(proc);
+  }
+
+  // ── §11.3 budgets: per-pass caps, total caps, and the zero-maximum refusal ──
+  {
+    let proc = await boot({ TTRPG_MAX_SYNTHESIS_ITEMS: "2" });
+    await call(proc, "manage_novel", { action: "create", name: "synth-caps" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    for (let i = 1; i <= 6; i++) {
+      await call(proc, "manage_npc", { action: "create", name: `CapNpc${i}`, description: `CapNpc${i} speaks slowly and watches the door.` });
+    }
+    await test("T790/REQ-129: the storage cap bounds each module and reports overflow", async () => {
+      const run = await call(proc, "manage_synthesis", { action: "run" });
+      assertContains(run, "Overflow:");
+      const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
+      const caps = health.synthesis_health.caps;
+      assert(caps && caps.modules, "synthesis_health.caps missing");
+      assert(caps.modules.voice_examples.count <= 2, `voice module exceeded the cap: ${JSON.stringify(caps.modules.voice_examples)}`);
+      assert(caps.modules.voice_examples.overflow === true || caps.overflow === true, "overflow flag not set at the cap");
+      const rows = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "action_patterns" }));
+      assert((rows.items ?? rows).some((r: any) => r.tag === "vendor"), "build-output items were dropped by the cap");
+    });
+    await kill(proc);
+
+    proc = await boot({ TTRPG_MAX_SYNTHESIS_ITEMS: "0" });
+    await call(proc, "manage_novel", { action: "create", name: "synth-disabled" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await test("T790/REQ-129: a zero maximum refuses run with STATE_CONFLICT before the no-op check", async () => {
+      const run = await call(proc, "manage_synthesis", { action: "run" });
+      assertContains(run, "[STATE_CONFLICT]");
+      assertContains(run, "synthesis items");
+      const again = await call(proc, "manage_synthesis", { action: "run" });
+      assertNotContains(again, "Synthesis up to date");
+      assertContains(again, "[STATE_CONFLICT]");
+    });
+    await kill(proc);
+  }
+
+  // Rule 8's second branch needs the combined three-item budget, so it runs on a
+  // Novel with one room: three connected rooms would consume the whole budget.
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "synth-thing" });
+    await call(proc, "set_badge", { badge: "game_master" });
+    await call(proc, "manage_world", { action: "create_room", name: "Archive", description: "Shelves below the keep." });
+    await call(proc, "manage_world", { action: "create_thing", name: "Cracked Tablet", description: "A tablet graven with the name Mira.", location: "Archive", readable: true, read_text: "Mira swore the gate oath here." });
+    await call(proc, "manage_synthesis", { action: "run", force: true });
+    await test("T789/REQ-262: rule 8 links a readable thing to its room", async () => {
+      const rows = JSON.parse(await call(proc, "manage_synthesis", { action: "list", module: "lore_templates" }));
+      const link = (rows.items ?? rows).find((r: any) => String(r.key).startsWith("novel-thing-lore-"));
+      assert(link, `no thing lore link: ${JSON.stringify((rows.items ?? rows).map((r: any) => r.key))}`);
+      assert(String(link.preview ?? "").length > 0 || String(link.content ?? "").length > 0, "thing lore link carries no content");
+    });
+    await kill(proc);
+  }
+
+  {
+    const proc = await boot();
+    await call(proc, "manage_novel", { action: "create", name: "p7b-adventure" });
     await call(proc, "set_badge", { badge: "game_master" });
     await test("T288/REQ-080g2: adventure load reports synthesis state and keeps community items inert", async () => {
+      const actor = await call(proc, "manage_character", { action: "create", name: "Ferryman" });
+      const actorId = (actor.match(/Entity id ([A-Za-z0-9_]+)/) ?? [])[1] ?? "character_01";
+      await call(proc, "manage_character", { action: "update", entity_id: actorId, voice: "a slow river drawl" });
+      const runOut = await call(proc, "manage_synthesis", { action: "run" });
+      assertContains(runOut, "Synthesis complete");
       await call(proc, "manage_codex", { action: "set", kind: "adventure", name: "Merrick Quest", content: { title: "Merrick Quest", sections: {} } });
       mkdirSync(join(DATA_DIR, "adventures"), { recursive: true });
       writeFileSync(join(DATA_DIR, "adventures", "merrick.md"), "# Merrick Quest\n\nOld Merrick keeps the ferry.\n");

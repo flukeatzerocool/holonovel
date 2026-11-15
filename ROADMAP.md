@@ -12,20 +12,25 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Synthesis-surface gaps (P1)
+## Synthesis badge-guidance renderers (P1)
 
-- Implement the synthesis fingerprint: a root hash over the ruleset content hash,
-  the synthesis intake answers, and the Novel state hash, plus per-module hashes,
-  so a re-run against an unchanged fingerprint is a no-op and partial refresh
-  preserves unchanged modules (U6-F3).
-- Render the `[LOW]` provenance tag in `badge_briefing` and in synthesis resource
-  output, and carry it through every badge view (U6-F4).
-- Extend internal synthesis to the remaining category rules — lore templates,
-  narrative voices, adventure advice, factions/secrets, countdowns, rooms/things —
-  and enforce the per-pass and total-Novel caps (U6-F5).
+- Register `guidance://<badge>/voice` and `guidance://<badge>/tone` and render them
+  from the Novel's live synthesis state with the `[LOW]` tag carried through, per
+  §11.3 (`spec/08-synthesis.md:265-274`), then record the surface-count change in
+  `holonovel/AGENTS.md`, `DECISIONS.md`, and the REQ-429/REQ-571 budgets (U6-F6).
 
-**Trigger:** the next allocated synthesis-surface session; closes when all three
-findings are `Resolved`.
+**Trigger:** the next allocated synthesis-surface session; closes when both
+resource templates render live synthesis state and U6-F6 is `Resolved`.
+
+## Faction knowledge on secrets (P2)
+
+- Let a secret name a faction in its `known_by` list: extend `manage_lore (action:
+  set_secret)` with an optional `known_by` array and accept faction ids in
+  `manage_lore (action: reveal)`, so §11.2 rule 6's shared-secret tension branch
+  is reachable through the tool surface (U6-F5 residual).
+
+**Trigger:** the next lore-surface session; closes when rule 6's shared-secret
+branch is exercisable by a harness assertion and the register row is updated.
 
 ## Loop-gate fix-up rate re-measurement (P2)
 

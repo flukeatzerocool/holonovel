@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-11-15 — Synthesis surface: a real fingerprint, persisted items, eight rules, and the `[LOW]` tag
+
+The three P1 findings the U6 sweep scheduled are repaired. Internal synthesis
+now records and compares a fingerprint, persists its items with the Novel,
+applies all eight §11.2 category rules under the §11.3 budgets, and renders the
+`[LOW]` provenance tag on every surface that can display an item.
+
+- Fingerprint and partial refresh. `holonovel/src/core/synthesis.ts` adds
+  `synthesisProjection`, `synthesisModuleSourceHashes`, `synthesisFingerprint`
+  and `synthesizeFromNovel`: a re-run against an unchanged fingerprint returns
+  `[OK] Synthesis up to date — <ISO>`, a changed module alone is refreshed, and
+  activated items survive a refresh (REQ-130b, REQ-262b, §11.3).
+- Novel-side persistence. `NovelState.synthesis` stores the fingerprint, the
+  per-module hashes, the empty-module reasons, and the `novel://`-sourced items
+  only; hydration runs on a Novel switch, undo/redo, checkpoint restore, and
+  archive import. Vendor content is never read back, so a ruleset bind cannot be
+  shadowed. `DATA_FORMAT` is unchanged (REQ-080, §7.7).
+- Eight rules and the budget table. The lore cross-reference, narrative-voice
+  profile, scene-hook, faction/secret, countdown, and rooms/things rules now
+  produce deterministic `novel://` items; per-pass and total-Novel caps bind
+  against `TTRPG_MAX_SYNTHESIS_ITEMS`, overflow is reported in the run result and
+  in `spec_health.synthesis_health.caps`, and a zero maximum returns
+  `[STATE_CONFLICT]` (REQ-129, §11.2, §11.3).
+- `[LOW]` provenance. `provenanceTag` emits `[tag] [LOW]` for a LOW item; the
+  briefing, every `synthesis://<module>` payload, the Markdown resources, and
+  `manage_synthesis (action: list)` all carry it (REQ-264a, §11.3).
+- Spec and records. §11.3 gains the cap-precedence clause; Appendix F gains T789
+  (category rules) and T790 (budgets); the coverage register is regenerated; the
+  roadmap section is retired and two replacements are scheduled — the
+  `guidance://<badge>/voice|tone` renderers (U6-F6) and faction knowledge on
+  secrets (U6-F5 residual).
+- Verified: `check:fast` 45/0, `test:all` (server suite), `check-g7-attestation`,
+  `check-registers:strict`, `check-roadmap`, `check-fingerprint-sync`, `lint`,
+  `validate` (0 errors).
+
 ## 2026-11-15 — Repo governance and content assets: U8 reviewed, the sweep closed
 
 Chunk U8 of the unscoped-surface review program reviewed the repo governance

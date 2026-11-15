@@ -109,7 +109,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-126 | Voice examples rendering (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T202, T140 | — |
 | REQ-127 | Ruleset-native personality mapping (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T141 | — |
 | REQ-128 | Signal briefing surface (Part a) (2 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T211, T142, T314 | — |
-| REQ-129 | Property group cardinality (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T218, T143 | — |
+| REQ-129 | Property group cardinality (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T218, T143, T790 | — |
 | REQ-130 | Synthesis rebuild contract (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | T144 | — |
 | REQ-131 | Novel initialization order (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | E | — | — |
 | REQ-132 | Adventure generation lifecycle (Part a) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T146 | — |
@@ -137,7 +137,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-157 | Combat determinism (Part a) (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T192 | — |
 | REQ-158 | Independent verification obligation (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | E | — | — |
 | REQ-159 | Synthesis briefing integration (Part a) (4 sub-parts) | 5.5 Badges and Access | C | T194 | — |
-| REQ-160 | Synthesis health reporting (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T195 | — |
+| REQ-160 | Synthesis health reporting (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T195, T790 | — |
 | REQ-161 | Intake workflow contract (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T196 | — |
 | REQ-162 | Build-mode profiles (Part a) (3 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-163 | Client config verification (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T198 | — |
@@ -236,9 +236,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-259 | Update Novel description | 5.9 Novel Persistence and Transport | C | T318 | — |
 | REQ-260 | Granular synthesis activation (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T319, T321, T326 | — |
 | REQ-261 | Player synthesis (Part a) (5 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T320 | — |
-| REQ-262 | Synthesis tool (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T321 | — |
+| REQ-262 | Synthesis tool (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T321, T789 | — |
 | REQ-263 | Synthesis auto-trigger (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T322 | — |
-| REQ-264 | Synthesis confidence model (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T323 | — |
+| REQ-264 | Synthesis confidence model (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T323, T789 | — |
 | REQ-265 | Synthesis in badge_briefing (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T321, T324, T326 | — |
 | REQ-266 | Synthesis in dashboard (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T325, T327 | — |
 | REQ-269 | Safety protocol status | 5.3 Tools, Resources, and Lookups | C | T289 | — |

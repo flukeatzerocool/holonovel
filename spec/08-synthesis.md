@@ -213,7 +213,11 @@ spec minimum shown in this table. Overrides below the minimum are rejected with 
 warning and the default is used. The per-pass cap limits how many new items a single
 internal synthesis pass produces. When synthesis would exceed a total Novel cap, it
 produces up to the cap and records the overflow count in the synthesis result. The GM
-may deactivate items via `manage_synthesis (action: deactivate)` to make room.
+may deactivate items via `manage_synthesis (action: deactivate)` to make room. Where
+`TTRPG_MAX_SYNTHESIS_ITEMS` (REQ-129b1) is lower than a module's total Novel cap, the
+storage cap binds; a maximum of zero returns `[STATE_CONFLICT]` from
+`manage_synthesis (action: run)` before any work. Budgets govern synthesis items only
+— Ruleset Wisdom and player-authored items are neither counted nor truncated.
 
 **Confidence.** Synthesis confidence uses source authority for external items,
 not mechanical completeness:

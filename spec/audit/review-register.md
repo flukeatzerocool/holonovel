@@ -2990,35 +2990,57 @@ it adds a column to a content manifest and an assertion to a gate.
 
 ### 2026-11-15 U6 synthesis and fixtures — internal synthesis gaps
 
-Scheduled under `ROADMAP.md` § *Synthesis-surface gaps (P1)*. Each finding cites
-the predicate that fails; none is repaired here, because each needs behaviour
-change in `holonovel/src`.
+Scheduled under `ROADMAP.md` § *Synthesis-surface gaps (P1)*; all three were
+repaired by the 2026-11-15 increment (`docs/plans/2026-11-15-synthesis-surface-gaps/`).
 
-- **U6-F3 — the synthesis fingerprint has no writer. Scheduled-roadmap (P1).**
-  Predicate: `spec/08-synthesis.md:43-51,250-258,277-287` require a
+- **U6-F3 — the synthesis fingerprint has no writer. Resolved 2026-11-15.**
+  Predicate that failed: `spec/08-synthesis.md:43-51,250-258,277-287` require a
   `synthesis_fingerprint` over the ruleset content hash, the intake answers and
-  the Novel state hash, plus per-module hashes; `grep -rn 'synthesis_fingerprint'
-  holonovel/src` returns no match, `grep -rn 'module_hash\|moduleHash'
-  holonovel/src` returns no match, the only read of a manifest fingerprint is
-  `manifest._fingerprint` (`holonovel/src/core/state.ts:2628`) and nothing
-  writes it, and the re-run guard is the boolean `state.enriched`
-  (`holonovel/src/index.ts:16924-16928`). Rows R3, R15, R18.
-- **U6-F4 — the `[LOW]` presentation tag is never rendered. Scheduled-roadmap
-  (P1).** Predicate: `spec/08-synthesis.md:238-243` requires a visible `[LOW]`
-  tag in the briefing and in synthesis resource output, and `:301-302` requires
-  it in every badge view; `wisdomTag` (`holonovel/src/index.ts:16301-16308`)
-  returns only `[vendor]`/`[ruleset]`/`[player]`/`[supplementary]`, LOW items
-  are sorted last in the resource payload (`:16371`) but carry no tag, and
-  `grep -rn '\[LOW\]' holonovel/src` returns no match. Row R13.
+  the Novel state hash, plus per-module hashes; nothing wrote `manifest._fingerprint`
+  and the re-run guard was the boolean `state.enriched`. Now:
+  `holonovel/src/core/synthesis.ts` `synthesisFingerprint` /
+  `synthesisModuleSourceHashes` / `synthesizeFromNovel` write the root hash and
+  the per-module hashes, the Novel persists them under its `synthesis` key
+  (`core/state.ts` `NovelState.synthesis`), and `run` returns
+  `[OK] Synthesis up to date — <ISO>` when the fingerprint is unchanged.
+  Exercised by T321a. Rows R3, R15, R18.
+- **U6-F4 — the `[LOW]` presentation tag is never rendered. Resolved
+  2026-11-15.** Predicate that failed: `spec/08-synthesis.md:238-243` requires a
+  visible `[LOW]` tag in the briefing and in synthesis resource output, and
+  `:301-302` requires it in every badge view; `wisdomTag` returned only the four
+  provenance tags and `grep -rn '\[LOW\]' holonovel/src` returned no match.
+  Now: `provenanceTag` (`holonovel/src/index.ts`) emits `[tag] [LOW]` for a LOW
+  item, every `synthesis://<module>` payload carries a `provenance` string, the
+  Markdown resources and `manage_synthesis (action: list)` rows carry it, and the
+  tag is computed independently of badge scope so every view that can display the
+  item displays it. Exercised by T325a/T325b. Row R13.
 - **U6-F5 — internal synthesis implements two of eight category rules and
-  enforces no cap. Scheduled-roadmap (P1).** Predicate:
+  enforces no cap. Resolved 2026-11-15.** Predicate that failed:
   `spec/08-synthesis.md:57-69` maps seven source categories and `:70-124` gives
   eight rules across six modules, with caps at `:198-217`;
-  `mergeNovelDerivedSynthesis` (`holonovel/src/index.ts:16149-16175`) reads
-  entities, NPCs and the last story-journal entry, writes only `voice_examples`
-  and `supplementary_guidance`, and applies no per-pass or total-Novel cap — so
-  the lore-template, narrative-voice, adventure-advice, faction/secret,
-  countdown and rooms/things rules have no predicate. Rows R5, R6, R10.
+  `mergeNovelDerivedSynthesis` read entities, NPCs and the last journal entry,
+  wrote only two modules, and applied no cap. Now: `synthesizeFromNovel`
+  implements rules 1–8 (lore cross-reference, narrative voice profile, scene
+  hooks, faction/secret tension, countdown urgency, rooms/things advice and lore
+  links) and enforces the per-pass and total-Novel caps against the
+  `TTRPG_MAX_SYNTHESIS_ITEMS` ceiling, reporting overflow in the result and in
+  `spec_health.synthesis_health.caps`. Exercised by T789/T790. Rows R5, R6, R10.
+  Residual (P2): rule 6's shared-secret branch requires a faction id in a
+  secret's `known_by`, and `manage_lore (action: reveal)` only accepts entity
+  ids, so the branch is implemented and spec-faithful but unreachable through the
+  tool surface. Scheduled under `ROADMAP.md` § *Faction knowledge on secrets
+  (P2)*, which extends the secret surface rather than weakening the rule.
+
+### 2026-11-15 synthesis-surface session — guidance renderers
+
+- **U6-F6 — §11.3 names two badge guidance renderers that do not exist.**
+  Scheduled-roadmap (P1). Predicate: `spec/08-synthesis.md:265-274` requires
+  `guidance://<badge>/voice` and `guidance://<badge>/tone` to render from the
+  Novel's live synthesis state, and neither URI is registered
+  (`grep -n 'guidance://' holonovel/src/index.ts` lists player,
+  game_master, anti-slop, foundations, and badge-switch only). Scheduled under
+  `ROADMAP.md` § *Synthesis badge-guidance renderers (P1)* because a new resource
+  family moves the documented surface (REQ-429/REQ-571).
 
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 

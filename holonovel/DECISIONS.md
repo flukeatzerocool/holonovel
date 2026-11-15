@@ -27,6 +27,37 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### Synthesis fingerprint, persistence, and budgets — 2026-11-15
+
+Internal synthesis (§11.2/§11.3) now records a fingerprint, keeps its items with
+the Novel, and enforces the budget table. Three decisions carry the shape.
+
+- **DP-1 — fingerprint composition.** `synthesisFingerprint` hashes
+  `syn1|<rulesetHash>|<intake>|<novelHash>`, where `novelHash` covers a
+  synthesis-relevant projection (scene, entities, NPCs, lore, the last ten
+  journal entries, scene anchors, factions, secrets, relationships, countdowns,
+  rooms, things) rather than the whole Novel, so narration bookkeeping alone
+  never invalidates synthesis. `intake` is the runtime-observable synthesis
+  configuration (`TTRPG_SYNTHESIS_AUTO_TRIGGER`, `TTRPG_MAX_SYNTHESIS_ITEMS`,
+  `TTRPG_SYNTHESIS_STALE_DAYS`): the E1–E4 intake answers are build-time answers
+  with no runtime representation, and the gap is recorded rather than invented.
+- **DP-2 — the Novel stores internal items only.** The Novel's `synthesis` key
+  holds `fingerprint`, `module_hashes`, `empty`, `collected_at`, and the items
+  whose `source_url` starts `novel://`. Vendor/ruleset content is build output
+  and is never read back from the Novel, so a ruleset bind cannot be shadowed by
+  a stale persisted copy (REQ-080). Hydration rebuilds the build-time tier then
+  re-merges the persisted internal items; it runs whenever the active Novel's
+  `slug|fingerprint` signature changes, which covers a Novel switch, undo/redo,
+  checkpoint restore, and archive import. `DATA_FORMAT` is unchanged: §7.7
+  already declares Synthesis as a Novel property group and the field is additive
+  and defaulted on load.
+- **DP-3 — the smaller cap binds.** A module's effective total cap is
+  `min(§11.3 total, TTRPG_MAX_SYNTHESIS_ITEMS)`. Budgets govern internal
+  synthesis items only — build output is never counted or truncated — and a zero
+  maximum returns `[STATE_CONFLICT]` naming the group before the no-op check
+  (REQ-129c). The precedence is written into §11.3 so the two tables cannot
+  disagree silently.
+
 ### Prompt construction conventions — 2026-11-15
 
 §7.3a states four narrative-freshness conventions as builder-level constraints
