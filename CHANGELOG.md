@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-11-15 — §7.3a prompt-construction record and P60 vocabulary
+
+P60 named an archetype the taxonomy does not define, and nothing could see it:
+the pattern-rule parser read source and target tokens and compared them to
+nothing, while the only coupling row citing P60 is `[non-property]` and exempt
+from archetype matching. P60 now pairs `Session` with `Session`, the token the
+spec's own session-configuration knobs already use, and a validator predicate
+fails on any pattern-rule token outside the vocabulary. The other half of the
+item, §7.3a's builder documentation duty, exposed a clause the server did not
+meet at all — scene-type anchoring had no tone directive — so the narrator
+prompt now carries one under `REQ-598a`, and `holonovel/DECISIONS.md` records
+how each of the four narrative-freshness clauses is satisfied.
+
+- §7.7.0: P60 reads `Session → Session` instead of `Session → Surface`; §7.7.1b
+  states that every pattern-rule archetype token must resolve to the §7.7.0
+  vocabulary or a declared alias, and that an unresolvable token is a spec
+  defect. Appendix F rows T420/T421/T434 assert the new clause.
+- `unresolvedPatternRuleTokens` (`scripts/lib/req-checks.ts`) is called from
+  `checkCouplingCompleteness` (`scripts/validate.ts`) and reports
+  `ERROR: Pattern rule P60 has archetype token "Surface" outside the §7.7.0
+  vocabulary` on the pre-retarget tree — the demonstrated red state — and
+  nothing after it. The helper is self-tested for valid, composite, alias-only,
+  and non-resolving tokens (`scripts/test-req-checks.ts`).
+- `REQ-598a` (Narrator scene tone): the `narrate` prompt carries one tone
+  directive per active scene type among `combat`, `social`, `exploration`, and
+  `neutral`, the neutral directive when no tag is set, and persistence for the
+  scene's duration; a ruleset-extracted type contributes none. `T788` exercises
+  set, unset, persistence, and swap in `test-lean-narrator`, and asserts the
+  prompt stays inside its budget. REQ-598's body was at 795 of its 800
+  characters, so the contract lands in a sibling part rather than rewriting
+  accepted text.
+- `holonovel/DECISIONS.md` gains `Prompt construction conventions — 2026-11-15`:
+  four bullets naming the predicate behind each §7.3a clause. The anti-slop
+  bullet records the server-side half (the Appendix J synopsis as an orientation
+  section, the narration contract in the narrator prompt) and names the
+  "weighted above conversational context" ordering as a host obligation the
+  server cannot observe.
+- Registers: `F-U3-3` and `F-U3-4` move to `Resolved (2026-11-15)`; the ROADMAP
+  P1 section is retired; `req-coverage.md`, the assembled spec, the starter
+  Novel's `data_format`, and `contract-fingerprints.ts` regenerate.
+
 ## 2026-11-15 — Identifier derivation: the two P1 gaps closed under REQ-659
 
 The two identifier rules the spec already stated are now implemented and

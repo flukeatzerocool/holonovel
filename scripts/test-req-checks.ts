@@ -5,7 +5,7 @@
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
 import { checkNewBucketB } from "./lib/req-checks.js";
-import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount } from "./lib/req-checks.js";
+import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount, unresolvedPatternRuleTokens } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings, findDuplicateReqIds, extractReqBodiesWithSentences } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
@@ -628,6 +628,31 @@ test("the sentence issue does not use the soft-band phrase", () => {
   const issues = checkReqSentenceCount(reqs);
   if (issues.some((i) => i.includes("review for splitting"))) {
     throw new Error(`sentence issue would be downgraded to a warning: ${JSON.stringify(issues)}`);
+  }
+});
+
+test("pattern-rule archetype tokens resolve against the vocabulary", () => {
+  const valid = new Set(["Temporal", "Session", "Scene-anchored", "Knowledge-carrying"]);
+  const aliases: Record<string, string[]> = { "NPC Autonomy": ["Entity-bearing"] };
+  const rules = [
+    { rule: "P1", srcTokens: ["Temporal"], tgtTokens: ["Session"] },
+    { rule: "P17", srcTokens: ["Session"], tgtTokens: ["Scene-anchored", "Knowledge-carrying"] },
+    { rule: "P45", srcTokens: ["Session"], tgtTokens: ["NPC Autonomy"] },
+  ];
+  const issues = unresolvedPatternRuleTokens(rules, valid, aliases);
+  if (issues.length !== 0) throw new Error(`valid and composite tokens wrongly flagged: ${JSON.stringify(issues)}`);
+});
+
+test("an archetype token outside the vocabulary fails and names its rule", () => {
+  const valid = new Set(["Temporal", "Session"]);
+  const issues = unresolvedPatternRuleTokens(
+    [{ rule: "P60", srcTokens: ["Session"], tgtTokens: ["Surface"] }],
+    valid,
+    {},
+  );
+  if (issues.length !== 1) throw new Error(`expected one issue, got: ${JSON.stringify(issues)}`);
+  if (issues[0].rule !== "P60" || issues[0].token !== "Surface") {
+    throw new Error(`issue names the wrong rule/token: ${JSON.stringify(issues[0])}`);
   }
 });
 

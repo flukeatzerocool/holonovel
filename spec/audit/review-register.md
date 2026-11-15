@@ -11,6 +11,33 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-15 §7.3a record and P60 vocabulary
+
+The two remaining P1 findings from chunk U3
+(`docs/plans/2026-11-14-unscoped-u3/`), closed by the increment at
+`docs/plans/2026-11-15-prompt-construction-p60-vocabulary/`.
+
+- **F-U3-3 — §7.3a's builder documentation duty is unmet. Resolved
+  (2026-11-15).** Predicate: `spec/04-runtime.md:103-105` requires builders to
+  document prompt construction per clause in `holonovel/DECISIONS.md`, and no
+  such entry existed. The record now sits under `### Prompt construction
+  conventions — 2026-11-15` with one bullet per clause, each naming its
+  `holonovel/src` predicate; the scene-type clause was also unimplemented
+  (no tone directive in `composeNarrationClearance`), so it shipped under
+  `REQ-598a` with `T788`. Row 5.
+- **F-U3-4 — P60's target token is outside the archetype vocabulary. Resolved
+  (2026-11-15).** Predicate: `spec/04-runtime.md:500` read `Session → Surface`,
+  while `scripts/validate.ts:1051` defines twelve archetypes and `:1054-1068`
+  had no `Surface` alias; the citing coupling row is `[non-property]`
+  (`:620`), exempt from archetype matching (`scripts/validate.ts:1181`), and no
+  predicate read pattern tuples, so the drift was invisible. P60 now reads
+  `Session → Session` (the bucket P59 already uses for a session-configuration
+  knob), and `unresolvedPatternRuleTokens` (`scripts/lib/req-checks.ts`) fails
+  `npm run validate` on any token outside the vocabulary or its alias map —
+  demonstrated red on `Surface` before the retarget and green after. §7.7.1b
+  states the duty (`spec/04-runtime.md:649-657`) and T420/T421/T434 assert it.
+  Row 10.
+
 ### 2026-11-14 U3 runtime conventions
 
 Chunk U3 of the unscoped-surface review program
@@ -2716,32 +2743,6 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
   report, and a reinstall serves again. REQ-389c.
 
 ## Scheduled-roadmap
-
-### 2026-11-14 U3 runtime conventions
-
-Four P1 findings from chunk U3
-(`docs/plans/2026-11-14-unscoped-u3/`).
-
-*Resolved 2026-11-15* by the identifier-derivation increment
-(`docs/plans/2026-11-14-identifier-derivation-conformance/`): §7.1's underscore
-marker now strips (`anchors.ts:19-25`) and §7.1a's reserved-stem and 240-character
-rules are implemented under `REQ-659` (`holonovel/src/core/slug.ts`), evidenced by
-`T787` and the extended `T236`.
-
-The two remaining findings are scheduled under `ROADMAP.md` § *§7.3a
-documentation and P60 vocabulary (P1)*.
-
-- **F-U3-3 — §7.3a's builder documentation duty is unmet (2026-11-14).**
-  `spec/04-runtime.md:102-104` requires builders to document prompt
-  construction per clause in `holonovel/DECISIONS.md`; no such entry exists
-  (grep for narrative-output, voice-profile, scene-type, and anti-slop yields
-  only unrelated rows). Row 5.
-- **F-U3-4 — P60's target token is outside the archetype vocabulary
-  (2026-11-14).** `spec/04-runtime.md:499` reads `Session → Surface`;
-  `scripts/validate.ts:1051` defines twelve archetypes and `:1054-1068` has no
-  `Surface` alias. The citing coupling row is `[non-property]` (`:619`), exempt
-  from archetype matching (`scripts/validate.ts:1181`), and no predicate tests
-  pattern tuples, so no gate can catch it. Row 10.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 

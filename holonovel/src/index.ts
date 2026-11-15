@@ -1251,6 +1251,27 @@ const NARRATION_CONTRACT =
 
 // REQ-598 — the narrator prompt. `badge_briefing` stays the human-badge
 // briefing (REQ-220/286); this surface is role-scoped.
+// REQ-598a — scene-type anchoring (§7.3a). The narrator receives a tone
+// directive per active scene type; because the tags are Novel state re-read on
+// every render, the directive persists for the scene's duration without a
+// second stored surface. Scene types outside this table (ruleset-extracted
+// tags) contribute no directive of their own.
+const SCENE_TONE: Record<string, string> = {
+  combat: "danger and momentum — short sentences, physical stakes, no comic relief",
+  social: "interpersonal tension — subtext, posture, and what characters avoid saying",
+  exploration: "discovery — unfamiliar detail, distance, and the cost of moving",
+  neutral: "observational — steady pacing, no dramatic emphasis",
+};
+
+function sceneToneLines(sceneTypes: readonly string[] | undefined): string[] {
+  const active = (sceneTypes ?? []).map((t) => String(t).toLowerCase());
+  const directives = active
+    .map((t) => SCENE_TONE[t])
+    .filter((d): d is string => Boolean(d));
+  const chosen = directives.length > 0 ? directives : [SCENE_TONE.neutral];
+  return [`### Scene tone`, ...chosen.map((d) => `- ${d}`)];
+}
+
 function composeNarrationClearance(novel: NovelState, role: NarrativeRole): string {
   const facts = composeClearedFacts(novel, role);
   const lines: string[] = [
@@ -1258,6 +1279,7 @@ function composeNarrationClearance(novel: NovelState, role: NarrativeRole): stri
     `**Narrative role:** ${role === "game_master" ? "Game Master" : "Player"}`,
     `**Audience:** ${badgeLabel(facts.audience)}`,
     `**Scene:** ${facts.scene || "[no scene set]"}`,
+    ...sceneToneLines(novel.scene_type),
     `### Point of view`,
     facts.pov.mode === "character" && facts.pov.entity_name
       ? `Describe the scene through ${facts.pov.entity_name}'s eyes — what they see, hear, and feel.`

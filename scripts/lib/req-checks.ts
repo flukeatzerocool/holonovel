@@ -555,6 +555,33 @@ export function checkToolTokenDrift(
   return issues;
 }
 
+// REQ-370a — every archetype token a §7.7.0 pattern rule names must resolve.
+// Pattern-rule source/target columns carry archetype tokens only (never
+// property-group names), so the vocabulary and its alias map are the whole
+// resolution set; an unresolvable token makes its rule unmatchable, which is a
+// spec defect rather than a style nit.
+export interface PatternRuleTokens {
+  rule: string;
+  srcTokens: string[];
+  tgtTokens: string[];
+}
+
+export function unresolvedPatternRuleTokens(
+  rules: ReadonlyArray<PatternRuleTokens>,
+  valid: ReadonlySet<string>,
+  aliases: Readonly<Record<string, readonly string[]>>,
+): Array<{ rule: string; token: string }> {
+  const issues: Array<{ rule: string; token: string }> = [];
+  for (const rule of rules) {
+    for (const token of [...rule.srcTokens, ...rule.tgtTokens]) {
+      if (valid.has(token)) continue;
+      if (Object.hasOwn(aliases, token)) continue;
+      issues.push({ rule: rule.rule, token });
+    }
+  }
+  return issues;
+}
+
 // Appendix M's ≤8-sentence rule. The sentence list comes from the shared
 // splitter via `extractReqBodiesWithSentences`, which truncates the body at
 // `*Acceptance criterion:*` — a trailing `_Check:_` stays inside the counted

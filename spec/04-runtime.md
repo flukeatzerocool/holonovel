@@ -497,7 +497,7 @@ fuzzy, or semantic matching.
 | P57 | Session → Narrative-memory | GM narrative directives containing recording keywords toggle automatic story-journal moments — "auto-record moments" enables TTRPG_AUTO_RECORD, "stop auto-recording" disables it | Mechanical | The GM controls what the story remembers |
 | P58 | Session → Guidance | GM narrative directives containing action-quantity keywords adjust the proactive action budget — "more options" raises TTRPG_MAX_AVAILABLE_ACTIONS, "fewer options" lowers it | Mechanical | The GM controls how many choices the story offers |
 | P59 | Session → Session | GM narrative directives containing safety-gate keywords set narration-validation and state-drift enforcement — "validate my narration" enables TTRPG_NARRATION_VALIDATION, "warn on state drift" sets TTRPG_STATE_GATE to warn | Mechanical | The GM tunes the server's safety gates in plain English |
-| P60 | Session → Surface | GM narrative directives containing catalog keywords select TTRPG_SURFACE_PROFILE — "show all tools" selects full, "use a small catalog" selects small | Navigational | The GM controls how much of the tool catalog the narrator sees |
+| P60 | Session → Session | GM narrative directives containing catalog keywords select TTRPG_SURFACE_PROFILE — "show all tools" selects full, "use a small catalog" selects small | Navigational | The GM controls how much of the tool catalog the narrator sees |
 | P61 | Narrative-memory → Narrative-memory | An explicit GM recall (`subjective_recall`) raises that record's score through the reinforcement bonus and resets its decay anchor | Mechanical | The GM decides what the character dwells on |
 
 #### 7.7.1 Cross-property coupling
@@ -648,7 +648,10 @@ archetype-pair instantiation is a meaningful coupling.
 
 `npm run validate` SHALL verify that every pattern rule in §7.7.0 (P1–P61,
 excluding content-source-excluded rules) has at least one coupling row in
-§7.7.1a. A pattern rule with zero coupling rows is a spec defect. A coupling
+§7.7.1a. A pattern rule with zero coupling rows is a spec defect. Every
+archetype token in a pattern rule's source or target column SHALL resolve to an
+archetype the §7.7.0 taxonomy defines or to a declared alias of one; an
+unresolvable token makes its rule unmatchable and is a spec defect. A coupling
 row citing a pattern rule whose source or target archetypes do not match the
 row's property-group archetypes is a spec defect. A coupling row whose
 property-pair column carries the `[non-property]` marker is a single-property

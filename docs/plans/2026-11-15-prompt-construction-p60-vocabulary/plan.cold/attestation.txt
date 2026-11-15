@@ -1,0 +1,18 @@
+# Plan gate attestation
+
+Plan artifact (final, post-cold-pass revision):
+`docs/plans/2026-11-15-prompt-construction-p60-vocabulary/plan.md`
+sha256 `d8127d6666a49d6578d45ebca45f6fa20d5e1d2f11ecfe45b211b50efca0cf41`
+
+Cold review artifact:
+`docs/plans/2026-11-15-prompt-construction-p60-vocabulary/plan.cold/report.md`
+sha256 `9e03c59d3084820fabfcd67d3a68da48a96646c3c495dc5a8e4bde0b0019565d`
+stages 5/5 · reads 40/40 · verdict `independent-review passed.`
+Cold pass reviewed revision `aa702cf0…` (317 lines); the final revision fixes
+the five Majors and nine Minors it raised, each recorded in the report's Fix log.
+
+Tasks artifact:
+`docs/plans/2026-11-15-prompt-construction-p60-vocabulary/tasks.md`
+sha256 `d43ba7164fb7bac7afdb0ebd5a6805f7cb24fd29b3e7b3e76c786dd31844455a`
+
+Gate depth: standard · Review independence: fresh (self pass, then one cold pass)

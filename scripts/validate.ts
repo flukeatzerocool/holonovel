@@ -38,6 +38,7 @@ import {
   checkReqSentenceCount,
   checkIndependentVerificationCoverage,
   checkLicenseSourceParity,
+  unresolvedPatternRuleTokens,
   extractSection,
 } from "./lib/req-checks.js";
 import { walkTsFiles as walkTsFilesRaw } from "./lib/walk.js";
@@ -1160,6 +1161,17 @@ function checkCouplingCompleteness(text: string): string[] {
       }
       if (inPatternTable && !line.startsWith("|") && line.trim().length > 0) break;
     }
+  }
+
+  // REQ-370a — a pattern rule's source/target tokens must name archetypes the
+  // vocabulary defines (or a declared alias), or the rule can never match.
+  const vocabularyIssues = unresolvedPatternRuleTokens(
+    [...patternRuleArchetypes].map(([rule, r]) => ({ rule, srcTokens: r.src, tgtTokens: r.tgt })),
+    VALID_ARCHETYPES,
+    ALIASES,
+  );
+  for (const { rule, token } of vocabularyIssues) {
+    issues.push(`ERROR: Pattern rule ${rule} has archetype token "${token}" outside the §7.7.0 vocabulary`);
   }
 
   const usedRules = new Set<string>();

@@ -553,7 +553,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-595 | Derived witness attribution | 5.32 Perception Ledger | C | T704 | — |
 | REQ-596 | Visibility query | 5.10 World-Model Layer | C | T701, T702 | — |
 | REQ-597 | Audibility query | 5.10 World-Model Layer | C | T703 | — |
-| REQ-598 | Narrator clearance | 5.5 Badges and Access | C | T707, T708, T729 | — |
+| REQ-598 | Narrator clearance (1 sub-part) | 5.5 Badges and Access | C | T707, T708, T729, T788 | — |
 | REQ-599 | Draft visibility scan (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T709, T710, T757 | — |
 | REQ-600 | Visibility audit | 5.5 Badges and Access | C | T711 | — |
 | REQ-601 | Canonical state hash | 5.24 Temporal Event Log and Branching | C | T712 | — |

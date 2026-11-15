@@ -27,6 +27,50 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### Prompt construction conventions — 2026-11-15
+
+§7.3a states four narrative-freshness conventions as builder-level constraints
+and requires the builder to record how its prompt construction satisfies each.
+The reference server satisfies them as follows; each clause names the predicate
+that carries it.
+
+- **AI narrative output is archived, not re-injected.** The narrator prompt is
+  composed from Novel state — `composeClearedFacts` (`src/index.ts:1215-1242`)
+  derives role, audience, point of view, scene text, cleared knowledge, present
+  characters, and GM-only facts — and `composeNarrationClearance`
+  (`src/index.ts:1275-1339`) takes no transcript input, so a previous turn's
+  prose has no path back into the context window. The prose itself is preserved
+  in the audit log (REQ-040) and story journal (REQ-246), which are read as
+  structured entries, not as narration. (REQ-040, REQ-246, REQ-598)
+
+- **Narrative voice profiles are standing directives.** Active
+  `narrative_voices` Wisdom items are filtered by badge visibility and injected
+  as a `### Narrative voices` block in the narrator prompt
+  (`src/index.ts:1327-1335`), capped at three profiles with each description
+  truncated to 320 characters. The profile reaches the AI as a system-level
+  section of the clearance prompt, not as part of a conversational transcript.
+  (REQ-225, REQ-081, REQ-598)
+
+- **Scene-type anchoring.** `sceneToneLines` (`src/index.ts:1266-1273`) maps
+  each active `novel.scene_type` tag to a tone directive and the prompt carries
+  them in a `### Scene tone` section immediately after the scene line; with no
+  tag the neutral directive renders, and a ruleset-extracted type outside the
+  four conventions contributes none. Persistence is structural: the tags are
+  Novel state re-read on every render, so the directive holds for the scene's
+  duration without a second stored surface. (REQ-087, REQ-598a)
+
+- **Anti-slop precedence.** The Appendix J synopsis is rendered through
+  `antiSlopFor` (`src/index.ts:3797-3800`) as a leading orientation section of
+  `badge_briefing` (`src/index.ts:17905-17909`), and the narrator prompt carries
+  the narration contract (`src/index.ts:1299-1300`, flushed at `:1321`) that restates the
+  prose/state separation. The server-side half is therefore an explicit
+  instruction block in both prompts. The clause's "weighted above conversational
+  context" ordering is the host's prompt assembly — the ordering of system
+  sections against a conversation history the server never receives — so it is
+  recorded here as a host obligation the server cannot observe or enforce; the
+  server guarantees that the catalogue arrives as a system-level section
+  whenever the orientation block renders. (REQ-070, REQ-109, REQ-184)
+
 ### Prompt-reference detection and resource presence reporting — 2026-11-14
 
 - **A tool reference is a name on the host verb grammar.** `stale_references`

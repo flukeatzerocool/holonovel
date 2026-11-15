@@ -6,7 +6,7 @@
 // Exit codes: 0 = pass, 1 = failure.
 // Covers REQ-548a (T632), REQ-548b (T633), REQ-548c (T634), REQ-548d (T635),
 // REQ-067d (T636), REQ-114c (T637), REQ-551 (T638), REQ-551a (T639),
-// REQ-412a (T640), and REQ-312e (T641).
+// REQ-412a (T640), REQ-312e (T641), and REQ-598a (T788).
 
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
@@ -176,6 +176,38 @@ async function main(): Promise<void> {
     assert(Array.isArray(sc.grounding.entities), "grounding.entities missing");
   });
   await kill(p2);
+
+  // REQ-598a — scene-type anchoring (§7.3a). The directive follows the scene
+  // tag, is absent for an unrelated tag, and persists across reads because it
+  // is derived from Novel state on every render.
+  const p3 = await boot({ TTRPG_AI_ROLE: "game_master" });
+  await test("REQ-598a T788 scene-type tone directive", async () => {
+    const readNarrate = async (): Promise<string> => {
+      const got = await proto(p3, "prompts/get", { name: "narrate" });
+      return (got.messages ?? []).map((m: any) => m.content?.text ?? "").join("\n");
+    };
+    await call(p3, "manage_novel", { action: "create", name: "Scene Tone" });
+    await call(p3, "set_badge", { badge: "game_master" });
+
+    let text = await readNarrate();
+    assert(text.includes("### Scene tone"), "narrate prompt has no scene-tone section");
+    assert(text.includes("steady pacing"), "neutral tone directive missing with no scene tag");
+
+    await call(p3, "manage_scene", { action: "set", scene_type: ["combat"] });
+    text = await readNarrate();
+    assert(text.includes("danger and momentum"), "combat tone directive missing");
+    assert(!text.includes("interpersonal tension"), "social tone directive leaked into a combat scene");
+    assert(!text.includes("[truncated"), "narrate prompt truncated under the default budget");
+
+    const again = await readNarrate();
+    assert(again.includes("danger and momentum"), "combat tone directive did not persist across reads");
+
+    await call(p3, "manage_scene", { action: "set", scene_type: ["social"] });
+    text = await readNarrate();
+    assert(text.includes("interpersonal tension"), "social tone directive missing");
+    assert(!text.includes("danger and momentum"), "combat tone directive survived the scene change");
+  });
+  await kill(p3);
 
   const decisions = readFileSync(DECISIONS, "utf8");
   await test("REQ-114c T637 tool-selection coverage recorded", async () => { assert(decisions.includes("REQ-114c tool-selection coverage"), "REQ-114c record missing"); });
