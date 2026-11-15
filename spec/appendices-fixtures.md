@@ -1193,7 +1193,10 @@ the same hazardous terrain — the environment drives the clock, not the monster
 
 1. **Tool registration.** `tools/list` SHALL include `lookup_spell("frostbite")` and
    `lookup_monster("ice_wraith")` annotated with supplementary slug. Tool invocation
-   SHALL produce output conforming to REQ-001, REQ-002, REQ-003, and REQ-061.
+   SHALL produce output conforming to REQ-001, REQ-002, REQ-003, and REQ-061. A build
+   that invokes the REQ-372d waiver registers no supplementary tools and satisfies this
+   item through its recorded waiver branch instead; the supplementary Wisdom remains
+   listed either way.
 
 2. **Wisdom coupling.** The GM advice paragraph SHALL extract as
    `supplementary_guidance` with `component_type: countdown` and `component_type: pacing`.

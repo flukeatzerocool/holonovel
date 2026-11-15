@@ -93,7 +93,7 @@ the 2026-11-09 sweep; `seam` = closed by the 2026-11-09 seam pass;
 | U3 | §7, engine-contract remainder, adapter/server code | drift + code | **reviewed 2026-11-14** — 28 rows, 1 P0 fixed, 4 P1 scheduled (`docs/plans/2026-11-14-unscoped-u3/review.md`) |
 | U4 | §8, gate manifest and harnesses, CI | drift + gate coverage | **reviewed 2026-11-15** — 52 rows, 2 P0 fixed, 3 P1 + 2 P2 scheduled (`docs/plans/2026-11-15-unscoped-u4/review.md`) |
 | U5 | §9, §10, Appendix V, publication and cadence | drift + process | **reviewed 2026-11-15** — 46 rows, 8 P0 + 1 P3 fixed (`docs/plans/2026-11-15-unscoped-u5/review.md`) |
-| U6 | §11, Appendices B/C/N/W–Z, fixtures and playability | fixture exercise | **scheduled** |
+| U6 | §11, Appendices B/C/N/W–Z, fixtures and playability | fixture exercise | **reviewed 2026-11-15** — 66 rows, 1 P0 prose fixed, 3 P1 scheduled, 2 process closed (`docs/plans/2026-11-15-unscoped-u6/review.md`) |
 | U7 | Appendices D–L/O–T/U, registries and manifests | catalog comparison | **scheduled** |
 | U8 | repo governance docs, vendored and content assets | drift + code | **scheduled** |
 
@@ -254,8 +254,8 @@ verification contract maps to the review skills in use.
 ## Chunk U6 — synthesis and fixtures
 
 **Prose:** `spec/08-synthesis.md` §11.1–§11.4, `spec/appendices-fixtures.md`
-Appendices B (`:31`), C (`:331`), N (`:385`), W (`:778`), X (`:970`), Y
-(`:1080`), Z (`:1119`).
+fixture coverage matrix (`:1`), Appendices B (`:31`), C (`:331`), N (`:385`),
+W (`:778`), X (`:974`), Y (`:1084`), Z (`:1123`).
 **Assets/code:** `holonovel/scripts/fixtures/*`, `holonovel/testdata/*`,
 `holonovel/scripts/playability.ts`, `holonovel/scripts/holosuite.ts`,
 synthesis harnesses (`test-competitive-gaps.ts`, `test-supplementary.ts`,
@@ -263,9 +263,17 @@ synthesis harnesses (`test-competitive-gaps.ts`, `test-supplementary.ts`,
 **Lens:** fixture ↔ expectation; `playability` as evidence.
 **Already gated:** `playability` (full gate), `check-fixture-emitter`,
 `check-starter-freshness`, `check-vendor-manifest`.
-**Exit evidence:** every appendix fixture is exercised by a named harness or
-recorded `builder-side` with a reason; §11.1–§11.4 each map to a handler or a
-recorded gap.
+**Exit evidence:** 66 rows (`docs/plans/2026-11-15-unscoped-u6/review.md`).
+Every appendix fixture is recorded `builder-side` with its duty named — no
+`tin_lanterns.md`, `weather.md`, `court_intrigue.md`, or `stress_test.md` ships
+in the tree, and the appendices are G2 handoff fixtures — while every harness on
+the fixture surface ran green: `test:playability` (4 Novels), the six
+`test:holosuite-*` tiers (45/25/100/26/3/10 assertions), `test:supplementary`
+(4), `test:competitive-gaps` (30), `test:world-provider` (7), and
+`check-fixture-emitter` (6 files byte-identical). §11.1–§11.4 map to handlers or
+recorded gaps: U6-F3 (fingerprint), U6-F4 (`[LOW]` tag), and U6-F5 (six
+unimplemented internal rules) are `Scheduled-roadmap` under `ROADMAP.md`
+§ *Synthesis-surface gaps (P1)*; U6-F6 repaired Appendix Z.1's waiver conflict.
 
 ## Chunk U7 — reference appendices and registries
 

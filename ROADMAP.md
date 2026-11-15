@@ -27,11 +27,25 @@
   every finding in `spec/audit/review-register.md` with the same P0–P3
   dispositions as the 2026-11-09 sweep.
 
-U5 is next (artifacts, independent verification, cadence, publication), then
-U6–U8.
+U7 is next (reference appendices and registries), then U8.
 
-**Trigger:** the next allocated review session takes U5; each chunk closes when
+**Trigger:** the next allocated review session takes U7; each chunk closes when
 its findings are dispositioned, and this section closes when U8 is `Resolved`.
+
+## Synthesis-surface gaps (P1)
+
+- Implement the synthesis fingerprint: a root hash over the ruleset content hash,
+  the synthesis intake answers, and the Novel state hash, plus per-module hashes,
+  so a re-run against an unchanged fingerprint is a no-op and partial refresh
+  preserves unchanged modules (U6-F3).
+- Render the `[LOW]` provenance tag in `badge_briefing` and in synthesis resource
+  output, and carry it through every badge view (U6-F4).
+- Extend internal synthesis to the remaining category rules — lore templates,
+  narrative voices, adventure advice, factions/secrets, countdowns, rooms/things —
+  and enforce the per-pass and total-Novel caps (U6-F5).
+
+**Trigger:** the next allocated synthesis-surface session; closes when all three
+findings are `Resolved`.
 
 ## Loop-gate fix-up rate re-measurement (P2)
 

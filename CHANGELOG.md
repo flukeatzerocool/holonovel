@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-15 — Synthesis and fixtures: the reserved waiver branch reaches its fixture, and the fingerprint gap is named
+
+Chunk U6 of the unscoped-surface review program reviewed §11 and the fixture
+appendix set: 66 verdict rows covering the fixture coverage matrix, Appendices
+B/C/N/W/X/Y/Z, and nine harnesses. Every harness on the fixture surface ran
+green — playability over 4 Novels, all six Holosuite tiers, the supplementary,
+competitive-gap and world-provider harnesses, and the fixture emitter's
+byte-identical package — and `holonovel/testdata` stayed untouched throughout.
+
+- Appendix Z.1 no longer contradicts the recorded waiver: it states the tool
+  registration a normative build performs *and* the REQ-372d branch the reference
+  build takes, so neither the spec nor `holonovel/DECISIONS.md`'s REQ-373 gap is
+  contradicted.
+- The internal-synthesis gap is named and scheduled rather than left implicit:
+  §11.2's seven source categories and eight rules reach two modules in the
+  reference build, the caps are unenforced, the `synthesis_fingerprint` has no
+  writer, and the `[LOW]` provenance tag is never rendered. `ROADMAP.md` gains
+  § *Synthesis-surface gaps (P1)* with the three findings (U6-F3, U6-F4, U6-F5).
+- The program worklist's U6 entries carried stale appendix anchors and no session
+  record; both are corrected, and the ROADMAP pointer advances to U7.
+- The U5 close-protocol debt is closed: the roadmap pointer half of step 5 was
+  never run, which left "U5 is next" in place after U5 shipped. Both halves now
+  run on every close, and this increment moved the pointer twice.
+- `holonovel/src/generated/g7-attestation.ts` was regenerated again — its
+  `SPEC_HASH` covers the assembled spec, so every spec edit makes it stale.
+
 ## 2026-11-15 — Artifacts and publication: §10 loads the section it executes, and the ledger admits its live run
 
 Chunk U5 of the unscoped-surface review program reviewed §9, §10, Appendix V, and

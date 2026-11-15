@@ -11,6 +11,39 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-15 U6 synthesis and fixtures
+
+Chunk U6 of the unscoped-surface review program
+(`docs/plans/2026-11-15-unscoped-u6/`, 66 verdict rows in `review.md`). The
+runtime half of §11 is largely present and every harness on the fixture surface
+is green; three gaps in the internal-synthesis path are scheduled, and one
+fixture/waiver conflict is repaired. The two process findings close the U5
+close-protocol debt.
+
+- **U6-F1 — the U5 close protocol's ROADMAP half was not run. Resolved
+  (2026-11-15).** Predicate:
+  `docs/plans/2026-11-10-unscoped-surface-review/worklist.md:312-313` makes
+  advancing `ROADMAP.md` step 5 of every chunk close, and `ROADMAP.md:30-31`
+  still read "U5 is next" after U5 closed at `5980ed2` with `LOOP PAUSED`; the
+  register half of step 5 did run (the
+  `## Resolved — 2026-11-15 U5 artifacts and publication` section below). The
+  pointer now names the next chunk, and this increment exercised it twice — into
+  U6 at Phase 0 and into U7 at close.
+- **U6-F2 — the program worklist carried stale appendix anchors. Resolved
+  (2026-11-15).** Predicate: `worklist.md:257-258` gave X `:970`, Y `:1080`, and
+  Z `:1119`, while the appendices begin at
+  `spec/appendices-fixtures.md:974,1084,1123`. The Prose line now carries the
+  appendix anchors.
+- **U6-F6 — Appendix Z.1 stated a tool-registration outcome the recorded waiver
+  forbids. Resolved (2026-11-15).** Predicate:
+  `spec/appendices-fixtures.md:1194-1197` required `tools/list` to include
+  `lookup_spell` and `lookup_monster`, while REQ-372d
+  (`spec/02-requirements.md:3863-3865`) limits a waiving build to Wisdom and
+  `holonovel/DECISIONS.md:1775` records REQ-373 as a terminal builder-scope gap
+  whose branch T424 exercises with no tools registered. Z.1 now names the waiver
+  branch beside the normative expectation, so neither the spec nor the reference
+  build is contradicted.
+
 ### 2026-11-15 §7.3a record and P60 vocabulary
 
 The two remaining P1 findings from chunk U3
@@ -2850,6 +2883,38 @@ stale generated snapshot, and one incomplete layout description. Predicates are
   why. Row 46.
 
 ## Scheduled-roadmap
+
+### 2026-11-15 U6 synthesis and fixtures — internal synthesis gaps
+
+Scheduled under `ROADMAP.md` § *Synthesis-surface gaps (P1)*. Each finding cites
+the predicate that fails; none is repaired here, because each needs behaviour
+change in `holonovel/src`.
+
+- **U6-F3 — the synthesis fingerprint has no writer. Scheduled-roadmap (P1).**
+  Predicate: `spec/08-synthesis.md:43-51,250-258,277-287` require a
+  `synthesis_fingerprint` over the ruleset content hash, the intake answers and
+  the Novel state hash, plus per-module hashes; `grep -rn 'synthesis_fingerprint'
+  holonovel/src` returns no match, `grep -rn 'module_hash\|moduleHash'
+  holonovel/src` returns no match, the only read of a manifest fingerprint is
+  `manifest._fingerprint` (`holonovel/src/core/state.ts:2628`) and nothing
+  writes it, and the re-run guard is the boolean `state.enriched`
+  (`holonovel/src/index.ts:16924-16928`). Rows R3, R15, R18.
+- **U6-F4 — the `[LOW]` presentation tag is never rendered. Scheduled-roadmap
+  (P1).** Predicate: `spec/08-synthesis.md:238-243` requires a visible `[LOW]`
+  tag in the briefing and in synthesis resource output, and `:301-302` requires
+  it in every badge view; `wisdomTag` (`holonovel/src/index.ts:16301-16308`)
+  returns only `[vendor]`/`[ruleset]`/`[player]`/`[supplementary]`, LOW items
+  are sorted last in the resource payload (`:16371`) but carry no tag, and
+  `grep -rn '\[LOW\]' holonovel/src` returns no match. Row R13.
+- **U6-F5 — internal synthesis implements two of eight category rules and
+  enforces no cap. Scheduled-roadmap (P1).** Predicate:
+  `spec/08-synthesis.md:57-69` maps seven source categories and `:70-124` gives
+  eight rules across six modules, with caps at `:198-217`;
+  `mergeNovelDerivedSynthesis` (`holonovel/src/index.ts:16149-16175`) reads
+  entities, NPCs and the last story-journal entry, writes only `voice_examples`
+  and `supplementary_guidance`, and applies no per-pass or total-Novel cap — so
+  the lore-template, narrative-voice, adventure-advice, faction/secret,
+  countdown and rooms/things rules have no predicate. Rows R5, R6, R10.
 
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 
