@@ -386,6 +386,28 @@ Also available separately:
 | `npm run check:conformance -- --dedicated` | Conformance-evidence report: bucket-C REQs whose exercised evidence is entirely shared with other REQs (the REQ-321d false-C class). Report-only — the detector over-flags on the current corpus |
 | `npm run spec-delta -- --base <ref>` | Classify the spec delta against a specific git ref instead of `origin/main` |
 
+## CI-only checks
+
+The `gates` job in `.github/workflows/ci.yml` runs checks the local manifest
+cannot hold. A green `check:fast` therefore does not imply a green CI run, and
+`gate-cost-report` does not see these costs. `check-workflows` reconciles the
+workflow against this table: every `run:` step must be a manifest gate, setup, a
+build tool, or one of the rows below (keyed `<job>/<step name>`).
+
+| Step | Why it is CI-only |
+|---|---|
+| `gates/Shell script lint (entry points)` | `shellcheck` is a local prerequisite the manifest treats as optional; CI installs it unconditionally |
+| `gates/Version consistency + currency (REQ-107a)` | Validates the publish-time version surface, not the working tree contract |
+| `gates/Pending-update gate smoke (REQ-394 / T462)` | Report-only smoke of the publication gate; the blocking form runs in the push pipeline |
+| `gates/Audit root production dependencies` | Requires the npm registry (network), which the manifest forbids |
+| `gates/Audit server production dependencies` | Same audit against the server package |
+| `gates/Packed-artifact smoke (REQ-614)` | Packs and installs the server in an isolated prefix — minutes of work, not a local gate |
+| `container/Build the container image (REQ-428)` | Needs a Docker daemon |
+| `container/Start the host from the image` | Runs the built image |
+
+Setup (`npm ci` ×2) and the build tool (`npm run assemble`) are classified by
+their own class and need no table row.
+
 The implementation-coverage audit runs unconditionally inside every `validate`
 invocation. Two optional flags extend it:
 

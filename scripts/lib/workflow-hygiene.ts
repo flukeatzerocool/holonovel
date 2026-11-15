@@ -100,3 +100,92 @@ export function jobHygiene(rel: string, jobName: string, block: string): string[
 
   return issues;
 }
+
+export interface CiStep {
+  job: string;
+  name: string | null;
+  run: string;
+}
+
+/**
+ * Parse a workflow's `run:` steps with their job and step name. Minimal YAML:
+ * jobs are the two-space keys under `jobs:`, a step starts at a six-space list
+ * item, and a `run: |` block absorbs the following indented lines.
+ */
+export function parseCiSteps(workflowText: string): CiStep[] {
+  const steps: CiStep[] = [];
+  let job = "?";
+  let inJobs = false;
+  let pendingName: string | null = null;
+  let blockStep: CiStep | null = null;
+  let blockIndent = -1;
+
+  for (const line of workflowText.split("\n")) {
+    if (/^jobs:\s*$/.test(line)) { inJobs = true; continue; }
+    if (/^\S/.test(line)) { inJobs = false; blockStep = null; blockIndent = -1; continue; }
+    if (!inJobs) continue;
+    if (blockStep) {
+      const indent = line.length - line.trimStart().length;
+      if (line.trim() === "" || indent > blockIndent) {
+        if (line.trim() !== "") blockStep.run += `\n${line.trim()}`;
+        continue;
+      }
+      blockStep = null;
+      blockIndent = -1;
+    }
+    const jobMatch = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/);
+    if (jobMatch) { job = jobMatch[1]!; pendingName = null; continue; }
+    const item = line.match(/^ {6}- (name|uses|run):\s*(.*)$/);
+    if (item) {
+      const [, field, value] = item;
+      pendingName = field === "name" ? value!.trim() : null;
+      if (field === "run") {
+        const step: CiStep = { job, name: null, run: value!.trim() };
+        steps.push(step);
+        if (value!.trim() === "|" || value!.trim() === ">") { step.run = ""; blockStep = step; blockIndent = 6; }
+      }
+      continue;
+    }
+    const cont = line.match(/^ {8}(name|run):\s*(.*)$/);
+    if (cont) {
+      if (cont[1] === "name") { pendingName = cont[2]!.trim(); continue; }
+      const step: CiStep = { job, name: pendingName, run: cont[2]!.trim() };
+      steps.push(step);
+      if (step.run === "|" || step.run === ">") { step.run = ""; blockStep = step; blockIndent = 8; }
+    }
+  }
+  return steps.filter((s) => s.run !== "");
+}
+
+/**
+ * Reconcile every `run:` step against the manifest, setup/build-tool classes,
+ * and the AGENTS.md CI-only table. Returns findings for an unclassified step or
+ * a stale table row; an empty array means the split is documented and current.
+ */
+export function reconcileCiSteps(
+  workflowText: string,
+  agentsText: string,
+  manifestCommands: ReadonlySet<string>,
+): string[] {
+  const issues: string[] = [];
+  const section = agentsText.slice(agentsText.indexOf("## CI-only checks"));
+  const documented = new Set<string>();
+  for (const line of section.split("\n")) {
+    const m = line.match(/^\|\s*`([^`]+)`\s*\|/);
+    if (m) documented.add(m[1]!);
+  }
+  const seen = new Set<string>();
+  for (const step of parseCiSteps(workflowText)) {
+    const key = `${step.job}/${step.name ?? step.run}`;
+    seen.add(key);
+    if (/^npm ci\b/.test(step.run) || /^npm run assemble\b/.test(step.run)) continue;
+    if (/^npm run check(?::fast)?$/.test(step.run)) continue; // the manifest runners
+    if (manifestCommands.has(step.run)) continue;
+    if (documented.has(key)) continue;
+    issues.push(`.github/workflows/ci.yml: step '${key}' runs '${step.run}' outside the gate manifest and is not in AGENTS.md § CI-only checks`);
+  }
+  for (const key of documented) {
+    if (!seen.has(key)) issues.push(`AGENTS.md § CI-only checks names '${key}' but no ci.yml step matches it`);
+  }
+  return issues;
+}

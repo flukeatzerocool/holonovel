@@ -87,6 +87,23 @@ async function main() {
     assertContains(decisions, "smoke-session");
   });
 
+  // T396 — the block carries §8's evidence-record fields, so the attestation is
+  // a run record rather than a claim.
+  await test("T396: the narrative_coherence block carries §8's six fields", () => {
+    const decisions = readFileSync(DECISIONS_PATH, "utf-8");
+    const start = decisions.indexOf("#### narrative_coherence (G7)");
+    if (start === -1) throw new Error("narrative_coherence block not found");
+    const rest = decisions.slice(start);
+    const end = rest.search(/\n#{3,4} /);
+    const block = end === -1 ? rest : rest.slice(0, end);
+    for (const field of ["**Workflow**", "**Timestamp**", "**Environment pins**", "**Commands and output**", "**Pass/fail**", "**Findings**"]) {
+      assertContains(block, field);
+    }
+    for (const point of ["(a)", "(b)", "(c)"]) assertContains(block, point);
+    assertContains(block, "g7:start");
+    assertContains(block, "| §5.12 REQ | Parent | Disposition |");
+  });
+
   // T403 — G7 gate: spec_health.narrative_coherence reports pass/partial/fail.
   {
     const proc = await boot();

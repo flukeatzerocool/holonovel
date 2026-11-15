@@ -2376,6 +2376,12 @@ bound ruleset), so there are no source ruleset sections to re-classify. Recorded
 
 @section evidence
 
+- **Workflow** — G7 narrative-coherence attestation (§8, §10 evidence record).
+- **Timestamp** — 2026-11-15T08:55Z (session close).
+- **Environment pins** — Node 24.x, Linux x86-64, MCP protocol `2024-11-05`, ruleset-free reference build.
+- **Commands and output** — `npm --prefix holonovel run test:all` → 56 passed, 0 failed (188.7 s); `npm run check:fast` → 44 passed, 0 failed; `npm run check-g7-attestation` → current.
+- **Pass/fail** — pass.
+- **Findings** — no blocking finding. The generated enumeration below is the per-body disposition; the two builder-side bodies (REQ-346a1/a2) are attested here rather than counted as server contracts.
 - **(a) implementation status** — 82 of 82 server-side §5.12 REQ bodies `converged`/evidenced (bucket C, harnesses `test-narrative.ts` + `test-g7.ts`). The two builder-side attestation bodies (REQ-346a1/a2) are recorded by this block rather than counted as server contracts; the per-body disposition is generated below from §5.12 and the coverage register.
 - **(b) badge_briefing population** — the briefing renders `Beat:`, narrative threads (pacing signal, unresolved decisions, bonds, countdowns, dispositions, coupling advisories), `Story beats`, `World in Motion`, `Knowledge state`, spatial surface, and observer orientation.
 - **(c) smoke-session transcript** — the `holonovel/scripts/test-narrative.ts` harness exercises a 5+ turn cooperative-play sequence across beats, autonomy, world couplings, voice feedback, and coupled lore; results recorded in `spec/audit/req-coverage.md` (§5.12 rows, bucket C).

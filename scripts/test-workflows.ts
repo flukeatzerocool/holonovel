@@ -11,7 +11,7 @@
  * Exit codes: 0 = every case passed, 1 = a case failed, 2 = fatal.
  */
 import { handleHelp, rejectUnknown } from "./lib/args.js";
-import { jobHygiene, parseActionPin } from "./lib/workflow-hygiene.js";
+import { jobHygiene, parseActionPin, parseCiSteps, reconcileCiSteps } from "./lib/workflow-hygiene.js";
 
 const USAGE = `Usage: npx tsx scripts/test-workflows.ts
 
@@ -87,6 +87,43 @@ function main(): void {
 
   const noGate = ["  docs:", "    steps:", "      - run: echo hi"].join("\n");
   check(jobHygiene("ci.yml", "docs", noGate).length === 0, "a job without a gate is not checked");
+
+  // ── CI/manifest reconciliation ──
+  const wf = [
+    "jobs:",
+    "  gates:",
+    "    steps:",
+    "      - uses: actions/checkout@abc",
+    "      - run: npm ci",
+    "      - name: Full gate",
+    "        run: npm run check",
+    "      - name: Lint",
+    "        run: npm run lint",
+    "      - name: Audit",
+    "        run: npm audit --omit=dev",
+    "  container:",
+    "    steps:",
+    "      - name: Build",
+    "        run: docker build -t x .",
+  ].join("\n");
+  const agents = [
+    "## CI-only checks",
+    "",
+    "| Step | Why |",
+    "|---|---|",
+    "| `gates/Audit` | network |",
+    "| `container/Build` | daemon |",
+  ].join("\n");
+  const manifest = new Set(["npm run lint"]);
+  const steps = parseCiSteps(wf);
+  check(steps.length === 5, "parseCiSteps finds each run: step with its job");
+  check(steps[0]!.run === "npm ci" && steps[0]!.job === "gates", "parseCiSteps keeps an unnamed step");
+  check(steps[2]!.name === "Lint" && steps[2]!.run === "npm run lint", "parseCiSteps pairs a name with its run");
+  check(reconcileCiSteps(wf, agents, manifest).length === 0, "a classified workflow reports nothing");
+  const stale = agents.replace("| `container/Build` | daemon |", "");
+  check(reconcileCiSteps(wf, stale, manifest).length === 1, "an undocumented step is reported");
+  const staleRow = reconcileCiSteps(wf, agents + "\n| `gates/Gone` | stale |", manifest);
+  check(staleRow.length === 1 && staleRow[0]!.includes("no ci.yml step matches"), "a stale table row is reported");
 
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

@@ -11,15 +11,22 @@
  * (REQ-428). The two Node-runtime actions must be pinned to a full commit SHA
  * with a `# vN` comment; a mutable major ref is a regression.
  *
+ * It also reconciles every `run:` step in ci.yml against the gate manifest, the
+ * setup/build-tool classes, and the `AGENTS.md` CI-only table, so an unclassified
+ * CI step (or a stale table row) fails here rather than being discovered as a
+ * green-local/red-CI split.
+ *
  * Usage: npx tsx scripts/check-workflows.ts [--help]
  *
  * Exit codes: 0 = all checks pass, 1 = one or more violations, 2 = unexpected
  * fatal error.
  */
 import { readdirSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { handleHelp } from "./lib/args.js";
-import { jobHygiene, parseActionPin } from "./lib/workflow-hygiene.js";
+import { jobHygiene, parseActionPin, reconcileCiSteps } from "./lib/workflow-hygiene.js";
+import { GATES } from "./lib/gate-manifest.js";
 
 const USAGE = `Usage: npx tsx scripts/check-workflows.ts [--help]
 
@@ -180,6 +187,15 @@ if (files.length === 0) {
   issues.push("no workflow files found under .github/workflows/");
 }
 for (const file of files) checkFile(file);
+
+// Every ci.yml step must be manifest-backed, setup, a build tool, or listed in
+// AGENTS.md § CI-only checks: a green local gate then implies a classified CI.
+const manifestCommands = new Set<string>();
+for (const gate of GATES) for (const cmd of [...(gate.fast ?? []), ...gate.full]) manifestCommands.add(cmd);
+const ciPath = join(workflowsDir, "ci.yml");
+if (existsSync(ciPath)) {
+  issues.push(...reconcileCiSteps(readFileSync(ciPath, "utf-8"), readFileSync(join(root, "AGENTS.md"), "utf-8"), manifestCommands));
+}
 
 if (issues.length > 0) {
   for (const issue of issues) console.error(`FAIL: ${issue}`);
