@@ -2786,43 +2786,6 @@ finding in this class (F-U4-7, the CI↔manifest split) stays scheduled.
 
 ## Scheduled-roadmap
 
-### 2026-11-15 U4 verification workflows
-
-Findings from chunk U4 (`docs/plans/2026-11-15-unscoped-u4/review.md`). Each
-cites the predicate that carries it. Scheduled under `ROADMAP.md` §
-*Verification-surface reachability (P1)*, § *G7 attestation predicate (P1)*, and
-§ *Verification evidence record and the CI-manifest split (P2)*.
-
-- **F-U4-5 — G7's attestation cannot fail (2026-11-15):** `SECTION_512_REQS`
-  lists 31 base families and `G7_ATTESTATION_RECORDED = true`
-  (`holonovel/src/index.ts:375-385`), and the disposition is `pass` whenever the
-  counts match (`:15392`), while §5.12 carries 84 REQ bodies
-  (`spec/02-requirements.md:3566-3813`). An attestation that cannot report `fail`
-  is not evidence for REQ-346. Scheduled under *G7 attestation predicate (P1)*.
-- **F-U4-1 — the G7 evidence record omits the §8 contract fields (2026-11-15):**
-  `spec/05-verification.md:3-6` requires workflow name, timestamp, environment
-  pins, commands and output, pass/fail, and findings; the only
-  `@section evidence` block (`holonovel/DECISIONS.md:2377`) carries three
-  lettered attestations and a `spec_health` bullet. Scheduled under *Verification
-  evidence record and the CI-manifest split (P2)*.
-- **F-U4-7 — CI runs 15 commands the manifest does not hold (2026-11-15):** the
-  nine verification steps in `.github/workflows/ci.yml:18-47` hold 16 commands,
-  one of which (`check:starter-freshness`) is a manifest gate; the other 15 are
-  outside it, so a green `check:fast` does not imply a green CI and
-  `scripts/gate-cost-report.ts` cannot see their cost. Scheduled under
-  *Verification evidence record and the CI-manifest split (P2)*.
-
-### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
-
-- **F-P8-2 — duplicate test IDs shadow coverage resolution (2026-11-09):**
-  `T408` titles three different assertions (`test-narrative.ts:767`,
-  `test-backfill.ts:722`, `test-limits.ts:403`) and `T409`–`T412` are each
-  titled twice (`test-narrative.ts:774-813`, `test-backfill.ts:731-821`), so a
-  token-presence match can evidence a REQ with an unrelated test. REQ-073,
-  REQ-075, REQ-077, REQ-083, REQ-233, REQ-236, REQ-246, REQ-289, REQ-357,
-  REQ-358, REQ-359, REQ-360, REQ-361. Scheduled under Harness test-ID label
-  hygiene.
-
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 
 Probe status: the 2026-11-09 assertion-repair session ran the Appendix F rows
@@ -2842,15 +2805,6 @@ The three citation findings F-P2-1, F-P2-2, and F-P2-3 are `Resolved`
 depth findings F-P2-5 and F-P2-6 are also `Resolved` (2026-11-14) — see the
 §5.3 prompt-health depth entry. The chunk's remaining scheduled item is F-P2-4
 below.
-
-- **F-P2-4 — zero-padded harness test IDs shadow real catalogue IDs
-  (scheduled):** `holonovel/scripts/test-backfill.ts:157` (`T5/T020`),
-  `:164` (`T16/T022`), and `:802` (`T176/T177/T178/T002`) use tokens that do
-  not exist in Appendix F. A naive literal-match resolution treats `T022` as
-  T22 and records REQ-023b as covered when it is not; the same shadowing
-  applies to any REQ citing T20/T2. Fix is to enumerate the padded tokens,
-  correct them to the IDs the assertions actually implement, and re-run the
-  coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
 
 
 ## Closed-P3 (recorded, no action)

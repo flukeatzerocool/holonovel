@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-11-15 — Roadmap clearance: the G7 disposition is derived, harness IDs resolve, and CI is classified
+
+Four of the six open roadmap items closed in one increment, and the two that
+cannot close yet were re-confirmed rather than silently dropped: the
+unscoped-surface review sweep (U5–U8, its own increment) and the loop-gate
+re-measurement (date-gated to 2026-11-28). The two P1/P2 honesty defects — a G7
+disposition that could never fail and harness titles citing IDs the catalogue
+does not hold — were the ones worth fixing first.
+
+- `spec_health.narrative_coherence` is derived: `generate-g7-attestation.ts`
+  reads all 84 §5.12 bodies from the spec and the attested parents from the
+  coverage register, emits the generated module and the per-body table in
+  `DECISIONS.md`, and gates freshness. Runtime parses §5.12 from the shipped spec
+  and compares hashes, so `partial` and `fail` are reachable; T403 proves `pass`,
+  `partial`, `fail`, and `partial/stale`.
+- The G7 evidence block now carries §8's six fields, and the CI↔manifest split is
+  documented in `AGENTS.md` and enforced by `check-workflows` over every `run:`
+  step in `ci.yml`.
+- Harness titles resolve: 21 zero-padded IDs corrected or dropped, five orphan
+  IDs mapped, and the `T408`–`T412` collisions re-labelled to the rows their
+  assertions implement. A new validator rule rejects a padded or unresolved ID;
+  Appendix F states the suffix and no-padding conventions.
+- The anchor fix mode is now strict: `refresh-predicates --check` fails on drift
+  and names `npm run fix-anchors`; the resolver refuses an ambiguous symbol
+  rather than guessing. Replayed at `acf7489^`: 23 drifts → repaired → current.
+- `ROADMAP.md` drops the four closed sections; the five register findings that
+  tracked them (F-U4-1, F-U4-5, F-U4-7, F-P8-2, F-P2-4) move to `Resolved` with
+  their evidence. `test:all` 56/56, `check:fast` 45/45.
+
 ## 2026-11-15 — Verification-surface reachability: the server suite and two orphan harnesses now run
 
 `test:all` was green at the last close and red again at HEAD — 49 of 56 commands
