@@ -54,7 +54,7 @@ import { canAccess, deixisOf, excerptOf, nextDocumentId, nextConsumptionId, CONS
 import { parseCof } from "./core/cof.js";
 import { buildIndex, rank, fingerprintItems, allowedScopesFor, type IndexSourceItem, type SemanticIndex, type SemanticRelation } from "./core/semantic.js";
 import { projectGraph, visibleGraph, fingerprintGraph, type GraphSourceSet, type KnowledgeGraph, type GraphScope } from "./core/graph.js";
-import { dedupeRelationships, isRelationshipInvolving, relationshipEdgesFor, relationshipEndpoints, relationshipLines, relationshipPairKey, relationshipTokenPairKey, resolveRelationshipParty } from "./core/relationships.js";
+import { dedupeRelationships, isRelationshipInvolving, relationshipEdgesFor, relationshipEndpoints, relationshipLines, relationshipPairKey, relationshipTokenPairKey, resolveRelationshipParty, secretRelationshipRecommendations } from "./core/relationships.js";
 import { transition as agentTransition, recordAction, nextTaskId, isTerminal, isMutable, AUTONOMY_LEVELS, type AgentTask, type AgentAutonomy, type AgentTaskStatus } from "./core/agent.js";
 import { nextPerceptionId, PERCEPTION_KINDS, type PerceptionRecord, type PerceptionKind, type WitnessKind, type PerceptionSense } from "./core/perception.js";
 // REQ-623–REQ-628 — subjective memory: what an entity remembers, GM-only.
@@ -17828,6 +17828,15 @@ const BRIEFING_SECTIONS: BriefingSection[] = [
       if (pacing) threadLines.push(pacing);
       // REQ-236b — relationship-change markers for the current scene.
       threadLines.push(...relationshipMarkerLines(c.novel, c.badge, c.entity?.id));
+      // REQ-234b/REQ-234c/REQ-234d — secret-implied relationship recommendations
+      // are Game Master guidance only. The section also renders for the Observer,
+      // so this is an explicit badge check rather than the section's `!player`
+      // guard.
+      if (c.badge === "game_master") {
+        for (const rec of secretRelationshipRecommendations(c.novel)) {
+          threadLines.push(`Relationship suggestion: consider a ${rec.type} relationship between ${rec.holder_name} and ${rec.target_name} (implicated by secret '${rec.secret_key}').`);
+        }
+      }
       // REQ-109c3/REQ-246 — story-journal navigation is GM/observer guidance.
       if (!player) {
         const unresolvedDecisions = c.novel.story_journal.filter((s: any) => s.type === "decision" && !c.novel.story_journal.some((x: any) => x.type === "consequence" && x.scene_anchor === s.scene_anchor));

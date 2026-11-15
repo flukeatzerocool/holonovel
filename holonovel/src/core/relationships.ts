@@ -8,7 +8,7 @@
 // unresolved token falls back to a normalized raw match (the test fixtures use
 // ad-hoc labels such as "a" and "b" that are not registered parties).
 //
-// REQ-236a, REQ-286, REQ-512.
+// REQ-234b, REQ-234d, REQ-236a, REQ-286, REQ-512.
 
 import type { NovelState, Relationship } from "./state.js";
 
@@ -117,4 +117,106 @@ export function relationshipLines(novel: NovelState, token: unknown): string[] {
       const { a, b } = relationshipEndpoints(novel, rel);
       return `${a.name} -> ${b.name} (${rel.type})`;
     });
+}
+
+// REQ-234b/REQ-234d — a secret that implicates another party recommends a
+// relationship. The recommendation is derived on every read: it is a function
+// of the secret store, the registered party names, and the existing rows, so
+// nothing new is persisted and clone/checkpoint/archive stay unchanged. The
+// server never writes the edge; the GM applies it with
+// manage_relationship (action: set), after which the recommendation disappears.
+export interface SecretRelationshipRecommendation {
+  type: "suspicious" | "rival";
+  holder_id: string;
+  holder_name: string;
+  target_id: string;
+  target_name: string;
+  secret_key: string;
+}
+
+interface NamedParty {
+  id: string;
+  name: string;
+  kind: "entity" | "npc" | "faction";
+}
+
+// Entity, NPC, and faction names, deduped by id in resolution order, so an
+// entity/faction id collision behaves as it does everywhere else (entities win).
+function registeredParties(novel: NovelState): NamedParty[] {
+  const parties: NamedParty[] = [];
+  const seen = new Set<string>();
+  const push = (id: string, name: string, kind: NamedParty["kind"]): void => {
+    if (!id || !name || seen.has(id)) return;
+    seen.add(id);
+    parties.push({ id, name, kind });
+  };
+  for (const entity of novel.entities.values()) push(entity.id, entity.name, "entity");
+  for (const npc of novel.npcs.values()) push(npc.id, npc.name, "npc");
+  for (const faction of novel.factions) push(faction.id, faction.name, "faction");
+  return parties;
+}
+
+// REQ-234b — "name overlap" is an exact, case-insensitive match bounded by
+// non-alphanumeric characters. No substring, stemming, or semantic matching.
+function namesPartyInText(text: string, name: string): boolean {
+  const needle = name.trim().toLowerCase();
+  if (!needle) return false;
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${escaped}($|[^\\p{L}\\p{N}])`, "u").test(text.toLowerCase());
+}
+
+// Existing rows keyed by unordered resolved pair and type. The stored pair key
+// is order-sensitive (relationshipTokenPairKey), so sorting the two ids makes a
+// reverse-direction set suppress exactly like a forward one.
+function existingRelationshipKeys(novel: NovelState): Set<string> {
+  const keys = new Set<string>();
+  for (const rel of dedupeRelationships(novel)) {
+    const a = resolveRelationshipParty(novel, rel.entity_a);
+    const b = resolveRelationshipParty(novel, rel.entity_b);
+    if (!a || !b) continue;
+    const [left, right] = [a.id, b.id].sort();
+    keys.add(`${left}\u0000${right}\u0000${rel.type}`);
+  }
+  return keys;
+}
+
+/**
+ * Recommendations implied by the Novel's secrets (REQ-234b, REQ-234d).
+ *
+ * A faction holder's secret naming another faction recommends `rival`
+ * (REQ-234d). Every other combination recommends `suspicious` (REQ-234b),
+ * including a faction holder whose secret names an entity or NPC. One
+ * recommendation per (holder, target, type); the first secret in store order
+ * supplies the key, so the output is deterministic.
+ */
+export function secretRelationshipRecommendations(novel: NovelState): SecretRelationshipRecommendation[] {
+  const parties = registeredParties(novel);
+  const byId = new Map(parties.map((party) => [party.id, party]));
+  const existing = existingRelationshipKeys(novel);
+  const emitted = new Set<string>();
+  const recommendations: SecretRelationshipRecommendation[] = [];
+  for (const secret of novel.secrets) {
+    for (const holderId of secret.known_by) {
+      const holder = byId.get(holderId);
+      if (!holder) continue;
+      for (const target of parties) {
+        if (target.id === holder.id) continue;
+        if (!namesPartyInText(secret.content, target.name)) continue;
+        const type = holder.kind === "faction" && target.kind === "faction" ? "rival" : "suspicious";
+        const [left, right] = [holder.id, target.id].sort();
+        const key = `${left}\u0000${right}\u0000${type}`;
+        if (existing.has(key) || emitted.has(key)) continue;
+        emitted.add(key);
+        recommendations.push({
+          type,
+          holder_id: holder.id,
+          holder_name: holder.name,
+          target_id: target.id,
+          target_name: target.name,
+          secret_key: secret.key,
+        });
+      }
+    }
+  }
+  return recommendations;
 }

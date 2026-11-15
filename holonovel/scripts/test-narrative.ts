@@ -1209,6 +1209,15 @@ async function main() {
       const badHolder = await call(proc, "manage_lore", { action: "set_secret", key: "orphan_secret", content: "x", known_by: ["faction_that_does_not_exist"] });
       assertContains(badHolder, "[NOT_FOUND]");
       assertContains(badHolder, "faction_that_does_not_exist");
+
+      // REQ-234b/REQ-234d — a secret that names another party recommends a
+      // relationship in the Game Master briefing, and never in the Player's.
+      const probe = await call(proc, "manage_lore", { action: "set_secret", key: "probe_implication", content: "The Ash Guild paid the Grey Court.", known_by: [ashId] });
+      assertContains(probe, "created");
+      assertContains(await briefing(proc), "Relationship suggestion:");
+      await call(proc, "set_badge", { badge: "player" });
+      assertNotContains(await briefing(proc), "Relationship suggestion:");
+      await call(proc, "set_badge", { badge: "game_master" });
     });
 
     await kill(proc);
