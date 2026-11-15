@@ -5,8 +5,8 @@
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
 import { checkNewBucketB } from "./lib/req-checks.js";
-import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift } from "./lib/req-checks.js";
-import { extractReferenceProse, extractActionBindings, findDuplicateReqIds } from "./lib/parse-spec.js";
+import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount } from "./lib/req-checks.js";
+import { extractReferenceProse, extractActionBindings, findDuplicateReqIds, extractReqBodiesWithSentences } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
 import { parseFindings, checkReviewFindings, checkProofreadDispositions } from "./lib/register-checks.js";
 
@@ -589,6 +589,46 @@ test("checkToolTokenDrift honours the allowlist", () => {
   const bodies = [{ id: "REQ-914", body: "The `command` tool resolves spatial intent." }];
   const issues = checkToolTokenDrift(bodies, new Set(["REQ-914"]));
   if (issues.length !== 0) throw new Error(`allowlisted body flagged: ${JSON.stringify(issues)}`);
+});
+
+// ─── REQ sentence-count predicate (REQ shape, F-U1-3) ──────────────────
+
+function sentenceFixture(id: string, count: number, acSentences = 0): string {
+  const sentences = Array.from({ length: count }, (_, i) => `Clause ${i + 1} holds.`);
+  const lines = [`**${id} — Fixture body (Part a).**`, sentences.join(" ")];
+  if (acSentences > 0) {
+    const ac = Array.from({ length: acSentences }, (_, i) => `Check ${i + 1} passes.`).join(" ");
+    lines.push(`*Acceptance criterion:* ${ac}`);
+  }
+  return lines.join("\n");
+}
+
+test("nine counted sentences are flagged", () => {
+  const reqs = extractReqBodiesWithSentences(sentenceFixture("REQ-915", 9));
+  const issues = checkReqSentenceCount(reqs);
+  if (!issues.some((i) => i.includes("REQ-915"))) {
+    throw new Error(`expected REQ-915 flagged; got ${JSON.stringify(issues)}`);
+  }
+});
+
+test("eight counted sentences pass", () => {
+  const reqs = extractReqBodiesWithSentences(sentenceFixture("REQ-916", 8));
+  const issues = checkReqSentenceCount(reqs);
+  if (issues.length !== 0) throw new Error(`REQ-916 wrongly flagged: ${JSON.stringify(issues)}`);
+});
+
+test("acceptance-criterion sentences are not counted", () => {
+  const reqs = extractReqBodiesWithSentences(sentenceFixture("REQ-917", 8, 3));
+  const issues = checkReqSentenceCount(reqs);
+  if (issues.length !== 0) throw new Error(`REQ-917 wrongly flagged: ${JSON.stringify(issues)}`);
+});
+
+test("the sentence issue does not use the soft-band phrase", () => {
+  const reqs = extractReqBodiesWithSentences(sentenceFixture("REQ-918", 9));
+  const issues = checkReqSentenceCount(reqs);
+  if (issues.some((i) => i.includes("review for splitting"))) {
+    throw new Error(`sentence issue would be downgraded to a warning: ${JSON.stringify(issues)}`);
+  }
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

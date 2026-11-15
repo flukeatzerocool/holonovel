@@ -14,9 +14,10 @@ condition — not a gate's emitted message; a message alone is not evidence.
 ### 2026-11-14 U1 foundations and constitution
 
 Chunk U1 of the unscoped-surface review program
-(`docs/plans/2026-11-14-unscoped-u1/`, 80 verdict rows in `review.md`). Three
-findings were demonstrated prose defects and are fixed here; the enforcement
-checks they cited all exist.
+(`docs/plans/2026-11-14-unscoped-u1/`, 80 verdict rows in `review.md`). Four
+findings were demonstrated prose defects and are fixed here; F-U1-3's
+enforcement gap closed in the 2026-11-14 sentence-count increment, and the
+enforcement checks the others cited all exist.
 
 - **F-U1-1 — Appendix M called `action-conflicts` report-only. Resolved
   (2026-11-14).** Predicate: `scripts/lib/gate-manifest.ts:262-265` runs
@@ -38,6 +39,18 @@ checks they cited all exist.
   multi-contract"; `:2245` downgrades the first band to a warning even under
   `--sdd-strict`, so only >12 errors. Appendix M (`:2947`, `:2960-2963`) now
   states both bands. Row 64.
+- **F-U1-3 — the ≤8-sentence rule was stated as mechanically enforced but was
+  never counted. Resolved (2026-11-14, sentence-count increment).** Predicate:
+  `checkReqSentenceCount` (`scripts/lib/req-checks.ts`), called from
+  `checkReqShape` (`scripts/validate.ts:257`), errors under `--sdd-strict` when
+  the shared-splitter count (`scripts/lib/parse-spec.ts:188-200`) exceeds eight;
+  no predicate read that count before the change. Appendix M (`:2949`, `:2867`)
+  and `AGENTS.md:173-174` now name the counted region — the body truncated at
+  `*Acceptance criterion:*`, a trailing `_Check:_` inside the count. The seven
+  over-limit bodies (REQ-072c1, REQ-078c2, REQ-096d1, REQ-200, REQ-232a,
+  REQ-246b1, REQ-318a) were compressed to eight sentences, all ≤800 characters.
+  Verified by `scripts/test-req-checks.ts` (nine-sentence error, eight-sentence
+  pass, acceptance-criterion exclusion, no soft-band phrase). Rows 54 and 63.
 
 ### 2026-11-14 briefing section ordering
 
@@ -2611,20 +2624,35 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
   now asserts the GM list, the Player filtered list, and the empty-state marker.
   Closed under `ROADMAP.md` § *Player narrative threads (P1)*.
 
+### 2026-11-14 §5.3 prompt-health and resource-presence depth
+
+- **F-P2-5 — prompt-health stale references and live resource-URI presence were
+  unimplemented. Resolved (2026-11-14).** Predicate was `spec_health` emitting
+  `stale_references: []` for every host and package prompt and building
+  `resource_uris` from the static `REQ022_URI_CATALOG`, so REQ-138a/b's
+  stale-reference lifecycle and REQ-139's registration clause had no
+  implementation. `prompt_health` now renders each host prompt through one
+  renderer (`renderHostPromptText`), reports `presence`, the served `length` and
+  `within`, and scans the source text for unregistered tool and resource
+  references; `resource_uris` is drawn from the REQ-022 catalog, the installed
+  packages' declared resources, and the live fixed and template maps, with
+  `resource_count` counting present entries. T152 and T153 assert both
+  lifecycles, including a declared-but-unregistered URI reporting `absent` and
+  a Novel's user-authored text not being read as a reference. REQ-138a,
+  REQ-138b, REQ-139.
+- **F-P2-6 — a removed package's tools remained in `tools/list`. Resolved
+  (2026-11-14).** Predicate was the live listing applying hidden-alias and
+  badge filters only while `registeredToolDefinitions` alone applied
+  `packageToolVisible`, so a removed package's tools still listed and were
+  refused only at dispatch. The served catalog and the warm cache now share
+  `canonicalToolCatalog` (hidden aliases + uninstalled packages out),
+  `visibleToolCount` applies the same predicate, `registrationFingerprint`
+  includes the install set, and removal emits `tools/list_changed`. Package
+  resources are deregistered through the SDK handle. T453 asserts the removed
+  tool leaves `tools/list(scope=all)` and `tool_count`, the resource leaves the
+  report, and a reinstall serves again. REQ-389c.
+
 ## Scheduled-roadmap
-
-### 2026-11-14 U1 foundations and constitution
-
-- **F-U1-3 — the ≤8-sentence rule is stated as mechanically enforced but has
-  no predicate (2026-11-14).** Predicate: `checkReqShape`
-  (`scripts/validate.ts:223-263`) reads only `body`; the `sentences` that
-  `extractReqBodiesWithSentences` supplies are never counted. Appendix M lists
-  the limit among the rules "mechanically enforced at commit time"
-  (`spec/appendices-reference.md:2946`) and AGENTS.md repeats it. Seven REQs
-  exceed eight sentences today — REQ-072c1 (9), REQ-078c2 (9), REQ-096d1 (9),
-  REQ-200 (9), REQ-246b1 (9), REQ-232a (11), REQ-318a (11) — so the predicate
-  ships with those bodies shortened. Scheduled under `ROADMAP.md` § *REQ
-  sentence-count enforcement (P1)*. Rows 54 and 63.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
@@ -2666,34 +2694,6 @@ below.
   correct them to the IDs the assertions actually implement, and re-run the
   coverage resolution. Predicate: `test-backfill.ts:157,164,802`.
 
-
-### 2026-11-14 §5.3 prompt-health and resource-presence depth
-
-- **F-P2-5 — prompt-health stale references and live resource-URI presence were
-  unimplemented. Resolved (2026-11-14).** Predicate was `spec_health` emitting
-  `stale_references: []` for every host and package prompt and building
-  `resource_uris` from the static `REQ022_URI_CATALOG`, so REQ-138a/b's
-  stale-reference lifecycle and REQ-139's registration clause had no
-  implementation. `prompt_health` now renders each host prompt through one
-  renderer (`renderHostPromptText`), reports `presence`, the served `length` and
-  `within`, and scans the source text for unregistered tool and resource
-  references; `resource_uris` is drawn from the REQ-022 catalog, the installed
-  packages' declared resources, and the live fixed and template maps, with
-  `resource_count` counting present entries. T152 and T153 assert both
-  lifecycles, including a declared-but-unregistered URI reporting `absent` and
-  a Novel's user-authored text not being read as a reference. REQ-138a,
-  REQ-138b, REQ-139.
-- **F-P2-6 — a removed package's tools remained in `tools/list`. Resolved
-  (2026-11-14).** Predicate was the live listing applying hidden-alias and
-  badge filters only while `registeredToolDefinitions` alone applied
-  `packageToolVisible`, so a removed package's tools still listed and were
-  refused only at dispatch. The served catalog and the warm cache now share
-  `canonicalToolCatalog` (hidden aliases + uninstalled packages out),
-  `visibleToolCount` applies the same predicate, `registrationFingerprint`
-  includes the install set, and removal emits `tools/list_changed`. Package
-  resources are deregistered through the SDK handle. T453 asserts the removed
-  tool leaves `tools/list(scope=all)` and `tool_count`, the resource leaves the
-  report, and a reinstall serves again. REQ-389c.
 
 ## Closed-P3 (recorded, no action)
 

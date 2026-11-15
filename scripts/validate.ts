@@ -35,6 +35,7 @@ import {
   checkReqThresholds,
   checkBaseCapabilityDefaults,
   checkNewBucketB,
+  checkReqSentenceCount,
   checkIndependentVerificationCoverage,
   checkLicenseSourceParity,
   extractSection,
@@ -252,6 +253,8 @@ function checkReqShape(reqs: Map<string, ReqBodyEntry>): string[] {
       issues.push(`${reqId}: ${shallCount} SHALL clauses — review for splitting`);
     }
   }
+
+  issues.push(...checkReqSentenceCount(reqs));
 
   return issues;
 }

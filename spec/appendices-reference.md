@@ -2864,7 +2864,8 @@ build artifact — it is a spec-maintainer reference.
       (T358 `TTRPG_WORLD_REACTIVITY` versus T389 `TTRPG_NPC_AUTONOMY` precedent:
       one owner per gated surface)
 - [ ] Procedural/algorithmic content is in §6 or §7, not in the REQ body
-- [ ] REQ body contains ≤ 8 sentences
+- [ ] REQ body contains ≤ 8 sentences (counted over the body truncated at
+      `*Acceptance criterion:*`, a trailing `_Check:_` included)
 - [ ] REQ body contains no more than 5 backtick-delimited enumerated tokens
 - [ ] Coverage class: a REQ naming runtime server behavior (a tool, resource,
       prompt, or state contract) is server-runtime (audit bucket C — cited in
@@ -2946,7 +2947,9 @@ commit time via `npm run check`:
 - No REQ body shall contain a markdown table.
 - No REQ body shall contain bullet lists or numbered steps.
 - No REQ body shall span more than one paragraph (no blank lines).
-- No REQ body shall exceed 8 sentences.
+- No REQ body shall exceed 8 sentences, counted over the body truncated at
+  `*Acceptance criterion:*` by the shared sentence splitter (a trailing
+  `_Check:_` stays inside the count).
 - No REQ body shall contain more than 8 SHALL clauses — the validator warns
   between 9 and 12 (review for splitting) and errors above 12 (almost
   certainly multi-contract).

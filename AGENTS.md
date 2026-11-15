@@ -170,9 +170,10 @@ push; until then `.wiki.git` does not exist and the push warns.
   new or modified REQ.
 - Appendix M defines what belongs in a REQ vs. what belongs elsewhere
   (builder, convergence loop, gates).
-- `npm run validate --sdd-strict` checks REQ block integrity, REQ shape (one
-  paragraph, no tables/bullets/steps, 800-char limit, 8-sentence limit), spec
-  violations (parameter types, Default: clauses, enumerated catalogs), ambiguity
+- `npm run validate:sdd` checks REQ block integrity, REQ shape (one
+  paragraph, no tables/bullets/steps, 8-sentence limit per Appendix M), spec
+  violations (800-character body limit, parameter types, Default: clauses,
+  enumerated catalogs), ambiguity
   (hedging, vague qualifiers), cross-references (dead citations, orphan REQs),
   assumptions (magic numbers, absolute language, untiered thresholds), REQ ID
   grammar (no 4-digit or bare-digit suffixes), empty REQ bodies, truncated

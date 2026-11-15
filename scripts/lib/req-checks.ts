@@ -554,3 +554,20 @@ export function checkToolTokenDrift(
   }
   return issues;
 }
+
+// Appendix M's ≤8-sentence rule. The sentence list comes from the shared
+// splitter via `extractReqBodiesWithSentences`, which truncates the body at
+// `*Acceptance criterion:*` — a trailing `_Check:_` stays inside the counted
+// slice. The structural type keeps this module import-free.
+export function checkReqSentenceCount(
+  reqs: Map<string, { id: string; sentences: string[] }>,
+): string[] {
+  const issues: string[] = [];
+  for (const [reqId, entry] of reqs) {
+    const count = entry.sentences.length;
+    if (count > 8) {
+      issues.push(`${reqId}: ${count} sentences — exceeds the 8-sentence limit`);
+    }
+  }
+  return issues;
+}
