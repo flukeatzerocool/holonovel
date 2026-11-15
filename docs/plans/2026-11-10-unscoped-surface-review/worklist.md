@@ -88,7 +88,7 @@ the 2026-11-09 sweep; `seam` = closed by the 2026-11-09 seam pass;
 
 | Chunk | Surface | Lens | Status |
 |---|---|---|---|
-| U1 | §1–§4, Appendix A, Appendix M, validator surface | drift + spec | **scheduled** |
+| U1 | §1–§4, Appendix A, Appendix M, validator surface | drift + spec | **reviewed 2026-11-14** — 80 rows, 3 P0 fixed, 1 P1 scheduled, 2 P3 closed (`docs/plans/2026-11-14-unscoped-u1/review.md`) |
 | U2 | §6, build-phase-map, build/update tooling, git hooks | drift + code | **scheduled** |
 | U3 | §7, engine-contract remainder, adapter/server code | drift + code | **scheduled** |
 | U4 | §8, gate manifest and harnesses, CI | drift + gate coverage | **scheduled** |
@@ -111,6 +111,25 @@ the 2026-11-09 sweep; `seam` = closed by the 2026-11-09 seam pass;
 **Exit evidence:** `check:fast` report; one row per §1–§3 subsection, §4 rule,
 Appendix A block, and Appendix M rule; every rule either maps to an enforcing
 check or carries a recorded gap finding.
+
+**Exit evidence recorded (2026-11-14):** `docs/plans/2026-11-14-unscoped-u1/`
+holds `plan.md`, `tasks.md`, `review.md` (80 verdict rows: 3 §1–§3 subsections,
+14 §4 blocks, 8 Appendix A blocks, 32 Appendix M checklist items, 11 SDD
+enforcement rules, 11 Appendix M prose blocks) and `aar.md`. Findings:
+F-U1-1/F-U1-2/F-U1-4 fixed in the increment (Appendix M `action-conflicts`
+gate, Standing Rule 10's G4/G5 attribution, the SHALL-count severity); F-U1-3
+(≤8-sentence predicate absent) scheduled on `ROADMAP.md`; F-U1-5/F-U1-6
+recorded as Closed-P3. `spec/audit/review-register.md` carries the dated
+`### 2026-11-14 U1 foundations and constitution` heading in all three
+sections.
+
+**Boundary (recorded, not reviewed):** `scripts/lib/parse-spec.ts` is the
+parser substrate the shape predicates call — verified as substrate in Phase 1
+(`readSpec`, `extractReqBodies`, `extractH2Headings`, `extractNarrativeProse`)
+and carried as a mapping-table row rather than a verdict row.
+`scripts/check-script-discipline.ts` and `check-script-quality` enforce the
+AGENTS.md script discipline, not a §1–§4 or Appendix A/M rule; they are
+out of this chunk's surface by definition, not by omission.
 
 ## Chunk U2 — build process and tooling
 

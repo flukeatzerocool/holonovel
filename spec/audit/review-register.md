@@ -11,6 +11,34 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-14 U1 foundations and constitution
+
+Chunk U1 of the unscoped-surface review program
+(`docs/plans/2026-11-14-unscoped-u1/`, 80 verdict rows in `review.md`). Three
+findings were demonstrated prose defects and are fixed here; the enforcement
+checks they cited all exist.
+
+- **F-U1-1 — Appendix M called `action-conflicts` report-only. Resolved
+  (2026-11-14).** Predicate: `scripts/lib/gate-manifest.ts:262-265` runs
+  `action-conflicts --check` in both gate modes, and
+  `scripts/action-conflicts.ts:12-15,30` exits 1 on a candidate group outside
+  `spec/audit/action-conflicts-baseline.json`, while
+  `spec/appendices-reference.md:2847-2848` said "report-only; not a gate". The
+  checklist item now states the gate, the baseline, and the manual
+  adjudication. Row 49.
+- **F-U1-2 — Standing Rule 10 named G4 and G5 as its verifiers. Resolved
+  (2026-11-14).** Predicate: `spec/05-verification.md:95` defines G4 as the
+  derived-catalogue tests and `:111` G5 as the Pattern Buffer; neither inspects
+  prompt text, and no harness asserts the rule (grep over
+  `holonovel/scripts`). Rule 10 (`spec/01a-constitution.md:50-54`) now states
+  the inspection check and that G4 carries no derived test. Row 13.
+- **F-U1-4 — the SDD enforcement list overstated the SHALL-count severity.
+  Resolved (2026-11-14).** Predicate: `scripts/validate.ts:247-252` flags 9–12
+  clauses with "review for splitting" and >12 with "almost certainly
+  multi-contract"; `:2245` downgrades the first band to a warning even under
+  `--sdd-strict`, so only >12 errors. Appendix M (`:2947`, `:2960-2963`) now
+  states both bands. Row 64.
+
 ### 2026-11-14 briefing section ordering
 
 - **F-S3 — the briefing's section order deviates from REQ-109d/109e. Resolved
@@ -2585,6 +2613,19 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
 
 ## Scheduled-roadmap
 
+### 2026-11-14 U1 foundations and constitution
+
+- **F-U1-3 — the ≤8-sentence rule is stated as mechanically enforced but has
+  no predicate (2026-11-14).** Predicate: `checkReqShape`
+  (`scripts/validate.ts:223-263`) reads only `body`; the `sentences` that
+  `extractReqBodiesWithSentences` supplies are never counted. Appendix M lists
+  the limit among the rules "mechanically enforced at commit time"
+  (`spec/appendices-reference.md:2946`) and AGENTS.md repeats it. Seven REQs
+  exceed eight sentences today — REQ-072c1 (9), REQ-078c2 (9), REQ-096d1 (9),
+  REQ-200 (9), REQ-246b1 (9), REQ-232a (11), REQ-318a (11) — so the predicate
+  ships with those bodies shortened. Scheduled under `ROADMAP.md` § *REQ
+  sentence-count enforcement (P1)*. Rows 54 and 63.
+
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 
 - **F-P8-2 — duplicate test IDs shadow coverage resolution (2026-11-09):**
@@ -2655,6 +2696,24 @@ below.
   report, and a reinstall serves again. REQ-389c.
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-14 U1 foundations and constitution
+
+- **F-U1-5 — the grade-12 exemption for §4's numbered rules is not implemented
+  (2026-11-14).** Predicate: `extractNarrativeProse`
+  (`scripts/lib/parse-spec.ts:208-212`) walks from "How to read this
+  specification" to `## 5. Requirements`, so §4's numbered rules are scored,
+  while Appendix M (`:2901-2902`) exempts them. No rule exceeds grade 12 today —
+  the three warnings are the reading guide (15.5), §1 (13.1), and §2 (12.7) —
+  so no output is wrong. No action: a latent divergence in a warning-only
+  pointer; revisit if a §4 rule is ever flagged. Row 70.
+- **F-U1-6 — five §5 subsections exceed the 40-REQ bloat advisory with no
+  recorded review (2026-11-14).** Predicate: Appendix M (`:2969-2973`) requires
+  a maintainer review above 40 REQs per subsection; the validator's own counts
+  are §5.6 = 266, §5.8 = 131, §5.3 = 115, §5.9 = 86, §5.12 = 84. No review is
+  recorded anywhere. No action: the rule calls the check informational and
+  consolidation is a product decision, not a demonstrated defect;
+  record-and-close. Row 75.
 
 ### 2026-11-14 §5.3 prompt-health depth — residuals
 

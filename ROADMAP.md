@@ -12,6 +12,21 @@
   this rule; `## Non-goals` is exempt.
 -->
 
+## REQ sentence-count enforcement (P1)
+
+- Add the ≤8-sentence predicate to `checkReqShape` (`scripts/validate.ts:223-263`)
+  using the `sentences` that `extractReqBodiesWithSentences` already supplies,
+  and extend `scripts/test-req-checks.ts` with a nine-sentence case.
+- Shorten or split the seven over-limit bodies (REQ-072c1, REQ-078c2, REQ-096d1,
+  REQ-200, REQ-232a, REQ-246b1, REQ-318a) so the new error passes on the corpus.
+- Correct AGENTS.md's parenthetical and Appendix M's claim in the same change;
+  the Appendix M + validator co-change requires a review-register entry
+  (`check-guarded-rule-change`).
+
+**Trigger:** the next spec-tooling session, or any session that edits
+`checkReqShape`; closes when a nine-sentence body errors under
+`validate --sdd-strict` and the corpus is green.
+
 ## Unscoped-surface review sweep (P2)
 
 - Foundations through verification: review §1–§4 and Appendices A/M against the
@@ -27,8 +42,8 @@
   every finding in `spec/audit/review-register.md` with the same P0–P3
   dispositions as the 2026-11-09 sweep.
 
-**Trigger:** the next allocated review session takes U1 (foundations and
-constitution); each chunk closes when its findings are dispositioned, and this
+**Trigger:** the next allocated review session takes U2 (build process and
+tooling); each chunk closes when its findings are dispositioned, and this
 section closes when U8 is `Resolved`.
 
 ## Harness test-ID label hygiene (P2)

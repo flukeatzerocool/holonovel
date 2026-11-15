@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-14 — Foundations and constitution review (U1)
+
+- Chunk U1 of the unscoped-surface review program is reviewed: 80 verdict rows
+  map every §1–§3 subsection, §4 standing rule, Appendix A block, and Appendix M
+  rule to the predicate that enforces it or to the declaration that makes it a
+  reviewer discipline (`docs/plans/2026-11-14-unscoped-u1/review.md`).
+- Appendix M no longer calls `action-conflicts` report-only: the checklist item
+  now names the `--check` gate that runs in both modes, the baseline file it
+  compares against, and the manual adjudication a new candidate receives.
+- Standing Rule 10 no longer claims G4 and G5 verify the no-tool-names rule —
+  G4 is the derived-test catalogue and G5 the Pattern Buffer, neither of which
+  inspects prompt text; the rule now states the inspection check and that G4
+  carries no derived test.
+- The SDD enforcement list states the SHALL-count bands the validator actually
+  applies: a warning for 9–12 clauses and an error above 12.
+- The review's remaining findings are dispositioned: the absent ≤8-sentence
+  predicate is scheduled (`ROADMAP.md`, seven over-limit REQs listed), and the
+  grade-12 §4 exemption plus the 40-REQ bloat advisory are recorded as
+  Closed-P3 with their predicates.
+
 ## 2026-11-14 — Player narrative threads
 
 - The Player badge now receives a narrative-threads section: the character's

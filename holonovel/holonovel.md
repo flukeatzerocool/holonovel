@@ -346,8 +346,10 @@ do not alter meaning are editorial and do not require a version bump.
     examples: a sentence the player or GM would write, not a function signature.
     Operational prompts (`badge_briefing`, `run_workflow`) and tool output
     (`run_command (action: suggest)`) are exempt — their content contracts are defined by their
-    respective REQs. This rule is verified at G4 and G5 — narrative prompts
-    containing tool names or technical syntax are a construction defect.
+    respective REQs. Narrative prompts containing tool names or technical
+    syntax are a construction defect, checked by inspection when the prompt
+    text is written; G4 derives its tests from the catalogue, so this rule
+    carries no derived test.
 11. **Holodeck config alignment.** A behavioral configuration dimension is any
     `TTRPG_*` variable or narrative-tool parameter that affects story pacing,
     character behavior, world reactivity, tone, autonomy, synthesis activation,
@@ -12230,8 +12232,11 @@ build artifact — it is a spec-maintainer reference.
        `tool (action: name[, params])`.
       Parameters may be introduced across several REQs for one operation
       (cumulative decomposition) — only a later REQ that redefines the
-      operation's contract is a conflict. `scripts/action-conflicts.ts` reports
-      candidates for manual review (report-only; not a gate)
+      operation's contract is a conflict. `scripts/action-conflicts --check`
+      gates this class in both gate modes and fails on any candidate group
+      outside the recorded baseline (`spec/audit/action-conflicts-baseline.json`);
+      a newly reported candidate is adjudicated by hand and either split into
+      distinct actions or added to the baseline.
 - [ ] Assertion relevance: the `_Check:_` test asserts the REQ's contract, not
       merely appears inside a bundled test name — a test that passes without
       exercising the contract is nominal evidence. This class (a bucket-C REQ
@@ -12330,7 +12335,9 @@ commit time via `npm run check`:
 - No REQ body shall contain bullet lists or numbered steps.
 - No REQ body shall span more than one paragraph (no blank lines).
 - No REQ body shall exceed 8 sentences.
-- No REQ body shall contain more than 8 SHALL clauses.
+- No REQ body shall contain more than 8 SHALL clauses — the validator warns
+  between 9 and 12 (review for splitting) and errors above 12 (almost
+  certainly multi-contract).
 - Every REQ family — a base REQ or its lettered parts — SHALL carry at least
   one `_Check:` trailer citing at least one test ID. The check attaches to the
   family, not to every lettered part.
@@ -12343,8 +12350,9 @@ commit time via `npm run check`:
   separator.
 - No REQ body shall begin with a lowercase letter (a truncated-lead signature).
 
-These rules are not advisory. A REQ violating any rule is a spec defect
-that blocks the assemble gate. The author SHALL split the REQ or move
+These rules are not advisory. A REQ violating any hard rule blocks the
+assemble gate; the SHALL-count rule warns between 9 and 12 clauses and errors
+above 12. The author SHALL split the REQ or move
 procedural content to the appropriate section (§6 for build processes,
 §7.7 for coupling, Appendices for reference tables, §B.3 for worked examples).
 

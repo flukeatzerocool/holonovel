@@ -49,8 +49,10 @@ do not alter meaning are editorial and do not require a version bump.
     examples: a sentence the player or GM would write, not a function signature.
     Operational prompts (`badge_briefing`, `run_workflow`) and tool output
     (`run_command (action: suggest)`) are exempt — their content contracts are defined by their
-    respective REQs. This rule is verified at G4 and G5 — narrative prompts
-    containing tool names or technical syntax are a construction defect.
+    respective REQs. Narrative prompts containing tool names or technical
+    syntax are a construction defect, checked by inspection when the prompt
+    text is written; G4 derives its tests from the catalogue, so this rule
+    carries no derived test.
 11. **Holodeck config alignment.** A behavioral configuration dimension is any
     `TTRPG_*` variable or narrative-tool parameter that affects story pacing,
     character behavior, world reactivity, tone, autonomy, synthesis activation,
