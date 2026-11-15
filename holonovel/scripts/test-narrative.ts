@@ -1218,6 +1218,49 @@ async function main() {
       await call(proc, "set_badge", { badge: "player" });
       assertNotContains(await briefing(proc), "Relationship suggestion:");
       await call(proc, "set_badge", { badge: "game_master" });
+
+      // REQ-234b/REQ-234d — the full recommendation matrix. The holder comes
+      // from `known_by` (never from name overlap); the target is the registered
+      // party the secret text names.
+      const entityFaction = await call(proc, "manage_lore", { action: "set_secret", key: "secret_entity_faction", content: "The Grey Court paid the butler.", known_by: ["character_01"] });
+      assertContains(entityFaction, "created");
+      const factionFaction = await call(proc, "manage_lore", { action: "set_secret", key: "secret_faction_faction", content: "Salt Watch takes its orders from the Grey Court.", known_by: [saltId] });
+      assertContains(factionFaction, "created");
+      const marisol = await call(proc, "manage_character", { action: "create", name: "Marisol Vane" });
+      assertContains(marisol, "Marisol Vane");
+      const factionEntity = await call(proc, "manage_lore", { action: "set_secret", key: "secret_faction_entity", content: "Marisol Vane sold the ledger.", known_by: [ashId] });
+      assertContains(factionEntity, "created");
+
+      const matrix = await briefing(proc);
+      assertContains(matrix, "Relationship suggestion: consider a suspicious relationship between Eira and Grey Court");
+      assertContains(matrix, "Relationship suggestion: consider a rival relationship between Salt Watch and Grey Court");
+      assertContains(matrix, "Relationship suggestion: consider a rival relationship between Ash Guild and Grey Court");
+      assertContains(matrix, "Relationship suggestion: consider a suspicious relationship between Ash Guild and Marisol Vane");
+      assertNotContains(matrix, "Relationship suggestion: consider a suspicious relationship between Salt Watch and Ash Guild");
+      assertNotContains(matrix, "Relationship suggestion: consider a rival relationship between Salt Watch and Ash Guild");
+
+      // REQ-234c — the recommendation never reaches the Player or the Observer.
+      await call(proc, "set_badge", { badge: "player" });
+      assertNotContains(await briefing(proc), "Relationship suggestion:");
+      await call(proc, "set_badge", { badge: "observer" });
+      assertNotContains(await briefing(proc), "Relationship suggestion:");
+      await call(proc, "set_badge", { badge: "game_master" });
+
+      // Suppression uses an unordered pair: setting the edge in the reverse
+      // argument order removes the entity-holder line and leaves the others.
+      await call(proc, "manage_relationship", { action: "set", entity_a: "Grey Court", entity_b: "Eira", type: "suspicious" });
+      const suppressed = await briefing(proc);
+      assertNotContains(suppressed, "Relationship suggestion: consider a suspicious relationship between Eira and Grey Court");
+      assertContains(suppressed, "Relationship suggestion: consider a rival relationship between Salt Watch and Grey Court");
+
+      // REQ-234b — the GM resource lists each secret and its holders.
+      const secretsResource = await readResource(proc, "secrets://active");
+      assertContains(secretsResource, "secret_faction_faction");
+      assertContains(secretsResource, "known_by");
+      assertContains(secretsResource, saltId);
+      await call(proc, "set_badge", { badge: "player" });
+      assertContains(await readResource(proc, "secrets://active"), "[FORBIDDEN]");
+      await call(proc, "set_badge", { badge: "game_master" });
     });
 
     await kill(proc);
