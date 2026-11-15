@@ -3082,23 +3082,32 @@ depth findings F-P2-5 and F-P2-6 are also `Resolved` (2026-11-14) — see the
 define; the same comment also names the real `T723`), now corrected.
 
 
-### 2026-11-15 roadmap residuals — secret relationship recommendations
+## Resolved — 2026-11-15 secret relationship recommendations
 
-Scheduled under `ROADMAP.md` § *Secret relationship recommendations (P1)*. The
-two clauses are normative and unimplemented; the increment that closed the
-faction-reveal surface did not build them, because they need a recommendation
-surface rather than a validation change.
+### 2026-11-15 secret-relationship session — secret-implied relationship recommendations
+
+Closed by the 2026-11-15 secret-relationship increment
+(`docs/plans/2026-11-15-secret-relationship-recommendations/`). REQ-234b and
+REQ-234d are normative and were unimplemented: the reveal path emitted a world
+change and a perception record, and no read surface recommended a relationship.
+The server now derives the recommendation on every briefing render from the
+secret store and the registered names, with no new persisted state.
 
 - **U6-F5b — the secret-reveal relationship recommendations are unimplemented.
-  Scheduled-roadmap (P1).** Predicate: REQ-234b
+  Resolved 2026-11-15.** Predicate that failed: REQ-234b
   (`spec/02-requirements.md:2921`) requires a `suspicious` relationship
   recommendation between a knowledge-holder and an entity or faction the secret
   implicates, surfaced in `badge_briefing` for the GM badge, and REQ-234d
   (`:2927`) requires a `rival` recommendation when a secret revealed to a faction
-  names another faction. The reveal path (`holonovel/src/index.ts`, the
-  `case "reveal"` block) emits the world change and the entity perception record
-  only, and `grep -n suspicious holonovel/src/index.ts` returns disposition
-  helpers at `:680` and `:1179` with no REQ-234b call site. Scheduled 2026-11-15.
+  names another faction; `grep -n suspicious holonovel/src/index.ts` returned
+  disposition and schema sites only. Now: `secretRelationshipRecommendations`
+  (`holonovel/src/core/relationships.ts`) matches registered names by exact
+  whole-token, case-insensitive overlap, resolves the holder from `known_by`, and
+  emits one recommendation per unordered holder/target pair, suppressing a pair
+  that already holds the recommended type; `composeBadgeBriefing` renders the
+  line under an explicit Game Master badge check. `rival` applies only to
+  faction-to-faction (REQ-234d); every other combination is `suspicious`
+  (REQ-234b). Exercised by T274.
 
 ## Resolved — 2026-11-15 badge guidance resources
 

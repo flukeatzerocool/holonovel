@@ -92,9 +92,11 @@ All reads at HEAD `b1f5c4a`; baseline `npm run check:fast` → 45 passed, 0 fail
   implicated target is a faction, and `suspicious` for every other combination —
   including a faction holder whose secret names an entity or NPC (REQ-234b applies).
   Rejected: emitting both literal SHALLs. If the spec owner reads the clauses as
-  cumulative, the change is one branch in the detector plus one assertion. One line per
-  `(holder, target, type)`; the first secret in `novel.secrets` order supplies the cited
-  key, so output is deterministic.
+  cumulative, the change is one branch in the detector plus one assertion. REQ-234d's
+  trigger is an action (reveal to a faction); the detector reads the persisted `known_by`
+  holder as its state equivalent, and the holder is reported from that resolution and is
+  never a text-overlap candidate. One line per `(holder, target, type)`; the first secret
+  in `novel.secrets` order supplies the cited key, so output is deterministic.
 - **D4 — exact, whole-token, case-insensitive name overlap.** A registered name matches
   when it appears in the secret text bounded by non-alphanumeric characters, compared
   case-insensitively. No substring-of-word match, no stemming, no semantic matching
@@ -119,7 +121,8 @@ All reads at HEAD `b1f5c4a`; baseline `npm run check:fast` → 45 passed, 0 fail
 
 ### Phase A — detector and briefing line (medium)
 
-Commit `2026-11-15 — Secret relationship recommendations: suspicious and rival surface for the GM`.
+Landed before the v3 amendment (A-4); the remaining action for this phase is its commit.
+Commit `2026-11-15 — Secret relationship recommendations: detector and GM briefing line`.
 
 1. `holonovel/src/core/relationships.ts` — add and export
    `interface SecretRelationshipRecommendation { type: "suspicious" | "rival"; holder_id;

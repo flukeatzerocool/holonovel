@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-11-15 — Secret relationship recommendations: suspicious and rival surface for the GM
+
+REQ-234b and REQ-234d were normative and unimplemented: a secret that named
+another party never produced the relationship recommendation the spec requires,
+so the GM had to notice the implication unaided.
+
+- The detector. `secretRelationshipRecommendations`
+  (`holonovel/src/core/relationships.ts`) derives recommendations from the
+  secret store on every read: exact, case-insensitive whole-token name overlap
+  against registered entity, NPC, and faction names; the holder comes from
+  `known_by`; a faction holder naming another faction recommends `rival`
+  (REQ-234d) and every other combination recommends `suspicious` (REQ-234b); a
+  pair that already holds the recommended type, in either argument order, is
+  suppressed. Nothing new is persisted, so clone, checkpoint, archive, and the
+  §7.7 property groups are unchanged.
+- The surface. `composeBadgeBriefing` renders `Relationship suggestion: …` in
+  `narrative_threads` under an explicit Game Master check, because the section
+  also renders for the Observer badge (REQ-234c).
+- Tests. T274 gains the three-case matrix (entity holder, faction-to-faction,
+  faction holder to entity), exact-pair negative assertions, Player and Observer
+  negatives, reverse-order suppression, and the `secrets://active` status and
+  `[FORBIDDEN]` checks; its Appendix F row now names REQ-234b and REQ-234d.
+- Records. U6-F5b is `Resolved`; the P1 roadmap section is removed. The coverage
+  register, assembled spec, phase-map hash, and G7 attestation were regenerated.
+
+`test-narrative` 84 passed; `check:fast` 45/45.
+
 ## 2026-11-15 — Secret holders: factions reveal, know, and surface at faction://
 
 REQ-234c already required `manage_lore (action: reveal)` and `(action: knowledge)`

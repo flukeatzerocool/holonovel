@@ -12,17 +12,6 @@
   this rule; `## Non-goals` is exempt.
 -->
 
-## Secret relationship recommendations (P1)
-
-- Implement REQ-234b and REQ-234d: when a secret implicates an entity or faction
-  other than its holder, surface a `suspicious` relationship recommendation in the
-  GM `badge_briefing`; when a secret revealed to a faction names another faction,
-  recommend a `rival` relationship between the two.
-
-**Trigger:** the next lore- or briefing-surface session; closes when both
-recommendations surface for a Game Master briefing and a harness row asserts them
-(U6-F5b).
-
 ## Loop-gate fix-up rate re-measurement (P2)
 
 - Two weeks after the AAR close gate ships (2026-11-28), re-measure the fix-up
