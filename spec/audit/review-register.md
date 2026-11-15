@@ -2742,7 +2742,67 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
   tool leaves `tools/list(scope=all)` and `tool_count`, the resource leaves the
   report, and a reinstall serves again. REQ-389c.
 
+## Resolved — 2026-11-15 U4 verification workflows
+
+Chunk U4 of the unscoped-surface review program
+(`docs/plans/2026-11-15-unscoped-u4/`, 52 verdict rows in `review.md`). Two
+demonstrated prose defects in §8 were fixed in the increment; the remaining
+findings are scheduled. Predicates are `file:line` reads at HEAD `5aa2e64`, not
+gate messages.
+
+- **F-U4-2 — the G2 `_Check:_` line cited a prose token, not a test. Resolved
+  (2026-11-15).** Predicate: `spec/05-verification.md:74` named "Golden
+  transcript replay (B fixture)" where the catalogue has T185
+  (`spec/appendices-reference.md:1690`), so the coverage audit could not resolve
+  the middle element. The line now cites T185. Row 5.
+- **F-U4-3 — G4 mandated a test-file naming convention the tree does not use.
+  Resolved (2026-11-15).** Predicate: `spec/05-verification.md:99` required
+  `scripts/test_N.sh` or `scripts/test_N.ts`, and `find . -name 'test_*.ts' -o
+  -name 'test_*.sh'` returns zero files while the tree uses `scripts/test-*.ts`
+  and `holonovel/scripts/test-*.ts`. The sentence now states the convention the
+  tree uses. Row 8.
+
 ## Scheduled-roadmap
+
+### 2026-11-15 U4 verification workflows
+
+Findings from chunk U4 (`docs/plans/2026-11-15-unscoped-u4/review.md`). Each
+cites the predicate that carries it. Scheduled under `ROADMAP.md` §
+*Verification-surface reachability (P1)*, § *G7 attestation predicate (P1)*, and
+§ *Verification evidence record and the CI-manifest split (P2)*.
+
+- **F-U4-4 — the 56-command server suite is in no running surface (2026-11-15):**
+  `holonovel/scripts/run-test-suite.ts:25-82` lists `test:pattern-buffer`,
+  `test:pattern-buffer-ruleset`, and `test:harness-guard`, but `test:all` appears
+  in no manifest gate (`scripts/lib/gate-manifest.ts:25-292`), no CI step
+  (`.github/workflows/ci.yml:18-47`), and no hook (`.githooks/pre-push:101-124`).
+  §8 G5 makes the Pattern Buffer blocking and G6 requires a re-run after every
+  server change. Scheduled under *Verification-surface reachability (P1)*.
+- **F-U4-5 — G7's attestation cannot fail (2026-11-15):** `SECTION_512_REQS`
+  lists 31 base families and `G7_ATTESTATION_RECORDED = true`
+  (`holonovel/src/index.ts:375-385`), and the disposition is `pass` whenever the
+  counts match (`:15392`), while §5.12 carries 84 REQ bodies
+  (`spec/02-requirements.md:3566-3813`). An attestation that cannot report `fail`
+  is not evidence for REQ-346. Scheduled under *G7 attestation predicate (P1)*.
+- **F-U4-6 — two harnesses exist and never run (2026-11-15):**
+  `test:loop-artifacts` (`package.json:25`) and `test:holosuite-mutation`
+  (`holonovel/package.json:129`) appear in no manifest entry, CI step, hook, or
+  `run-test-suite.ts` entry; the mutation tier is the only producer of the
+  catch rate §8 makes a precondition for Understudies evidence, and
+  `scripts/test-loop-artifacts.ts:3-12` declares `[informational]` while exiting
+  1 on failure. Scheduled under *Verification-surface reachability (P1)*.
+- **F-U4-1 — the G7 evidence record omits the §8 contract fields (2026-11-15):**
+  `spec/05-verification.md:3-6` requires workflow name, timestamp, environment
+  pins, commands and output, pass/fail, and findings; the only
+  `@section evidence` block (`holonovel/DECISIONS.md:2377`) carries three
+  lettered attestations and a `spec_health` bullet. Scheduled under *Verification
+  evidence record and the CI-manifest split (P2)*.
+- **F-U4-7 — CI runs 15 commands the manifest does not hold (2026-11-15):** the
+  nine verification steps in `.github/workflows/ci.yml:18-47` hold 16 commands,
+  one of which (`check:starter-freshness`) is a manifest gate; the other 15 are
+  outside it, so a green `check:fast` does not imply a green CI and
+  `scripts/gate-cost-report.ts` cannot see their cost. Scheduled under
+  *Verification evidence record and the CI-manifest split (P2)*.
 
 ### 2026-11-09 full-review sweep — chunk P8 (narrative cognition)
 

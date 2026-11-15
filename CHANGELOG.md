@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-11-15 — §8 verification workflows: the check line, the test convention, and gate reachability
+
+Chunk U4 of the unscoped-surface review program read spec §8 against the gate
+manifest, the 29 root gate/self-test scripts, the server suite runner, and CI:
+52 verdict rows, seven findings. Two were demonstrated prose defects in §8 and
+are fixed here — G2's `_Check:_` line named a prose token where the catalogue
+has T185, and G4 required a `scripts/test_N.ts` file-name convention that no
+file in the tree follows. Five findings are scheduled: the 56-command server
+suite (and two orphan harnesses) runs in no gate, CI, or hook; G7's disposition
+is derived from a hardcoded literal and a 31-family list while §5.12 carries 84
+REQ bodies; the G7 evidence record omits four of §8's seven fields; and CI runs
+15 commands the manifest does not hold.
+
+- §8 G2: the `_Check:_` line cites `T185 (B fixture)` instead of the prose token
+  "Golden transcript replay (B fixture)"; the referenced test already replays the
+  Appendix B transcript, so the coverage audit can now resolve the row.
+- §8 G4: the runnable-harness sentence states the convention the tree uses
+  (`scripts/test-<topic>.ts`) instead of `scripts/test_N.sh`/`test_N.ts`, which
+  matched zero files in either `scripts/` directory.
+- `ROADMAP.md`: three new scheduled sections — *Verification-surface reachability
+  (P1)*, *G7 attestation predicate (P1)*, *Verification evidence record and the
+  CI-manifest split (P2)* — and the sweep trigger now names U5.
+- `docs/plans/2026-11-10-unscoped-surface-review/worklist.md`: the U4 row closes
+  with 52 verdict rows, and the exit-evidence clause is amended: §8 carries no
+  command list (`grep -c 'npm run' spec/05-verification.md` → 0), so the
+  gate-mapping vocabulary is recorded instead.
+- `spec/audit/review-register.md`: two `Resolved` rows (F-U4-2, F-U4-3) and five
+  `Scheduled-roadmap` rows (F-U4-1, F-U4-4…F-U4-7), each citing its predicate.
+
 ## 2026-11-15 — §7.3a prompt-construction record and P60 vocabulary
 
 P60 named an archetype the taxonomy does not define, and nothing could see it:

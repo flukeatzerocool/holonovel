@@ -8206,7 +8206,7 @@ for exact wording.
 
 Before handoff, re-run G2 once from a cold checkout of the four artifacts,
 following only README.md and AGENTS.md. A reproduction failure stops the line.
-_Check:_ T90 (N fixture), Golden transcript replay (B fixture), T261 (W fixture).
+_Check:_ T90 (N fixture), T185 (B fixture), T261 (W fixture).
 
 **G2 coverage completeness.** After the golden transcript passes, the builder
 SHALL verify that every behavioral contract the selected fixture exercises
@@ -8230,8 +8230,8 @@ imported directives remain inert per REQ-444.
 **Verification workflow G4 — Derived tests.** Execute the tests in
 [Appendix F](#appendix-f-derived-test-catalogue). Tests run with networking
 disabled (REQ-051). Waivers are allowed only under REQ-013; log each with its
-reason in DECISIONS.md. Automated tests must ship a runnable script
-(`scripts/test_N.sh` or `scripts/test_N.ts`) that exits zero on pass. A harness
+reason in DECISIONS.md. Automated tests must ship a runnable harness under `scripts/` (for example
+`scripts/test-<topic>.ts`) that exits zero on pass. A harness
 that spawns a server SHALL also fail non-zero with a diagnostic when the spawned
 process terminates unexpectedly; a run that produces no summary is a failure,
 never a silent pass (REQ-141m). A gate that runs its sub-checks in parallel

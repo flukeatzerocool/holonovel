@@ -91,7 +91,7 @@ the 2026-11-09 sweep; `seam` = closed by the 2026-11-09 seam pass;
 | U1 | §1–§4, Appendix A, Appendix M, validator surface | drift + spec | **reviewed 2026-11-14** — 80 rows, 3 P0 fixed, 1 P1 scheduled, 2 P3 closed (`docs/plans/2026-11-14-unscoped-u1/review.md`) |
 | U2 | §6, build-phase-map, build/update tooling, git hooks | drift + code | **reviewed 2026-11-14** — 35 rows, 5 P0 fixed, 1 P3 closed (`docs/plans/2026-11-14-unscoped-u2/review.md`) |
 | U3 | §7, engine-contract remainder, adapter/server code | drift + code | **reviewed 2026-11-14** — 28 rows, 1 P0 fixed, 4 P1 scheduled (`docs/plans/2026-11-14-unscoped-u3/review.md`) |
-| U4 | §8, gate manifest and harnesses, CI | drift + gate coverage | **scheduled** |
+| U4 | §8, gate manifest and harnesses, CI | drift + gate coverage | **reviewed 2026-11-15** — 52 rows, 2 P0 fixed, 3 P1 + 2 P2 scheduled (`docs/plans/2026-11-15-unscoped-u4/review.md`) |
 | U5 | §9, §10, Appendix V, publication and cadence | drift + process | **scheduled** |
 | U6 | §11, Appendices B/C/N/W–Z, fixtures and playability | fixture exercise | **scheduled** |
 | U7 | Appendices D–L/O–T/U, registries and manifests | catalog comparison | **scheduled** |
@@ -201,6 +201,39 @@ only; its body is §5's surface (swept in sweep phase 1–8). `world/*` is the
 **Exit evidence:** every §8 gate/workflow reference resolves to the manifest;
 every CI step invokes a declared gate and never swallows its exit code; the
 §8 command list matches `npm run gates -- --list`.
+
+**Exit evidence recorded (2026-11-15):** `docs/plans/2026-11-15-unscoped-u4/`
+holds `plan.md`, `tasks.md`, `review.md` (52 verdict rows: 18 §8 rows, 22 gate
+rows, 10 harness rows, 2 CI rows), the cold-pass record under `plan.cold/`, and
+`aar.md`. Findings: F-U4-2 and F-U4-3 fixed in the increment (G2's `_Check:_`
+token now cites T185; G4's test-file convention now states the tree's
+`scripts/test-*.ts` form); F-U4-4/F-U4-5/F-U4-6 scheduled under *ROADMAP*
+§ *Verification-surface reachability (P1)* and § *G7 attestation predicate (P1)*;
+F-U4-1/F-U4-7 under § *Verification evidence record and the CI-manifest split
+(P2)*. Every §8 workflow resolves to a harness, a gate, or a recorded
+`builder-side` declaration; T18, the persona table, and G8 are builder-side, and
+G8 is legitimately unrunnable in a ruleset-free tree. `spec/audit/review-register.md`
+carries the dated `### 2026-11-15 U4 verification workflows` heading in the
+Resolved and Scheduled-roadmap sections.
+
+**Exit-evidence amendment (2026-11-15):** the third clause was mis-specified at
+program-design time. §8 contains no command list — it names verification
+workflows (`G0a`, `G0b`, `G2`–`G8`), not repo commands, and `grep -c 'npm run'
+spec/05-verification.md` returns 0 — so it cannot be compared with `npm run gates
+-- --list`. The clause this chunk can evidence is the mapping it records: every
+`G` workflow resolves to a harness, a gate, or a recorded `builder-side`
+declaration, and the manifest's 44 gates are the reference implementation's own
+checks, a different vocabulary that meets §8 only where a workflow is implemented
+as a harness.
+
+**Vocabulary note:** `builder-side` is a terminal verdict for §8 prose that
+addresses the builder with no repository check (G0a's intake duty, G0b's
+Inspector run, G3's discovery diff, G8's multi-ruleset host, the T18 and persona
+tables). It records the mapping honestly instead of claiming gate coverage.
+
+**Boundary note:** `holonovel/scripts/**` harness correctness beyond
+`run-test-suite.ts` and `test-harness-guard.ts` is U6's surface;
+`.github/workflows/publish.yml` is U5's.
 
 ## Chunk U5 — artifacts, independent verification, cadence, publication
 
