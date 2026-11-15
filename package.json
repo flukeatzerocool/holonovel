@@ -90,6 +90,9 @@
     "weekly": "npx tsx scripts/weekly.ts",
     "typecheck:scripts": "npx tsc -p holonovel/tsconfig.scripts.json --noEmit",
     "refresh-predicates": "npx tsx scripts/refresh-predicates.ts",
+    "fix-anchors": "npx tsx scripts/refresh-predicates.ts --write",
+    "check-anchors": "npx tsx scripts/refresh-predicates.ts --check",
+    "test:anchor-tooling": "npx tsx scripts/test-anchor-tooling.ts",
     "req:headroom": "npx tsx scripts/req-headroom.ts",
     "check-adventure-index": "npm --prefix holonovel run check-adventure-index"
   },

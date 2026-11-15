@@ -316,6 +316,18 @@ const RAW_GATES: Gate[] = [
     full: npm("test:pipeline"),
   },
   {
+    name: "check-anchors",
+    description: "Evidence anchors resolve to their symbols; repair with fix-anchors",
+    fast: null,
+    full: npm("check-anchors"),
+  },
+  {
+    name: "test:anchor-tooling",
+    description: "Self-tests for the anchor resolver and refresh-predicates",
+    fast: npm("test:anchor-tooling"),
+    full: npm("test:anchor-tooling"),
+  },
+  {
     name: "typecheck",
     description: "TypeScript type checking",
     fast: npm("typecheck"),

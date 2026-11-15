@@ -1,20 +1,24 @@
 #!/usr/bin/env npx tsx
 /**
  * refresh-predicates.ts — repair holosuite predicate line numbers.
- * [informational; build tool with --write]
+ * [gate with --check; build tool with --write; informational otherwise]
  *
  * Purpose: holosuite evidence anchors carry `path:line#symbol`, and the
  * resolver requires the recorded line to contain the symbol. Code movement
  * makes the numbers stale; this tool finds each symbol's current line and,
- * with `--write`, rewrites the anchor. The resolver contract is unchanged.
+ * with `--write`, rewrites the anchor. With `--check` it is a gate: any drift
+ * exits 1 and names the repair. A symbol found on several lines with none within
+ * the ±40-line window is refused rather than guessed. Output is deterministic
+ * (sorted by file then line).
  *
- * Usage: npx tsx scripts/refresh-predicates.ts [--write] [--json] [--help]
- * Exit codes: 0 = current or repaired, 1 = malformed/unresolvable anchor,
- * 2 = fatal. Output is deterministic (sorted by file then line).
+ * Usage: npx tsx scripts/refresh-predicates.ts [--check] [--write] [--write --json] [--help]
+ * Exit codes: 0 = current or repaired, 1 = drift under --check, ambiguous or
+ * unresolvable anchor, 2 = fatal.
  */
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { handleHelp, parseFlag, rejectUnknown } from "./lib/args.js";
+import { resolveAnchorLine } from "./lib/anchor-resolver.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const ANCHOR_RE = /anchor\("([^"]+)",\s*(\d+),\s*"([A-Za-z_$][\w$]*)"\)/g;
@@ -22,12 +26,15 @@ const ANCHOR_RE = /anchor\("([^"]+)",\s*(\d+),\s*"([A-Za-z_$][\w$]*)"\)/g;
 const USAGE = `refresh-predicates — repair holosuite predicate line numbers
 
 Usage:
-  npx tsx scripts/refresh-predicates.ts [--write] [--json] [--help]
+  npx tsx scripts/refresh-predicates.ts [--check] [--write] [--json] [--help]
 
 Without --write the tool reports drift only. With --write it rewrites the
-recorded line to the current line that carries the symbol token.
+recorded line to the current line that carries the symbol token. With --check it
+fails on drift, naming the repair. A symbol on several lines with none within
+±40 lines of the recorded line is ambiguous and refused.
 
-Exit codes: 0 = current or repaired; 1 = malformed or unresolvable anchor; 2 = fatal.
+Exit codes: 0 = current or repaired; 1 = drift under --check, ambiguous or
+unresolvable anchor; 2 = fatal.
 `;
 
 interface Drift {
@@ -52,25 +59,12 @@ function anchorFiles(): string[] {
   return out;
 }
 
-function resolveLine(lines: string[], recorded: number, symbol: string): number | null {
-  const token = new RegExp(`\\b${symbol.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
-  const candidates: number[] = [];
-  lines.forEach((line, index) => {
-    const trimmed = line.trim();
-    if (trimmed.length === 0) return;
-    if (/^[)}\];,]+$/.test(trimmed)) return;
-    if (/^(\/\/|\/\*|\*)/.test(trimmed)) return;
-    if (token.test(trimmed)) candidates.push(index + 1);
-  });
-  if (candidates.length === 0) return null;
-  return candidates.reduce((best, n) => (Math.abs(n - recorded) < Math.abs(best - recorded) ? n : best), candidates[0]!);
-}
-
 function main(): void {
   const argv = process.argv.slice(2);
   handleHelp(argv, USAGE);
-  rejectUnknown(argv, new Set(["--write", "--json"]), USAGE);
-  const write = parseFlag(argv, "--write");
+  rejectUnknown(argv, new Set(["--check", "--write", "--json"]), USAGE);
+  const check = parseFlag(argv, "--check");
+  const write = parseFlag(argv, "--write") && !check;
   const asJson = parseFlag(argv, "--json");
 
   const drifts: Drift[] = [];
@@ -87,12 +81,20 @@ function main(): void {
       try { target = readFileSync(join(ROOT, path!), "utf-8"); }
       catch { unresolved.push(`${relative(ROOT, source)}: cannot read ${path}`); continue; }
       const lines = target.split(/\r?\n/);
-      const current = 1 <= recorded && recorded <= lines.length && lines[recorded - 1]!.includes(symbol!)
-        ? recorded
-        : resolveLine(lines, recorded, symbol!);
-      if (current === null) {
-        unresolved.push(`${relative(ROOT, source)}: ${path} has no code line with '${symbol}'`);
-        continue;
+      let current: number | null;
+      if (1 <= recorded && recorded <= lines.length && lines[recorded - 1]!.includes(symbol!)) {
+        current = recorded;
+      } else {
+        const resolution = resolveAnchorLine(lines, recorded, symbol!);
+        current = resolution.line;
+        if (current === null && resolution.ambiguous.length > 0) {
+          unresolved.push(`${relative(ROOT, source)}: ${path}:${recorded}#${symbol} is ambiguous (${resolution.ambiguous.length} candidates: ${resolution.ambiguous.join(", ")})`);
+          continue;
+        }
+        if (current === null) {
+          unresolved.push(`${relative(ROOT, source)}: ${path} has no code line with '${symbol}'`);
+          continue;
+        }
       }
       if (current !== recorded) {
         drifts.push({ source: relative(ROOT, source), path: path!, from: recorded, to: current, symbol: symbol!, matched: whole });
@@ -118,7 +120,12 @@ function main(): void {
     if (drifts.length === 0 && unresolved.length === 0) process.stdout.write("predicates current\n");
     else process.stdout.write(`${drifts.length} drift(s), ${unresolved.length} unresolved\n`);
   }
-  process.exit(unresolved.length > 0 ? 1 : 0);
+  if (unresolved.length > 0) process.exit(1);
+  if (check && drifts.length > 0) {
+    process.stderr.write(`${drifts.length} stale anchor(s); repair with: npm run fix-anchors\n`);
+    process.exit(1);
+  }
+  process.exit(0);
 }
 
 try {

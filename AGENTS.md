@@ -360,6 +360,8 @@ This runs (the table is generated from the gate manifest):
 | `check-gate-table` | yes | yes | AGENTS.md gate table matches the manifest |
 | `check-loop-artifacts` | yes | yes | Increment plan/tasks/AAR contract under docs/plans |
 | `test:pipeline` | no | yes | Hermetic publication-pipeline harness |
+| `check-anchors` | no | yes | Evidence anchors resolve to their symbols; repair with fix-anchors |
+| `test:anchor-tooling` | yes | yes | Self-tests for the anchor resolver and refresh-predicates |
 | `typecheck` | yes | yes | TypeScript type checking |
 <!-- gate-manifest:end -->
 
