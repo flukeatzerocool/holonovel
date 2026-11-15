@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-11-15 — Reference appendices and registries: thirteen stamps repinned, vendor provenance named
+
+Chunk U7 of the unscoped-surface review program reviewed the reference appendices
+and the registry artifacts they describe: 67 verdict rows over Appendices D–L,
+O–T and U, and over `tool-definitions.json`, `tool-surface-registry.json`,
+`tool-disambiguation.json`, `tool-routing.json`, `schemas/`, `server.json`,
+`glama.json` and `ATTRIBUTION.md`. Sixty rows pass against their predicate, nine
+are builder duties the host does not execute (recorded with reasons), and two
+defects were found.
+
+- **Appendix E carried thirteen impossible date pins.** `spec/appendices-reference.md`'s
+  Requirements Manifest states that its version column is a CalVer stamp matching
+  a CHANGELOG entry; thirteen rows of the §5.15 tool-surface family read
+  `2026-10-19`, a date with no CHANGELOG entry and no commit, while the owning
+  release is `## 2026-10-20 — Tool Surface Contract` and `git log -L` places the
+  family's last change at 2026-10-20 (`012c491`). All thirteen now read
+  `2026-10-20` (U7-F2).
+- **Appendix U's `source_url` admission rule has no artifact behind it.** The
+  appendix requires a `source_url` in the synthesis manifest for every vendored
+  *Narrative frameworks* row, and `holonovel/narrative_world_model/MANIFEST.md`
+  records its eight vendor sources with no URL column at all; only four of the
+  eight carry a `source_url` anywhere, in `holonovel/src/core/wisdom.ts:82-113`.
+  Scheduled as `ROADMAP.md` § *Vendor-manifest source provenance (P1)* (U7-F4).
+- **The U7 worklist named a gate the manifest does not run.** `check-registry` is
+  the network-bound MCP-registry publisher check, not a manifest gate; the line
+  now names `check-registers`, `check-adventure-index` and
+  `check-vendor-manifest` (U7-F1).
+- **The registry surface reconciles.** `tool_count` is 37 and equals
+  `tools.length`; the registry's 41 distinct tool prefixes are those 37 plus the
+  four retired compatibility declarations (`manage_session`, `resolve_fate`,
+  `resolve_forged`, `resolve_ironsworn`) that `hidden_aliases` records with
+  `retired: true`, exactly the declarations Appendix T.3 excludes from canonical
+  counts. The registry's `taxonomy` matches T.3's vocabularies term for term.
+
+`ROADMAP.md` now names U8 next; the review program's remaining chunk is U8.
+
 ## 2026-11-15 — Synthesis and fixtures: the reserved waiver branch reaches its fixture, and the fingerprint gap is named
 
 Chunk U6 of the unscoped-surface review program reviewed §11 and the fixture

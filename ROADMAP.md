@@ -27,9 +27,9 @@
   every finding in `spec/audit/review-register.md` with the same P0–P3
   dispositions as the 2026-11-09 sweep.
 
-U7 is next (reference appendices and registries), then U8.
+U8 is next (repo governance and content assets).
 
-**Trigger:** the next allocated review session takes U7; each chunk closes when
+**Trigger:** the next allocated review session takes U8; each chunk closes when
 its findings are dispositioned, and this section closes when U8 is `Resolved`.
 
 ## Synthesis-surface gaps (P1)
@@ -58,6 +58,16 @@ findings are `Resolved`.
 
 **Trigger:** the date 2026-11-28, or 26 new commits, whichever comes first;
 closes when the re-measurement is recorded in the AAR of that session.
+
+## Vendor-manifest source provenance (P1)
+
+- Add a `source_url` column to `holonovel/narrative_world_model/MANIFEST.md` for
+  the eight vendored sources and extend `check-vendor-manifest` to require a
+  non-empty, well-formed URL per row, so Appendix U's admission rule (c) has a
+  predicate instead of a prose duty (U7-F4).
+
+**Trigger:** the next allocated content-provenance session; closes when the
+manifest carries the column, the checker enforces it, and U7-F4 is `Resolved`.
 
 ## Non-goals
 

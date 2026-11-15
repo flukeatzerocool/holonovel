@@ -1331,22 +1331,22 @@ date-stamps matching CHANGELOG entries.
 | REQ-566 | Starter freshness and provenance | 2026-10-12 |
 | REQ-613 | Portable data directory | 2026-10-26 |
 | REQ-614 | Published package integrity | 2026-10-26 |
-| REQ-567 | Tool surface declaration | 2026-10-19 |
-| REQ-568 | Surface conformance report | 2026-10-19 |
+| REQ-567 | Tool surface declaration | 2026-10-20 |
+| REQ-568 | Surface conformance report | 2026-10-20 |
 | REQ-569 | Surface baseline evaluation | 2026-10-21 |
-| REQ-570 | Projected catalog | 2026-10-19 |
-| REQ-571 | Catalog budgets | 2026-10-19 |
-| REQ-572 | Group directory | 2026-10-19 |
-| REQ-580 | Surface profile precedence | 2026-10-19 |
-| REQ-573 | Precondition enforcement | 2026-10-19 |
-| REQ-575 | Cross-group edges | 2026-10-19 |
-| REQ-576 | Audited override | 2026-10-19 |
+| REQ-570 | Projected catalog | 2026-10-20 |
+| REQ-571 | Catalog budgets | 2026-10-20 |
+| REQ-572 | Group directory | 2026-10-20 |
+| REQ-580 | Surface profile precedence | 2026-10-20 |
+| REQ-573 | Precondition enforcement | 2026-10-20 |
+| REQ-575 | Cross-group edges | 2026-10-20 |
+| REQ-576 | Audited override | 2026-10-20 |
 | REQ-578 | Generated surface conformance | 2026-10-21 |
-| REQ-577 | Composite session and turn actions | 2026-10-19 |
-| REQ-574 | Turn handles | 2026-10-19 |
-| REQ-579 | Legacy package rebuild | 2026-10-19 |
+| REQ-577 | Composite session and turn actions | 2026-10-20 |
+| REQ-574 | Turn handles | 2026-10-20 |
+| REQ-579 | Legacy package rebuild | 2026-10-20 |
 | REQ-579a | Format-only package re-emit | 2026-11-08 |
-| REQ-581 | Split-tool compatibility | 2026-10-19 |
+| REQ-581 | Split-tool compatibility | 2026-10-20 |
 | REQ-582 | Action user-goal classification | 2026-10-21 |
 | REQ-583 | Selection telemetry | 2026-10-21 |
 | REQ-584 | Derived routing text | 2026-10-21 |

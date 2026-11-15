@@ -11,6 +11,40 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-15 U7 reference appendices and registries
+
+Chunk U7 of the unscoped-surface review program
+(`docs/plans/2026-11-15-unscoped-u7/`, 67 verdict rows in `review.md`). The
+appendix catalogues and the registry artifacts they describe agree on every row
+the gates can see; two attribution defects and one process defect are settled
+here, and one provenance gap is scheduled.
+
+- **U7-F1 — the program worklist named a gate that the manifest does not run.
+  Resolved (2026-11-15).** Predicate:
+  `docs/plans/2026-11-10-unscoped-surface-review/worklist.md:287-289` listed
+  `check-registry` among U7's already-gated checks, while `check-registry` is the
+  network-bound MCP-registry publisher check (`package.json:77`,
+  `scripts/check-registry-publish.ts:1-18`) and is absent from
+  `scripts/lib/gate-manifest.ts`; the manifest gate with the adjacent name is
+  `check-registers` (`:162-165`). The line now names the manifest gates the chunk
+  actually leans on.
+- **U7-F2 — thirteen Appendix E rows were pinned to a date with no release.
+  Resolved (2026-11-15).** Predicate: `spec/appendices-reference.md:97-99` states
+  that the version pins are CalVer date-stamps matching CHANGELOG entries, and
+  thirteen rows of the §5.15 tool-surface family (`:1334-1360` region) carried
+  `2026-10-19`, a date on which `CHANGELOG.md` has no entry (the nearest are three
+  `## 2026-10-20 — …` headings, including `— Tool Surface Contract` at `:4260`)
+  and on which no commit exists. `git log -1 --format=%cs -L
+  '/^\*\*REQ-567 /,/^\*\*REQ-/':spec/02-requirements.md` puts the family's last
+  change at 2026-10-20 (`012c491`). All thirteen pins now read `2026-10-20`.
+- **U7-F5 — the plan's sample rule resolved IDs against one spec file. Resolved
+  (2026-11-15).** Predicate: `plans/2026-11-15-unscoped-u7.md`'s sample rule
+  grepped `spec/02-requirements.md` only, while REQs are also defined in
+  `spec/03-build.md` (`:850,1338,1363` for REQ-299, REQ-141g, REQ-208a),
+  `spec/07-independent.md` and `spec/08-synthesis.md`; running the narrow rule
+  manufactured three false misses. The sample was re-run over `spec/*.md` and the
+  deviation is recorded in `review.md`'s method note.
+
 ### 2026-11-15 U6 synthesis and fixtures
 
 Chunk U6 of the unscoped-surface review program
@@ -2884,6 +2918,23 @@ stale generated snapshot, and one incomplete layout description. Predicates are
 
 ## Scheduled-roadmap
 
+### 2026-11-15 U7 reference appendices and registries — vendor-manifest provenance
+
+Scheduled under `ROADMAP.md` § *Vendor-manifest source provenance (P1)*. The
+finding cites the predicate that fails; it is not repaired here, because closing
+it adds a column to a content manifest and an assertion to a gate.
+
+- **U7-F4 — the vendored sources carry no `source_url` in the synthesis manifest.
+  Scheduled-roadmap (P1).** Predicate: `spec/appendices-licenses.md:29` makes a
+  `source_url` field in the synthesis manifest an admission rule for every
+  vendored *Narrative frameworks* row, while
+  `holonovel/narrative_world_model/MANIFEST.md:19-30` records eight vendor
+  sources (Ironsworn: Starforged, Sly Flourish, The Alexandrian, BitD, DMCP,
+  IF Craft Corpus, Lonelog, Dungeon World) with no URL column at all —
+  `grep -c http` over the file returns 0 — and only four of the eight appear with
+  a `source_url` anywhere, in `holonovel/src/core/wisdom.ts:82-113`. The manifest
+  therefore records no provenance for the eight rows the appendix admits.
+
 ### 2026-11-15 U6 synthesis and fixtures — internal synthesis gaps
 
 Scheduled under `ROADMAP.md` § *Synthesis-surface gaps (P1)*. Each finding cites
@@ -2938,6 +2989,24 @@ below.
 
 
 ## Closed-P3 (recorded, no action)
+
+### 2026-11-15 U7 reference appendices and registries
+
+- **U7-F6 — two O.2 error categories have no raise site. Recorded (2026-11-15),
+  no action.** Predicate: `spec/appendices-reference.md:3063-3082` catalogues ten
+  categories, and `MISSING_PARAM` and `SYSTEM` appear nowhere in `holonovel/src`
+  (the other eight do: `[STATE_CONFLICT]` 41, `[FORBIDDEN]` 24, `[INVALID_INPUT]`
+  20, `[NOT_FOUND]` 16, `REJECTED` 3, `RULE_VIOLATION` 1, `UNIMPLEMENTED` at
+  `holonovel/src/world/parser.ts:131`, `AMBIGUOUS` at
+  `holonovel/src/index.ts:3420`). No contradiction: O.2 is a taxonomy, and it
+  states `SYSTEM` carries no corrective action because the failure is
+  protocol-level.
+- **U7-F7 — Appendix U's COF licence cell is terser than the register it
+  delegates to. Recorded (2026-11-15), no action.** Predicate:
+  `spec/appendices-licenses.md:21` reads `CC BY 4.0 / CC0 1.0` while
+  `docs/licenses/ATTRIBUTION.md`'s COF row reads `CC BY 4.0 (spec) / CC0 1.0
+  (schemas)`; the appendix declares ATTRIBUTION the place for licence detail, so
+  the two are not in conflict.
 
 ### 2026-11-14 U2 build process and tooling
 

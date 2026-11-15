@@ -94,7 +94,7 @@ the 2026-11-09 sweep; `seam` = closed by the 2026-11-09 seam pass;
 | U4 | §8, gate manifest and harnesses, CI | drift + gate coverage | **reviewed 2026-11-15** — 52 rows, 2 P0 fixed, 3 P1 + 2 P2 scheduled (`docs/plans/2026-11-15-unscoped-u4/review.md`) |
 | U5 | §9, §10, Appendix V, publication and cadence | drift + process | **reviewed 2026-11-15** — 46 rows, 8 P0 + 1 P3 fixed (`docs/plans/2026-11-15-unscoped-u5/review.md`) |
 | U6 | §11, Appendices B/C/N/W–Z, fixtures and playability | fixture exercise | **reviewed 2026-11-15** — 66 rows, 1 P0 prose fixed, 3 P1 scheduled, 2 process closed (`docs/plans/2026-11-15-unscoped-u6/review.md`) |
-| U7 | Appendices D–L/O–T/U, registries and manifests | catalog comparison | **scheduled** |
+| U7 | Appendices D–L/O–T/U, registries and manifests | catalog comparison | **reviewed 2026-11-15** — 67 rows, 1 P0 fixed, 1 P1 scheduled, 2 P3 closed (`docs/plans/2026-11-15-unscoped-u7/review.md`) |
 | U8 | repo governance docs, vendored and content assets | drift + code | **scheduled** |
 
 ## Chunk U1 — foundations and constitution
@@ -286,10 +286,14 @@ unimplemented internal rules) are `Scheduled-roadmap` under `ROADMAP.md`
 **Lens:** catalog ↔ live artifact comparison.
 **Already gated:** `check-tool-definitions-sync`, `tool-definitions-lint`,
 `check-tdqs-scoreboard`, `tool-citation-check`, `check-server-manifest`,
-`check-registry`, `check-tool-surface`.
+`check-tool-surface`, `check-adventure-index`, `check-registers` (the manifest
+gate; `check-registry` is the network-bound publisher check and is not a manifest
+gate — U7-F1), `check-vendor-manifest`.
 **Exit evidence:** each catalog appendix matches the artifact it describes or
 carries a divergence finding; every Appendix U license resolves to
-`docs/licenses/ATTRIBUTION.md`.
+`docs/licenses/ATTRIBUTION.md`. **Reviewed 2026-11-15: 67 rows, 60 PASS, 9
+builder-side (reason recorded), 2 DEFECT — U7-F2 fixed, U7-F4 scheduled — and 2
+P3 record-and-close notes (`docs/plans/2026-11-15-unscoped-u7/review.md`).**
 
 ## Chunk U8 — repo governance and content assets
 
