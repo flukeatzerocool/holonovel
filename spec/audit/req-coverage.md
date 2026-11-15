@@ -613,4 +613,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-655 | Derived validity windows | 5.35 Subjective Memory | C | T779 | — |
 | REQ-656 | Window-aware displaced verdict | 5.35 Subjective Memory | C | T780 | — |
 | REQ-658 | Comparable recall benchmark | 5.35 Subjective Memory | E | T781 | — |
+| REQ-659 | Slug derivation | 5.1 Output and Error Contracts | C | T787 | — |
 

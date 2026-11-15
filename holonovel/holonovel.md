@@ -496,7 +496,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
-| 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548 |
+| 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548, 659 |
 | 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551, 559, 562, 582, 585 |
 | 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555, 567–581, 583–584, 587–588, 606–610 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
@@ -708,6 +708,9 @@ The server SHALL derive anchors deterministically from heading text, with explic
 
 **REQ-194b — Anchor derivation (Part b).**
 Derived anchors SHALL remain stable across re-indexing and collision-distinct within a source file, preserving non-ASCII word characters; §7.1 defines the derivation. *Acceptance criterion:* Running the same heading text twice through anchor derivation produces the same anchor. A heading with an explicit ID (`{#foo}`) uses `foo` regardless of its text. Two headings with identical derived text in the same file produce anchors suffixed `-1` and `-2`. _Check:_ T16, T236.
+
+**REQ-659 — Slug derivation.**
+A slug SHALL be a filename-safe identifier derived by the algorithm REQ-194a defines for anchors, with the additions §7.1a states. A derived stem that names a Windows reserved device SHALL resolve by appending a `-1` suffix. A primary Novel state path longer than 240 characters SHALL be shortened deterministically by prefixing a short hash of the derived slug. A name with no alphanumeric character SHALL fall back to a fixed stem. Re-deriving the same name under the same data directory SHALL reproduce the same slug. *Acceptance criterion:* a reserved name yields the suffixed slug; an over-long path yields a shortened slug within the limit; an empty derivation yields the fallback; two runs agree, and every result satisfies the server's safe-slug grammar. _Check:_ T787.
 
 **REQ-071a — Narrative tone samples (Part a).**
 `[narrative-tone]`-tagged guidance items per badge — example-of-play prose extracted from the ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<badge>/tone`. Each carries source anchor and confidence. Discovery (§6.3) extracts these snippets as a guidance subcategory. When the ruleset provides none, the Synthesis workflow (§11.1) may source community examples.
@@ -7384,20 +7387,21 @@ hyphen-equivalent runs with single hyphens, and collapse consecutive hyphens;
 non-ASCII word characters (CJK and similar) are preserved. Explicit IDs (`{#id}`)
 take precedence over the derived anchor. Role-scoping markers — the ruleset's
 adjudicator/player terms in asterisk or underscore emphasis, such as `*Keeper only*`
-or `_GM only_` — are stripped before derivation. Duplicate derived anchors within a
+or `_GM only_` — are stripped before derivation. An underscore inside an identifier
+token (`set_active_state`) is not a marker. Duplicate derived anchors within a
 source file append `-1`, `-2`, and so on; duplicate explicit IDs across files are an
 authoring defect. Re-indexing the same source reproduces identical anchors (REQ-194).
 
 ### 7.1a Slugs (filename-safe identifiers)
 
 Slugs share REQ-194's core derivation algorithm (lowercase, strip punctuation,
-hyphenate) and additionally:
+hyphenate) and additionally implement REQ-659:
 
 - SHALL avoid Windows reserved names (CON, PRN, AUX, NUL, COM1–COM9, LPT1–LPT9).
   Collisions with reserved names resolve by appending `-1`.
-- SHALL NOT result in full Novel state paths exceeding 240 characters.
-  Consider: prepend a short hash if the slug alone would produce a path
-  exceeding the limit.
+- SHALL NOT result in full Novel state paths exceeding 240 characters. The server
+  SHALL prepend a short hash of the derived slug when the slug alone would produce
+  a longer path.
 - Leading and trailing hyphens are stripped.
 
 ### 7.2 Entity IDs
@@ -10539,6 +10543,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-655 | Derived validity windows | 2026-11-10 |
 | REQ-656 | Window-aware displaced verdict | 2026-11-10 |
 | REQ-658 | Comparable recall benchmark | 2026-11-10 |
+| REQ-659 | Slug derivation | 2026-11-14 |
 | REQ-425a | Output format catalog (Part a) | 2026-09-01 |
 | REQ-425b | Output format validation (Part b) | 2026-09-01 |
 | REQ-425c | Output format consistency (Part c) | 2026-09-01 |
@@ -11087,7 +11092,7 @@ diet.
 | T223  | Manual   | Anti-slop guidance: invoke `badge_briefing` as GM — assert `[anti-slop]`-tagged items present with forbidden/corrected pattern pairs; assert LLM-specific patterns (echoing, passive voice, motif repetition) present for GM badge. Invoke as Player — assert Player-scoped anti-slop items present (establishing world facts, assuming outcomes, declaring NPC reactions, meta-commentary leakage), GM-only items excluded. Read `guidance://game_master/anti-slop` — assert Markdown containing all Appendix J GM-scoped patterns tagged `[anti-slop]` and badge-filtered; synthesis-sourced items carry `[supplementary]` with source URL. Read `guidance://player/anti-slop` — assert Player-scoped patterns. Severity classification (Hard/Soft) discernible from pattern metadata. | REQ-070, REQ-184 |
 | T300  | Automated | Section token vocabulary: build for D&D 5e — assert DECISIONS.md contains a table mapping every REQ-109 group name to a snake_case token. Build for the Appendix B fixture — assert the token set shrinks (absent: combat, countdowns, lore, adventures) but token names for shared groups are identical to the D&D 5e build. | REQ-185 |
 | T225  | Automated | Section token discoverability: invoke `manage_diagnostics (action: health)` — assert `section_tokens` array with token, group, and has_content fields. Invoke `manage_context (action: discover)` with query `"briefing"` — assert valid token set enumerated. Invoke `manage_context (action: discover)` with query `"section ordering"` — assert valid token set enumerated. Invoke `manage_context (action: briefing_order)` with an unknown token — assert `[INVALID_INPUT]` with valid tokens enumerated matching `spec_health.section_tokens` exactly. | REQ-186, REQ-082 |
-| T236  | Automated | Anchor determinism: parse the Appendix B fixture, extract all heading anchors, re-parse, assert identical anchor set. Assert anchors with CJK heading text preserve CJK characters. Assert `*Keeper only*` heading produces same anchor as bare heading text. Assert `{#custom-id}` overrides auto-derived anchor. Assert duplicate headings produce `-1`, `-2` suffixes matching GFM convention. | REQ-194 |
+| T236  | Automated | Anchor determinism: parse the Appendix B fixture, extract all heading anchors, re-parse, assert identical anchor set. Assert anchors with CJK heading text preserve CJK characters. Assert `*Keeper only*` and `_GM only_` headings produce the same anchor as the bare heading text, including when a comma follows the closing delimiter. Assert a heading whose underscore sits inside an identifier token is unchanged. Assert `{#custom-id}` overrides auto-derived anchor. Assert duplicate headings produce `-1`, `-2` suffixes matching GFM convention. | REQ-194 |
 | T237  | Automated | World-model conflict resolution: create a Novel with a populated world model. Assert a TTRPG combat operation (manage_combat (action: init), manage_combat (action: advance)) overrides the world-model tool surface — active combat state triggers TTRPG-turn-gating during parser navigation regardless of scene type. Assert world-model room descriptions override infrastructure output-format defaults — the room description format uses the world-model convention (name, description, visible things) rather than generic infrastructure formatting. | §5.10 |
 | T238  | Automated | World-model state tier: create a Novel, populate rooms/things/exits via `manage_world (action: convert)` or CRUD tools. Assert `spec_health` reports world-model object counts. Persist and restart — assert world-model objects restored. Assert snapshot undo restores world-model state. Assert an empty Novel (no rooms) reports zero counts and parser commands return not-implemented. | REQ-195 |
 | T239  | Automated | Parser command dispatch: populate a world model from the Appendix K fixture example. Assert `command("look")` returns the Entrance Chamber name, description, and visible things. Assert `command("go north")` enters the Hall of Statues. Assert `command("go north")` from the Hall hits the locked Obsidian Door and returns a rule-violation. Assert `command("open obsidian door")` succeeds. Assert `command("take serpent crown")` succeeds and removes the crown from the Throne Room. Assert `command("take entrance chamber")` returns a rule-violation (room is not a thing). Assert taking a thing inside a closed container returns `[RULE_VIOLATION]` naming the container and succeeds after `open`. Assert `command("xyzzy")` returns `[UNIMPLEMENTED]` naming the verb and the three nearest valid commands. Assert `command("take something not here")` returns not-found. Assert an ambiguous object reference returns `[OK] Which thing?` with a numbered list carrying each match's location, and that replying with an index applies the original command. Assert `command("help")`, `command("commands")`, and `command("what can I do?")` return identical text enumerating each command's category and one-line description, including the narrative category, and that help still enumerates verbs when the world model is empty. Assert `command("jump")` and `command("touch <thing>")` succeed, and `command("jump <non-climbable>")` returns `[RULE_VIOLATION]`. | REQ-196 |
@@ -11526,6 +11531,7 @@ diet.
 | T784 | Automated | Index-backed search badge scope: with a package whose search index declares one `badge_scope: game_master` entry beside shared entries, call a package search tool and `manage_ruleset (action: search)` as Player — assert the GM-only entry is absent, the reported total excludes it, and a query matching only it returns `[NOT_FOUND]`; repeat with a blank and a whitespace query — assert no GM-only content; repeat as Observer — identical; as Editor and Game Master — assert the entry and the full total. Read the GM-only anchor through `ruleset://` as Player — assert `[NOT_FOUND]` with no content and no scope confirmation; as Game Master — assert its content. Install a second package whose index omits `badge_scope` and marks the entry `category: gm` — assert Player search and the resource still withhold it. | REQ-210d |
 | T785 | Automated | Badge truth with no active Novel: call `set_badge` on a fresh connection with no active Novel — assert `[ERROR] [STATE_CONFLICT]`, a corrective action naming `open_session` and `manage_novel (action: create)`, no audit entry, and `spec_health.active_badge` unset; create a Novel — assert `[OK] Active badge: player` and the next call is gated. | REQ-030, REQ-066b |
 | T786 | Automated | Audit cap with no persisted residue: fill the audit log one slot below `TTRPG_AUDIT_MAX_ENTRIES`, then make a call that also writes a `[session-boundary]` marker — assert `[ERROR] [STATE_CONFLICT]` naming the cap and that the persisted Novel's scene state, audit length, and `metadata.state_hash` are byte-identical to their pre-call values; assert the dispatcher refuses a further appending call before the handler runs. | REQ-040a, REQ-447 |
+| T787 | Automated | Slug derivation: derive a slug from a Windows reserved name and assert the `-1` suffix; assert a name with no alphanumeric character yields the fixed fallback stem; assert two derivations of one name agree; assert a name long enough to push the primary state path past 240 characters yields a shortened slug within the limit, a second run reproduces it, the shortened slug differs between a short and a long data directory, and the hash-preferred result never collapses to a bare reserved stem; assert a produced suffixed slug is admissible while its unsuffixed stem is refused. | REQ-659 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |

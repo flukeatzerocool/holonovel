@@ -17,6 +17,12 @@ export function deriveAnchor(
   if (inlineId) return inlineId;
   let text = heading
     .replace(/\*[^*]+\*/g, "")
+    // REQ-194 / §7.1 — an underscore role marker (`_GM only_`) is emphasis, not
+    // an identifier. The opening boundary (start or whitespace) keeps a mid-token
+    // underscore — `set_active_state` — untouched, so no existing anchor moves;
+    // the closing lookahead accepts any non-word character so a comma after the
+    // marker strips exactly as a space does.
+    .replace(/(^|\s)_([^_\s][^_]*)_(?=\W|$)/g, "$1")
     .toLowerCase()
     .replace(/[\p{P}\p{S}]/gu, "")
     .replace(/[\s\u00a0]+/g, "-")

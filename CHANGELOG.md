@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-11-15 — Identifier derivation: the two P1 gaps closed under REQ-659
+
+The two identifier rules the spec already stated are now implemented and
+evidenced. §7.1's underscore role marker strips like its asterisk form, and
+§7.1a's Windows-reserved-stem and 240-character path rules exist in code for the
+first time. The slug rule also gains a requirement body, so the coverage audit
+can see it: it was normative prose with no REQ tracking it.
+
+- `deriveAnchor` gains a whitespace-opened underscore branch (`anchors.ts:19-25`).
+  `_GM only_ The Door` and `_GM only_, The Door` both derive `the-door`; a
+  mid-token underscore stays untouched, so no existing anchor moves
+  (`set_active_state` still derives `setactivestate`).
+- New `holonovel/src/core/slug.ts` (`REQ-659`): `deriveSlug` keeps the existing
+  sanitizer and adds the reserved-stem remap (`CON` → `con-1`) and an empty-name
+  fallback; `fitSlug` enforces the 240-character primary-path ceiling with an
+  eight-hex hash prefix. Every result satisfies `isSafeSlug`.
+- Five derivation sites now share the helper: Novel create, the `TTRPG_NOVEL`
+  startup name, and `rename`, `clone`, and `branch`. Rename keeps its sanitizing
+  posture and reports the slug it wrote.
+- Novel-pack admission refuses a reserved-stem or over-length slug with
+  `[INVALID_INPUT]` rather than rewriting the pack's identity (REQ-088h1). The
+  full `holonovel/src` enumeration found no second admission site: archive import
+  restores into the active Novel, and the starter seeder copies a packaged asset
+  under its own fixed name.
+- `REQ-659` is registered in §5.1, the §5.1 section map, the Appendix E manifest,
+  and Appendix F (`T787`); §7.1a now cites it and states the ceiling as a `SHALL`.
+- `T236` gains the underscore cases; `T787` covers reserved stems, the fallback,
+  determinism, the cross-directory fit, the ceiling, and the admission round-trip.
+  The coverage register lists `REQ-659` as bucket C.
+- `F-U3-1` and `F-U3-2` are `Resolved` in the review register and the
+  corresponding `ROADMAP.md` section is removed; the §7.3a section keeps
+  `F-U3-3`/`F-U3-4`.
+
 ## 2026-11-14 — Runtime-conventions review: the pattern-rule range corrected, four gaps scheduled
 
 Review of §7 runtime conventions, the engine-contract remainder, and the

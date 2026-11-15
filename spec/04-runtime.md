@@ -17,20 +17,21 @@ hyphen-equivalent runs with single hyphens, and collapse consecutive hyphens;
 non-ASCII word characters (CJK and similar) are preserved. Explicit IDs (`{#id}`)
 take precedence over the derived anchor. Role-scoping markers — the ruleset's
 adjudicator/player terms in asterisk or underscore emphasis, such as `*Keeper only*`
-or `_GM only_` — are stripped before derivation. Duplicate derived anchors within a
+or `_GM only_` — are stripped before derivation. An underscore inside an identifier
+token (`set_active_state`) is not a marker. Duplicate derived anchors within a
 source file append `-1`, `-2`, and so on; duplicate explicit IDs across files are an
 authoring defect. Re-indexing the same source reproduces identical anchors (REQ-194).
 
 ### 7.1a Slugs (filename-safe identifiers)
 
 Slugs share REQ-194's core derivation algorithm (lowercase, strip punctuation,
-hyphenate) and additionally:
+hyphenate) and additionally implement REQ-659:
 
 - SHALL avoid Windows reserved names (CON, PRN, AUX, NUL, COM1–COM9, LPT1–LPT9).
   Collisions with reserved names resolve by appending `-1`.
-- SHALL NOT result in full Novel state paths exceeding 240 characters.
-  Consider: prepend a short hash if the slug alone would produce a path
-  exceeding the limit.
+- SHALL NOT result in full Novel state paths exceeding 240 characters. The server
+  SHALL prepend a short hash of the derived slug when the slug alone would produce
+  a longer path.
 - Leading and trailing hyphens are stripped.
 
 ### 7.2 Entity IDs

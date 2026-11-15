@@ -6,7 +6,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 
 | §       | Title                               | REQs                                                |
 |---------|-------------------------------------|-----------------------------------------------------|
-| 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548 |
+| 5.1    | Output and Error Contracts                              | 001–004, 060–062, 064, 070, 071, 101, 113, 118, 179, 184, 194, 277, 280, 425, 548, 659 |
 | 5.2    | Extraction and Confidence                               | 010–018, 099, 102, 111, 146, 147, 153, 154, 207, 209, 210, 212, 214, 215, 225, 270–272, 315, 324, 354, 452–454, 551, 559, 562, 582, 585 |
 | 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555, 567–581, 583–584, 587–588, 606–610 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
@@ -218,6 +218,9 @@ The server SHALL derive anchors deterministically from heading text, with explic
 
 **REQ-194b — Anchor derivation (Part b).**
 Derived anchors SHALL remain stable across re-indexing and collision-distinct within a source file, preserving non-ASCII word characters; §7.1 defines the derivation. *Acceptance criterion:* Running the same heading text twice through anchor derivation produces the same anchor. A heading with an explicit ID (`{#foo}`) uses `foo` regardless of its text. Two headings with identical derived text in the same file produce anchors suffixed `-1` and `-2`. _Check:_ T16, T236.
+
+**REQ-659 — Slug derivation.**
+A slug SHALL be a filename-safe identifier derived by the algorithm REQ-194a defines for anchors, with the additions §7.1a states. A derived stem that names a Windows reserved device SHALL resolve by appending a `-1` suffix. A primary Novel state path longer than 240 characters SHALL be shortened deterministically by prefixing a short hash of the derived slug. A name with no alphanumeric character SHALL fall back to a fixed stem. Re-deriving the same name under the same data directory SHALL reproduce the same slug. *Acceptance criterion:* a reserved name yields the suffixed slug; an over-long path yields a shortened slug within the limit; an empty derivation yields the fallback; two runs agree, and every result satisfies the server's safe-slug grammar. _Check:_ T787.
 
 **REQ-071a — Narrative tone samples (Part a).**
 `[narrative-tone]`-tagged guidance items per badge — example-of-play prose extracted from the ruleset that demonstrates the ruleset's narrative tone, served at `guidance://<badge>/tone`. Each carries source anchor and confidence. Discovery (§6.3) extracts these snippets as a guidance subcategory. When the ruleset provides none, the Synthesis workflow (§11.1) may source community examples.

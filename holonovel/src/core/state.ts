@@ -23,6 +23,7 @@ import { normalizePerceptionRecord } from "./perception.js";
 import { normalizeSubjectiveRecord, normalizeReinforcementEntry } from "./subjective.js";
 import { normalizeIdentityMap } from "./identity.js";
 import { deriveArcTier, deriveCampaignTier } from "./memory.js";
+import { deriveSlug, fitSlug } from "./slug.js";
 import { auditNotation } from "./lonelog.js";
 
 const SPEC_VERSION: string = JSON.parse(
@@ -1265,7 +1266,8 @@ export class StateManager {
   // ── Novel Lifecycle ───────────────────────────────────────────
 
   createNovel(name: string, ruleset: string | null = null): NovelState {
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    // REQ-659 / §7.1a — core derivation, reserved-stem remap, path ceiling.
+    const slug = fitSlug(deriveSlug(name), this.stateDir);
     if (this.novels.has(slug)) throw new Error(`[STATE_CONFLICT] Novel '${slug}' already exists.`);
 
     const novel: NovelState = {

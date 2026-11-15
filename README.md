@@ -476,4 +476,4 @@ Upstream sources: [D&D 5e SRD](https://www.dndbeyond.com/srd),
 [Ironsworn SRD](https://ironswornrpg.com),
 [COF](https://github.com/yannsouetre/cof).
 
-[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-11-14.
+[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: <!-- @spec:date -->2026-11-15.

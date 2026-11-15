@@ -2720,20 +2720,17 @@ F-P3B1-3, F-P3B1-4, F-P3B1-5, F-P3B1-6, F-P3B1-7, F-P3B1-8, and F-P3B1-9 are
 ### 2026-11-14 U3 runtime conventions
 
 Four P1 findings from chunk U3
-(`docs/plans/2026-11-14-unscoped-u3/`). Each rests on a demonstrated predicate
-and needs a code or documentation change, which this review increment does not
-make. Scheduled under `ROADMAP.md` § *Identifier-derivation conformance (P1)*
-and § *§7.3a documentation and P60 vocabulary (P1)*.
+(`docs/plans/2026-11-14-unscoped-u3/`).
 
-- **F-U3-1 — §7.1's role-marker rule outruns the anchor deriver
-  (2026-11-14).** `holonovel/src/core/anchors.ts:18-24` strips `*…*` emphasis
-  only; `_GM only_` derives as `gm-only` instead of being removed, while
-  `spec/04-runtime.md:18-20` names asterisk **or** underscore markers. Row 1.
-- **F-U3-2 — §7.1a's slug rules are unimplemented (2026-11-14).**
-  `holonovel/src/core/state.ts:1268` slugifies and trims hyphens only; the
-  Windows-reserved-name avoidance and the 240-character path ceiling required
-  by `spec/04-runtime.md:29-34` have no branch anywhere in `holonovel/src`.
-  Row 2.
+*Resolved 2026-11-15* by the identifier-derivation increment
+(`docs/plans/2026-11-14-identifier-derivation-conformance/`): §7.1's underscore
+marker now strips (`anchors.ts:19-25`) and §7.1a's reserved-stem and 240-character
+rules are implemented under `REQ-659` (`holonovel/src/core/slug.ts`), evidenced by
+`T787` and the extended `T236`.
+
+The two remaining findings are scheduled under `ROADMAP.md` § *§7.3a
+documentation and P60 vocabulary (P1)*.
+
 - **F-U3-3 — §7.3a's builder documentation duty is unmet (2026-11-14).**
   `spec/04-runtime.md:102-104` requires builders to document prompt
   construction per clause in `holonovel/DECISIONS.md`; no such entry exists

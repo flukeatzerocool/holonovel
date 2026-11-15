@@ -93,6 +93,7 @@ import { groupCaps, capRefusal } from "./core/limits.js";
 import { buildArtifactRegistry, registryCounts, type ArtifactEntry, type ArtifactKind } from "./core/artifact-registry.js";
 import { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary, ADVENTURE_PROVENANCE_KEYS, type AdventureProvenance } from "./core/adventure-provenance.js";
 import { resolveInboxDir, resolveWithin, isSafeSlug } from "./core/data-dir.js";
+import { deriveSlug, fitSlug, isReservedSlugStem, SLUG_PATH_CEILING } from "./core/slug.js";
 
 // ── Constants ──────────────────────────────────────────────────────
 //
@@ -165,7 +166,7 @@ state.buildFingerprint.lastSpecReview = new Date().toISOString();
 
 const server = new McpServer({
   name: "holonovel",
-  version: "2026.11.14",
+  version: "2026.11.15",
 }, {
   // REQ-577 — the handshake carries the session-start path: a client that never
   // opens a prompt still learns the first call. Tool names only; no paths,
@@ -2280,7 +2281,8 @@ for (const warning of state.buildDrift) process.stderr.write(`[holonovel] ${warn
 // save.
 const startupNovel = process.env.TTRPG_NOVEL;
 if (startupNovel) {
-  const slug = startupNovel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  // REQ-659 / §7.1a — the startup name is a derivation site.
+  const slug = fitSlug(deriveSlug(startupNovel), DATA_DIR);
   try {
     if (state.novels.has(slug)) {
       const novel = state.activateHydratedNovel(slug);
@@ -13558,7 +13560,9 @@ Options: yes, cancel${driftWarn}`);
       requireGM();
       const novel = requireNovel();
       const oldSlug = novel.slug;
-      const newSlug = args.new_slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      // REQ-659 / §7.1a — rename sanitizes like create; the resulting slug is
+      // what the response and `manage_novel (action: list)` report.
+      const newSlug = fitSlug(deriveSlug(String(args.new_slug)), DATA_DIR);
       // renameNovel guards against a target-slug collision (REQ-256) before
       // mutating state; only after it succeeds do we remove the old save file,
       // so a rejected rename leaves disk intact. A no-op same-slug rename keeps
@@ -13684,7 +13688,7 @@ Options: yes, cancel${driftWarn}`);
       requireGM();
       const source = state.novels.get(args.source_slug);
       if (!source) return err("NOT_FOUND", `Source novel '${args.source_slug}' not found.`);
-      const slug = args.new_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const slug = fitSlug(deriveSlug(String(args.new_name)), DATA_DIR);
       // REQ-240 — refuse a clone onto an existing slug rather than silently
       // overwriting the target's save file.
       if (state.novels.has(slug) || fs.existsSync(path.join(DATA_DIR, "novels", `${slug}.json`))) {
@@ -13711,7 +13715,7 @@ Options: yes, cancel${driftWarn}`);
       requireGM();
       const source = state.novels.get(args.source_slug);
       if (!source) return err("NOT_FOUND", `Source novel '${args.source_slug}' not found.`);
-      const slug = args.new_name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const slug = fitSlug(deriveSlug(String(args.new_name)), DATA_DIR);
       if (state.novels.has(slug) || fs.existsSync(path.join(DATA_DIR, "novels", `${slug}.json`))) {
         return err("STATE_CONFLICT", `Novel '${slug}' already exists.`);
       }
@@ -14247,6 +14251,16 @@ server.registerTool("manage_artifact", {
           return err("INVALID_INPUT", `slug '${args.slug}' does not match the pack slug '${slug}'.`);
         }
         if (!isSafeSlug(slug)) return err("INVALID_INPUT", `Novel slug '${slug}' must match ^[a-z0-9]+(?:-[a-z0-9]+)*$.`);
+        // REQ-659 / §7.1a — an admitted slug is the pack's identity, so a slug
+        // that cannot be a filename on Windows, or whose primary path would
+        // overrun the ceiling, is refused rather than rewritten; rewriting would
+        // leave the save file's slug diverging from its content (REQ-088h1).
+        if (isReservedSlugStem(slug)) {
+          return err("INVALID_INPUT", `Novel slug '${slug}' is a reserved device name; rename the pack before admission (REQ-659).`);
+        }
+        if (path.join(DATA_DIR, "novels", `${slug}.json`).length > SLUG_PATH_CEILING) {
+          return err("INVALID_INPUT", `Novel slug '${slug}' would produce a state path over ${SLUG_PATH_CEILING} characters; shorten it before admission (REQ-659).`);
+        }
         // REQ-621a — a bound ruleset must be installed before admission; the
         // Novel would refuse to resume otherwise.
         if (novel.ruleset && !rulesets.isInstalled(novel.ruleset)) {

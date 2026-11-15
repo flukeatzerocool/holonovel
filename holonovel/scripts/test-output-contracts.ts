@@ -11,6 +11,7 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from "nod
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { deriveAnchor } from "../src/core/anchors.js";
+import { deriveSlug, fitSlug, isReservedSlugStem, SLUG_PATH_CEILING } from "../src/core/slug.js";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 import { sha256Canonical } from "../../scripts/lib/hash.js";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
@@ -433,7 +434,59 @@ async function main() {
     if (deriveAnchor("角色介绍", undefined, seen) !== "角色介绍") throw new Error("CJK preservation failed");
     if (deriveAnchor("Keeper Secrets {#secrets}", undefined, seen) !== "secrets") throw new Error("explicit id override failed");
     if (deriveAnchor("*Keeper only* The Door", undefined, seen) !== "the-door") throw new Error("role-scoping strip failed");
+    if (deriveAnchor("_GM only_ The Door", undefined, new Set<string>()) !== "the-door") throw new Error("underscore role-scoping strip failed");
+    if (deriveAnchor("_GM only_, The Door", undefined, new Set<string>()) !== "the-door") throw new Error("underscore marker before punctuation failed");
+    if (deriveAnchor("set_active_state", undefined, new Set<string>()) !== "setactivestate") throw new Error("identifier underscore must stay off the marker path");
     if (deriveAnchor("A & B — C", undefined, seen) !== "a-b-c") throw new Error("punctuation strip failed");
+    passed++;
+  });
+
+  // ── REQ-659 slug derivation (unit-level, same helpers the server uses) ──
+  await test("T787/REQ-659: slug derivation — reserved stems, fallback, ceiling, determinism", async () => {
+    if (deriveSlug("CON") !== "con-1") throw new Error("reserved stem CON not remapped");
+    if (deriveSlug("aux") !== "aux-1") throw new Error("reserved stem aux not remapped");
+    if (deriveSlug("COM1") !== "com1-1") throw new Error("reserved stem COM1 not remapped");
+    if (deriveSlug("My Novel!") !== "my-novel") throw new Error("core derivation failed");
+    if (deriveSlug("!!!") !== "novel") throw new Error("punctuation-only name did not fall back");
+    if (deriveSlug("CON") !== deriveSlug("CON")) throw new Error("derivation is not deterministic");
+    if (!isReservedSlugStem("con")) throw new Error("literal reserved stem not detected");
+    if (isReservedSlugStem("con-1")) throw new Error("a produced suffixed slug must be admissible");
+    const shortDir = "/tmp/slug-short";
+    const longDir = "/" + "x".repeat(200);
+    const longName = "a".repeat(300);
+    const shortFit = fitSlug(deriveSlug(longName), shortDir);
+    const longFit = fitSlug(deriveSlug(longName), longDir);
+    if (shortFit !== fitSlug(deriveSlug(longName), shortDir)) throw new Error("fitSlug is not deterministic");
+    if (join(longDir, "novels", `${longFit}.json`).length > SLUG_PATH_CEILING) throw new Error("ceiling not enforced");
+    if (shortFit === longFit) throw new Error("fit must depend on the data directory the rule measures");
+    for (const value of [shortFit, longFit, deriveSlug("CON"), deriveSlug("!!!")]) {
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) throw new Error(`slug is not safe: ${value}`);
+      if (isReservedSlugStem(value)) throw new Error(`fitted slug collapsed to a reserved stem: ${value}`);
+    }
+
+    // Wiring: the helper is what create and rename use, and admission refuses a
+    // pack slug this build would never derive.
+    const inbox = join(DATA_DIR, "inbox");
+    mkdirSync(inbox, { recursive: true });
+    const p = await boot();
+    await call(p, "set_badge", { badge: "game_master" });
+    const created = await call(p, "manage_novel", { action: "create", name: "CON" });
+    if (!/con-1/.test(created)) throw new Error(`create did not remap a reserved name: ${created}`);
+    const renamed = await call(p, "manage_novel", { action: "rename", new_slug: "CON" });
+    if (!/con-1/.test(renamed)) throw new Error(`rename did not remap a reserved slug: ${renamed}`);
+    writeFileSync(join(inbox, "reserved.json"), JSON.stringify({ slug: "con", name: "Reserved" }));
+    const refused = await callRaw(p, "manage_artifact", { action: "install", kind: "novel", source: "reserved.json" });
+    const refusedText = (refused.content ?? []).map((x: any) => x?.text ?? "").join("\n");
+    if (!/INVALID_INPUT/.test(refusedText) || !/reserved device name/.test(refusedText)) {
+      throw new Error(`admission did not refuse a reserved slug: ${refusedText}`);
+    }
+    writeFileSync(join(inbox, "overlong.json"), JSON.stringify({ slug: "a".repeat(260), name: "Overlong" }));
+    const longRefused = await callRaw(p, "manage_artifact", { action: "install", kind: "novel", source: "overlong.json" });
+    const longText = (longRefused.content ?? []).map((x: any) => x?.text ?? "").join("\n");
+    if (!/INVALID_INPUT/.test(longText) || !/240 characters/.test(longText)) {
+      throw new Error(`admission did not refuse an over-length slug: ${longText}`);
+    }
+    await kill(p);
     passed++;
   });
 

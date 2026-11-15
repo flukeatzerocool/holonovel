@@ -75,20 +75,6 @@ longer need hand-editing.
 **Trigger:** the date 2026-11-28, or 26 new commits, whichever comes first;
 closes when the re-measurement is recorded in the AAR of that session.
 
-## Identifier-derivation conformance (P1)
-
-- Add the underscore role-marker branch to `deriveAnchor`
-  (`holonovel/src/core/anchors.ts:18-24`) so `_GM only_` is stripped like
-  `*GM only*`, or narrow §7.1 to asterisk markers — the spec currently claims
-  both (`spec/04-runtime.md:18-20`).
-- Implement §7.1a's slug rules: Windows-reserved-name avoidance
-  (CON/PRN/AUX/NUL/COM1–COM9/LPT1–LPT9, `-1` on collision) and the
-  240-character state-path ceiling (`spec/04-runtime.md:29-34`;
-  `holonovel/src/core/state.ts:1268` implements neither).
-
-**Trigger:** the next `anchors.ts` or Novel-slug edit; closes when the anchor
-deriver and the slug builder implement every clause of §7.1 and §7.1a.
-
 ## §7.3a documentation and P60 vocabulary (P1)
 
 - Add the prompt-construction note §7.3a requires to
