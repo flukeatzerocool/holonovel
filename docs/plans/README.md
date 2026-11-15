@@ -16,8 +16,12 @@ linked from a commit, or recovered next session.
 docs/plans/<YYYY-MM-DD>-<slug>/
   plan.md    — why, scope, blast radius, phases, done bar
   tasks.md   — dependency-ordered task breakdown
+  review.md  — optional: the verdict rows, when the increment is a review
   aar.md     — after-action report, ending in LOOP PAUSED or LOOP OPEN
 ```
+
+`plan.md`, `tasks.md`, and `aar.md` are required. `review.md` is not — a review
+increment adds it so every row's verdict and predicate outlives the session.
 
 `scripts/check-loop-artifacts.ts` enforces the contract; `npm run session:close`
 refuses to commit an increment that fails it.

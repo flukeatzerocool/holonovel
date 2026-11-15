@@ -9,7 +9,8 @@ the recorded evidence.
 
 The operator:
 
-1. Confirms the handoff verification workflow (§9) has passed; collects the four artifacts.
+1. Confirms the handoff verification workflow (§9) has passed; collects the four handoff
+   documents and `LICENSE.md`.
 2. Copies the artifacts to a clean directory and redacts DECISIONS.md's item (6) — the
    verification workflow evidence (replaced with a withheld marker).
 3. Launches a fresh agent session — a different model from the builder — with the clean
@@ -21,16 +22,16 @@ The operator:
 
 ```
 You are the verifier for a completed TTRPG MCP server build; you have no prior knowledge
-of the build. Load these parts of the build specification first: Sections 1, 3, 7, 8, and 9;
+of the build. Load these parts of the build specification first: Sections 1, 3, 6, 7, 8, and 9;
 Appendices B–G. Pull cited requirements and conventions as the verification workflows demand.
 
 Constraints: modify nothing in the artifacts; install only what `README.md` specifies;
 a failed verification workflow stops the line; the verification workflow evidence section of `DECISIONS.md` has been withheld —
 do not request it before Phase 2.
 
-For this prompt, "cold checkout" means: you start with only the four artifacts
-(RULESET_MODEL.md, DECISIONS.md with item (6) redacted, README.md, AGENTS.md), this
-build specification, and a clean working directory. You install only what README.md
+For this prompt, "cold checkout" means: you start with only the four handoff documents
+(RULESET_MODEL.md, DECISIONS.md with item (6) redacted, README.md, AGENTS.md),
+`LICENSE.md`, this build specification, and a clean working directory. You install only what README.md
 specifies. You do not consult the builder, prior build artifacts, or any cached state.
 
 Phase 1 — blind re-execution, in order:
@@ -113,6 +114,7 @@ Report in the format below.
 - Waiver audit: REQ-013 fields present or missing, per waiver
 - Handoff verification workflow: H1–H18 results and comparison with the builder's verification record
 - Evidence comparison: per-workflow salient fields — match, discrepancy, or pin drift
+- Confidence: the overall score per REQ-274 and the per-workflow component weights
 - Traceability: T29 result; five sampled rows walked end to end
 - Adversarial Pattern Buffer re-execution: sub-workflows selected → verdicts
 - Final verdict: VERIFIED | VERIFIED WITH FINDINGS | NOT VERIFIED

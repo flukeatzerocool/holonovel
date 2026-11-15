@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-11-15 — Artifacts and publication: §10 loads the section it executes, and the ledger admits its live run
+
+Chunk U5 of the unscoped-surface review program reviewed §9, §10, Appendix V, and
+the publication surface: 46 verdict rows, nine demonstrated defects, all fixed in
+the increment. Two of them were process defects an operator would have hit: the
+independent verifier was told to load five sections while its own steps execute a
+sixth, and the publication ledger still described the sole engine as untested
+after it had completed a real publish.
+
+- §10's verifier prompt now loads §6, the operator step and cold-checkout
+  definition name `LICENSE.md` (so the four-artifact diet the verifier is asked to
+  confirm is satisfiable), and the report format carries the confidence score and
+  per-workflow component weights that step 10 requires.
+- Appendix V states its ten runbooks and their two families (the four §6.1
+  workflows plus six operations), names only the two entry points that actually
+  print its pointer, and replaces its incomplete fingerprint-section list with the
+  two section lists in `contract-fingerprint.ts` as the authority.
+- `docs/publish-pipeline.md` records the 2026-11-09 live publish
+  (`.holonovel-state/publish-run.json`, every step pass through deploy
+  verification) and narrows the owed evidence to the two recovery paths that still
+  have no recorded execution.
+- `spec/audit/loop-audit.md` was regenerated from a 2026-10-31 snapshot, and
+  `docs/plans/README.md` documents `review.md` as the optional review artifact.
+- `holonovel/src/generated/g7-attestation.ts` was regenerated: its `SPEC_HASH`
+  covers the whole assembled spec, so every spec edit makes it stale — a plan
+  assumption the gate corrected mid-increment.
+
 ## 2026-11-15 — Roadmap clearance: the G7 disposition is derived, harness IDs resolve, and CI is classified
 
 Four of the six open roadmap items closed in one increment, and the two that

@@ -39,19 +39,24 @@ path; `session:close` has no override.
 ## Rehearsal status
 
 The manual recovery column is the SRE requirement: an owner must have *executed*
-the fallback once, not merely believed it would work. Status as of 2026-11-07:
+the fallback once, not merely believed it would work. Status as of 2026-11-09:
 
 - Rehearsed in the hermetic harness: preflight rejection, deploy-tree reset,
   tag reuse, resume after a failed step, idempotent re-run, the staging guards,
   and partial ranges (`--stage repo`, `--from stage`, `--stage deploy`,
   `--only commit`). A bounded run passes or fails loudly; it never exits 0
   after skipping state it needed.
-- **Not yet rehearsed against a real remote:** the REQ-418 remote-identity
-  recovery and the REQ-428 registry waiter. The sole engine has not completed a
-  live publish yet. The first live run must record the recovery path it used, or
-  state that none was needed. The legacy backout engine was deleted before that
-  run by maintainer decision (see "Engine history"), so this evidence is owed
-  rather than optional.
+- **Live run recorded (2026-11-09T04:30Z, head `7e51267`).** The sole engine
+  completed a real publish: every step passed — preflight, build, gates, delta,
+  update, harness, record, stage, commit, mirror, registry, wiki, deploy, and
+  deploy verification — with `tag` skipped because the version had not advanced.
+  The state is `.holonovel-state/publish-run.json`. The legacy backout engine was
+  already deleted at that point (see "Engine history"), so this run was the sole
+  engine's first live proof rather than a rehearsal.
+- **Still owed:** the REQ-418 remote-identity recovery and the REQ-428 registry
+  waiter have no recorded execution. The 2026-11-09 run recorded no failure and
+  no recovery step, so it does not evidence either fallback. The next run that
+  exercises one records the command and the outcome here.
 
 ## Engine history
 

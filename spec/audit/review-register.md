@@ -2784,6 +2784,71 @@ finding in this class (F-U4-7, the CI↔manifest split) stays scheduled.
   protected gate that publishes the catch rate every run; both are in
   `check:fast`/`check` and CI.
 
+## Resolved — 2026-11-15 U5 artifacts and publication
+
+Chunk U5 of the unscoped-surface review program
+(`docs/plans/2026-11-15-unscoped-u5/`, 46 verdict rows in `review.md`). Nine
+demonstrated defects were fixed in the increment: seven prose predicates, one
+stale generated snapshot, and one incomplete layout description. Predicates are
+`file:line` reads at HEAD `6f950d3`, not gate messages.
+
+- **U5-F1 — §10's verifier prompt omitted the section its own steps execute.
+  Resolved (2026-11-15).** Predicate: `spec/07-independent.md:24` listed
+  "Sections 1, 3, 7, 8, and 9", while steps 2 and 7 (`:39-58`) execute §6.6's
+  S4 session and select blocking Pattern Buffer sub-workflows. §6 is now in the
+  load list. Row 23.
+- **U5-F2 — the report format omitted the score step 10 requires. Resolved
+  (2026-11-15).** Predicate: `spec/07-independent.md:98-102` requires the
+  confidence score and per-workflow component weights to be recorded, and the
+  eight-field format at `:111-118` had no field for either. A `Confidence` field
+  now carries both. Row 23.
+- **U5-F3 — the cold-checkout definition omitted `LICENSE.md`. Resolved
+  (2026-11-15).** Predicate: `spec/07-independent.md:31-33` gave the verifier
+  four documents, and `spec/06-artifacts.md:59` (H14) plus Appendix F T190
+  require `LICENSE.md` in the handoff directory — so the verifier was asked to
+  confirm a diet its own checkout could not satisfy. The operator step (`:12`)
+  and the cold-checkout definition now name the four documents and
+  `LICENSE.md`. Row 22.
+- **U5-F4 — the appendix claimed a pointer five commands never print. Resolved
+  (2026-11-15).** Predicate: `spec/appendices-runbooks.md:9-11` named
+  `build-ruleset`, `update-server`, `update`, `update-rulesets`, and
+  `migrate-user-data`; only `scripts/build-ruleset.ts:55` and
+  `scripts/update-rulesets.ts:48` print one, and the other three contain no
+  Appendix V reference. The sentence now names the two that emit it and says
+  how the rest are reached. Row 25.
+- **U5-F5 — the appendix described itself as a §6.1 companion over ten
+  runbooks. Resolved (2026-11-15).** Predicate: `spec/appendices-runbooks.md:3-7`
+  said "each of the four workflows has a runbook" while six of the ten headings
+  (`:128,143,158,194,228,260`) are operations §6.1 does not define. The lead-in
+  now states ten runbooks and names both families. Row 25.
+- **U5-F6 — the fingerprint list was incomplete. Resolved (2026-11-15).**
+  Predicate: `spec/appendices-runbooks.md:257-258` listed §5.9, §5.16–§5.17,
+  §6.3, §6.4.2, §7.7, §5.19, and Appendix Q, while
+  `scripts/lib/contract-fingerprint.ts:37-43` also scopes §5.6, §5.21–§5.28,
+  §5.31, and §5.32 — so an editor following the runbook could edit a scoped
+  section and meet `check-fingerprint-sync` at commit time. The recovery step now
+  cites the two section lists as the authority. Row 33.
+- **U5-F7 — the publication ledger denied a live run that happened. Resolved
+  (2026-11-15).** Predicate: `docs/publish-pipeline.md:49-54` said the sole
+  engine "has not completed a live publish yet", while
+  `.holonovel-state/publish-run.json` records a run started
+  `2026-11-09T04:30:29Z` at head `7e51267` with every step `pass` (only `tag`
+  skipped, because the version had not advanced) through `deploy` and
+  `verify_deploy`. The status now records that run and narrows the owed evidence
+  to the REQ-418 remote-identity recovery and the REQ-428 registry waiter, neither
+  of which has a recorded execution. Row 36.
+- **U5-F8 — the loop-audit snapshot was 15 days stale. Resolved (2026-11-15).**
+  Predicate: `spec/audit/loop-audit.md:1` read "as of a7d1fd8 (2026-10-31)" with
+  672 commits and 1 tracked increment, against a live 808 commits and 95
+  increments at `6f950d3` (`npx tsx scripts/loop-audit.ts --check`). Regenerated;
+  the `--check` thresholds themselves passed, which is why the staleness was not
+  a gate failure. Row 44.
+- **U5-F9 — the increment layout omitted `review.md`. Resolved (2026-11-15).**
+  Predicate: `docs/plans/README.md:16-20` listed plan/tasks/aar, while every
+  review increment since U1 carries `review.md` and `check-loop-artifacts`
+  neither requires nor forbids it. The layout now shows it as optional and says
+  why. Row 46.
+
 ## Scheduled-roadmap
 
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)

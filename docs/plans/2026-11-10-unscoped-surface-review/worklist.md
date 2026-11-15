@@ -92,7 +92,7 @@ the 2026-11-09 sweep; `seam` = closed by the 2026-11-09 seam pass;
 | U2 | §6, build-phase-map, build/update tooling, git hooks | drift + code | **reviewed 2026-11-14** — 35 rows, 5 P0 fixed, 1 P3 closed (`docs/plans/2026-11-14-unscoped-u2/review.md`) |
 | U3 | §7, engine-contract remainder, adapter/server code | drift + code | **reviewed 2026-11-14** — 28 rows, 1 P0 fixed, 4 P1 scheduled (`docs/plans/2026-11-14-unscoped-u3/review.md`) |
 | U4 | §8, gate manifest and harnesses, CI | drift + gate coverage | **reviewed 2026-11-15** — 52 rows, 2 P0 fixed, 3 P1 + 2 P2 scheduled (`docs/plans/2026-11-15-unscoped-u4/review.md`) |
-| U5 | §9, §10, Appendix V, publication and cadence | drift + process | **scheduled** |
+| U5 | §9, §10, Appendix V, publication and cadence | drift + process | **reviewed 2026-11-15** — 46 rows, 8 P0 + 1 P3 fixed (`docs/plans/2026-11-15-unscoped-u5/review.md`) |
 | U6 | §11, Appendices B/C/N/W–Z, fixtures and playability | fixture exercise | **scheduled** |
 | U7 | Appendices D–L/O–T/U, registries and manifests | catalog comparison | **scheduled** |
 | U8 | repo governance docs, vendored and content assets | drift + code | **scheduled** |

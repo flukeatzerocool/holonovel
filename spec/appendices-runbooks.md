@@ -1,14 +1,20 @@
 ## Appendix V: Workflow Runbooks
 
-This appendix is the operator-facing companion to §6.1. Each of the four
-workflows has a runbook: the entry point that starts it, the happy path to
-completion, and the recovery path when a step fails. Read the runbook you need
-before the workflow's full §6 sections — they are the "how do I actually run
-this" index into the normative text.
+This appendix is the operator-facing companion to §6.1 and to the operations
+around it. It holds ten runbooks. Four are the §6.1 workflows — Build (V.1),
+Convert (V.2), Synthesize (V.3), and Update (V.4). Six are the operations those
+workflows invoke or that maintain the installation — remove a ruleset (V.5),
+migrate a Novel (V.6), update a ruleset (V.7), migrate user data (V.8), proofread
+the specification (V.9), and exchange an artifact (V.10). Each runbook gives the
+entry point that starts it, the happy path to completion, and the recovery path
+when a step fails. Read the runbook you need before the workflow's full §6
+sections — they are the "how do I actually run this" index into the normative
+text.
 
-The entry points are also emitted by their commands: `build-ruleset`,
-`update-server`, `update`, `update-rulesets`, and `migrate-user-data` print a
-pointer to this appendix when invoked without valid arguments.
+Two entry points print a pointer to this appendix when invoked without valid
+arguments: `build-ruleset` (V.1) and `update-rulesets` (V.7). The other entry
+points name their own usage and the workflow they start; V.4, V.8, and V.10 are
+reached through §6.7, the Update job, or the `manage_artifact` action surface.
 
 ### V.1 Add a ruleset (Build)
 
@@ -254,8 +260,12 @@ what it would change.
   tighten the body to the Appendix M limits; if the enumeration cannot clear
   the readability bar without dropping load-bearing wording, record it as an
   accepted exception.
-- An edit lands in a fingerprint-scoped section (§5.9, §5.16–§5.17, §6.3,
-  §6.4.2, §7.7, §5.19, Appendix Q): run `npm run build-order` before commit.
+- An edit lands in a fingerprint-scoped section: run `npm run build-order`
+  before commit. The authority is the section lists in
+  `scripts/lib/contract-fingerprint.ts` — `PACKAGE_SECTIONS` and `DATA_SECTIONS` —
+  which cover §5.6, §5.9, §5.16–§5.17, §5.19, §5.21–§5.28, §5.31–§5.32, §6.3,
+  §6.4.2, §7.7, and Appendix Q. Do not work from a memorised list; a section
+  added to either list is fingerprint-scoped the moment it lands.
 
 ### V.10 Exchange an artifact between installations
 
