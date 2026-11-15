@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * test-loop-artifacts.ts — self-tests for the increment artifact contract.
- * [informational]
+ * [gate]
  *
  * Guards validateIncrements' `requirePausedFor` option: the close gate must
  * refuse LOOP OPEN for the increment being closed and leave every other
@@ -9,7 +9,7 @@
  * a session. Each case builds a throwaway docs/plans tree; no repository
  * increments are read.
  *
- * Not wired into run-gates; run it directly.
+ * Wired into `check`/`check:fast` as the `test:loop-artifacts` manifest gate.
  * Exit codes: 0 = pass, 1 = assertion failure, 2 = fatal.
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";

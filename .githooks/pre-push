@@ -100,26 +100,11 @@ else
     if [ "$suite_ran" = true ]; then
         echo "  (check suite already ran on this tree — skipping)"
     else
-        echo "  spec checks (lint, validate, audit, scan)..."
+        # `npm run check` runs the full gate, which includes the `test:all`
+        # server harness suite (56 commands) plus the tool-definition/security
+        # and Holosuite tiers inside it. Do not re-run them here.
+        echo "  spec checks and server harness suite (npm run check)..."
         npm run check
-
-        echo "  server tool-definition + security harnesses..."
-        (cd holonovel && npm run test:tool-definitions && npm run test:security) || {
-            echo ""
-            echo "BLOCKED: server tool-definition/security harnesses failed."
-            echo "Fix the tool surface or annotations, then re-run."
-            echo ""
-            exit 1
-        }
-
-        echo "  holosuite evidence + deterministic tiers (evidence + conformance + invariants + novel + adversarial + differential)..."
-        (cd holonovel && npm run test:holosuite-evidence && npm run test:holosuite-conformance && npm run test:holosuite-invariants && npm run test:holosuite-novel && npm run test:holosuite-adversarial && npm run test:holosuite-differential) || {
-            echo ""
-            echo "BLOCKED: holosuite deterministic tiers failed."
-            echo "Fix the registry/annotations or the invariant/adversarial/differential breach, then re-run."
-            echo ""
-            exit 1
-        }
     fi
 fi
 

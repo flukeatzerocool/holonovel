@@ -23,6 +23,8 @@
     "test:workflows": "npx tsx scripts/test-workflows.ts",
     "test:commit-plan": "npx tsx scripts/test-commit-plan.ts",
     "test:loop-artifacts": "npx tsx scripts/test-loop-artifacts.ts",
+    "test:all": "npm --prefix holonovel run test:all",
+    "test:holosuite-mutation": "npm --prefix holonovel run test:holosuite-mutation",
     "check-workflows": "npx tsx scripts/check-workflows.ts",
     "check-roadmap": "npx tsx scripts/check-roadmap.ts",
     "check-fingerprint-sync": "npx tsx scripts/check-fingerprint-sync.ts",

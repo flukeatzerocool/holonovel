@@ -3,7 +3,7 @@
  * gate-cost-report.ts — per-gate cost and retirement candidates. [informational; gate with --apply]
  *
  * Purpose: gate suites grow and never shrink. `package.json` scripts went from 3
- * to 63 and the gate manifest from 26 to 32 with zero retirements. This report
+ * to 63 and the gate manifest from 26 to 46 with zero retirements. This report
  * reads the local gate-timing log and flags gates that have not failed in N
  * consecutive runs, then (with --apply) downgrades them to advisory by writing
  * spec/audit/gate-retirement.json. A gate is never deleted automatically.
@@ -14,6 +14,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { handleHelp, parseFlag, parseValueFlag, rejectUnknown } from "./lib/args.js";
+import { GATES } from "./lib/gate-manifest.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const TIMING = join(ROOT, ".holonovel-state", "gate-timing.json");
@@ -111,6 +112,11 @@ function main(): void {
   }
 
   const rows = buildRows(loadRecords(), threshold);
+  // A protected gate carries a contractual block (a spec workflow or the
+  // increment contract); the report still shows its cost but never proposes
+  // retiring it, in the candidate list or in the row marker.
+  const guarded = new Set(GATES.filter((gate) => gate.protected).map((gate) => gate.name));
+  for (const row of rows) if (guarded.has(row.gate)) row.candidate = false;
   const candidates = rows.filter((row) => row.candidate);
 
   if (json) {

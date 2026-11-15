@@ -17,6 +17,9 @@ export interface Gate {
   full: string[];
   // A gate downgraded by the retirement policy does not fail the run.
   advisory?: boolean;
+  // A gate whose blocking status is contractual (a spec workflow or the
+  // increment contract). The retirement policy must not downgrade it.
+  protected?: boolean;
 }
 
 export const npm = (script: string, ...extra: string[]): string[] =>
@@ -233,12 +236,35 @@ const RAW_GATES: Gate[] = [
     fast: npm("check-fixture-emitter"),
     full: npm("check-fixture-emitter"),
   },
-  // Full-gate only: spawns a child per shipped Novel, too slow for check:fast.
+  // Full-gate only: runs the whole server harness suite (56 commands, ~3 min at
+  // 4-way concurrency). Subsumes the former playability gate via
+  // test:playability and the CI server steps. Protected: §8 G5 makes the
+  // Pattern Buffer blocking, so the retirement policy must not downgrade it.
   {
-    name: "playability",
-    description: "Headless playability run for every shipped Novel",
+    name: "test:all",
+    description: "Server harness suite: 56 commands incl. the Pattern Buffer and harness guard",
     fast: null,
-    full: npm("check-playability"),
+    full: npm("test:all"),
+    protected: true,
+  },
+  // Contract-critical and cheap: the self-test for the increment contract that
+  // session:close depends on.
+  {
+    name: "test:loop-artifacts",
+    description: "Self-tests for the increment artifact contract",
+    fast: npm("test:loop-artifacts"),
+    full: npm("test:loop-artifacts"),
+    protected: true,
+  },
+  // Visibility-only: the method audit is report-only by §8 and always exits 0,
+  // so the gate publishes its catch rate without ever blocking.
+  {
+    name: "test:holosuite-mutation",
+    description: "Holosuite mutation-audit catch rate (report-only)",
+    fast: npm("test:holosuite-mutation"),
+    full: npm("test:holosuite-mutation"),
+    advisory: true,
+    protected: true,
   },
   {
     name: "check-package-manifest",
@@ -300,7 +326,15 @@ function retiredGates(): Set<string> {
   if (!existsSync(RETIREMENT_FILE)) return new Set();
   try {
     const parsed = JSON.parse(readFileSync(RETIREMENT_FILE, "utf-8")) as { advisory?: string[] };
-    return new Set(parsed.advisory ?? []);
+    const requested = new Set(parsed.advisory ?? []);
+    // A protected gate blocks a contract (a spec workflow or the increment
+    // contract), so a retirement entry for it is ignored with a warning rather
+    // than silently converting a blocking gate into advice.
+    const guarded = new Set(RAW_GATES.filter((gate) => gate.protected).map((gate) => gate.name));
+    for (const name of requested) {
+      if (guarded.has(name)) console.error(`gate-manifest: "${name}" is protected — its retirement entry is ignored`);
+    }
+    return new Set([...requested].filter((name) => !guarded.has(name)));
   } catch {
     // A corrupt retirement file must not silently disable gates: treat it as
     // empty so every gate keeps blocking.
