@@ -3100,8 +3100,9 @@ is renumbered is scheduled separately.
 
 Probe status: the 2026-11-09 assertion-repair session ran the Appendix F rows
 against live harnesses. Four rows now pass and are committed (T136, T94, T144,
-T324); the rows below could not be asserted because the behaviour they name is
-absent, so each finding carries the failing predicate rather than a test.
+T324). The finding list that followed this sentence was lost; the residual is
+tracked by the ROADMAP `REQ evidence linkage` item and the coverage register,
+and this section is retained as history only (2026-11-16).
 
 ### 2026-11-09 full-review sweep — chunk P2 (tool surface, §5.3)
 

@@ -33,6 +33,10 @@ closes when the re-measurement is recorded in the AAR of that session.
   kind.
 - T22, T35, and T103 all have asserting harnesses; the defect class is the 122
   unlinked citations, 99 of them in REQs already whitelisted as builder-side.
+- The companion class is evidence *granularity*: `check:conformance --
+  --dedicated` reports 126 bucket-C REQs whose only evidence is shared with
+  another REQ (bucket-C cited only in comments: 42, advisory). A REQ is not
+  evidenced until its own assertion names it; triage both lists together.
 
 **Trigger:** the corpus dry-run list is triaged to zero; closes when the check is
 error-mode in `validate`.
