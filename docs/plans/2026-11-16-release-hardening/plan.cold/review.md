@@ -71,4 +71,16 @@ refused surfaces.
 
 `independent-review passed.` — reads 3/4.
 
-Plan sha256: 3a8832964643238bcece6eb87178f207b0f73e52a5399200c02809ba036535aa
+Plan sha256: c7d08c8eec2ddf20e3d855df7aca3e3bac3f68aba48ffb1c6687eae500aeafd6
+
+## Pass 4 — P2 delta (revision 5)
+
+Reviewed the P2 delivery: `dry_run`/`stopped_at` on the run record with a pure
+renderer and five assertions, the ROADMAP shared-evidence bullet, the
+review-register repair, the `hono` non-reachability disposition, the container
+rehearsal note, and the T177 amendment with its generated consequences
+(`assemble` outputs, build-phase-map hash, G7 attestation). Verdict: all four
+paths correctly characterised and in the blast radius; the amendment is the
+plan's authorised branch; no new plan needed. Nit: "All three" counts four paths.
+
+`independent-review passed.` — reads 4/5.

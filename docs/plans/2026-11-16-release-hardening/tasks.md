@@ -43,21 +43,21 @@ Gates after P1: `check:fast` PASS (incl. `check-anchors`); `test:all` green;
 
 ## P2 — Release integrity (R5, R7, R9, R10)
 
-- [ ] P2-T1 `scripts/publish/run.ts`: add optional `dry_run` and `stopped_at`
+- [x] P2-T1 `scripts/publish/run.ts`: add optional `dry_run` and `stopped_at`
       to the record. `scripts/lib/publish-state.ts`: pure
       `describePublishRun(record)` → `dry run, stopped at <step>` /
       `pipeline run, stopped at <step>`; no registry claim. `scripts/status.ts`
       calls it. Assertion in `scripts/test-push-pipeline.ts` (pure function, no
       scratch-root read). Gate: `npm run test:pipeline` on this commit.
-- [ ] P2-T2 `ROADMAP.md`: shared-evidence bullet on the existing REQ evidence
+- [x] P2-T2 `ROADMAP.md`: shared-evidence bullet on the existing REQ evidence
       linkage section, citing 122 (linkage) and 126 (shared-only) with their
       commands (D4). Gate: `check-roadmap`.
-- [ ] P2-T3 `spec/audit/review-register.md:3103`: restore or strike. Gate:
+- [x] P2-T3 `spec/audit/review-register.md:3103`: restore or strike. Gate:
       `grep -c "rows below"` plus a read (not `check-registers`).
-- [ ] P2-T4 F7 disposition: bump SDK or record non-reachability in
+- [x] P2-T4 F7 disposition: bump SDK or record non-reachability in
       `SECURITY.md`; `npm audit`.
-- [ ] P2-T5 `docs/publish-pipeline.md`: container rehearsal status.
-- [ ] P2-T6 T177 `[AMBIGUOUS]` half: enumerate surfaces that can return
+- [x] P2-T5 `docs/publish-pipeline.md`: container rehearsal status.
+- [x] P2-T6 T177 `[AMBIGUOUS]` half: enumerate surfaces that can return
       multiple canonical matches; implement there, or amend the row and record
       the reasoning. Gate: `grep AMBIGUOUS holonovel/src` shows emissions or a
       recorded amendment. An amended row requires `npm run assemble` and
