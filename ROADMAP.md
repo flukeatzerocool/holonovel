@@ -84,6 +84,18 @@ when `grep -c '^| T553 ' spec/appendices-reference.md` is 1.
 **Trigger:** the next close that edits three bookkeeping surfaces; closes when
 `session:close` writes the CHANGELOG block without a manual rewrite.
 
+## Codex pack as an artifact kind (P3)
+
+- `manage_codex (action: export)` ships one-way: a library leaves the server as
+  `holonovel.codex/1`, but nothing admits one back — `REQ-620`/`REQ-621` admit
+  Novel pack, adventure module, and ruleset package only.
+- Add `codex pack` to the kind set with a kind directory, a catalogue entry, and
+  an admission assertion, so an exported library crosses hosts.
+
+**Trigger:** the next artifact-registry change (REQ-620/REQ-621), or a request to
+move a codex library between hosts; closes when `manage_artifact (action:
+install)` admits a `codex pack` and `spec_health` reports its count.
+
 ## Non-goals
 
 Authoritative list and rationale: `holonovel/DECISIONS.md` § Non-goals.

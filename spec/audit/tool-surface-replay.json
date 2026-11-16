@@ -10,12 +10,12 @@
       "intents": 46,
       "expected_tool_visible": 46,
       "visibility_rate": 1,
-      "expected_action_selected": 45,
-      "selection_precision": 0.978,
-      "wrong_selection_count": 1,
+      "expected_action_selected": 44,
+      "selection_precision": 0.957,
+      "wrong_selection_count": 2,
       "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 26864,
+        "budget_tokens": 29922,
         "expected_action_recalled": 46,
         "recall": 1
       },
@@ -434,10 +434,10 @@
           "calls": 1,
           "expected_calls": 1,
           "selected": {
-            "tool": "manage_archive",
+            "tool": "manage_codex",
             "action": "export"
           },
-          "correct": true
+          "correct": false
         },
         {
           "intent": "undo the last change",
@@ -722,12 +722,12 @@
       "intents": 46,
       "expected_tool_visible": 46,
       "visibility_rate": 1,
-      "expected_action_selected": 45,
-      "selection_precision": 0.978,
-      "wrong_selection_count": 1,
+      "expected_action_selected": 44,
+      "selection_precision": 0.957,
+      "wrong_selection_count": 2,
       "mean_calls": 1.196,
       "recall_at_budget": {
-        "budget_tokens": 24178,
+        "budget_tokens": 26930,
         "expected_action_recalled": 46,
         "recall": 1
       },
@@ -1146,10 +1146,10 @@
           "calls": 1,
           "expected_calls": 1,
           "selected": {
-            "tool": "manage_archive",
+            "tool": "manage_codex",
             "action": "export"
           },
-          "correct": true
+          "correct": false
         },
         {
           "intent": "undo the last change",
@@ -1439,7 +1439,7 @@
       "wrong_selection_count": 29,
       "mean_calls": 1.826,
       "recall_at_budget": {
-        "budget_tokens": 2687,
+        "budget_tokens": 2993,
         "expected_action_recalled": 17,
         "recall": 0.37
       },
@@ -1859,7 +1859,7 @@
           "expected_calls": 1,
           "selected": {
             "tool": "manage_codex",
-            "action": "capture"
+            "action": "export"
           },
           "correct": false
         },
@@ -2276,8 +2276,8 @@
         "calls": 1,
         "expected_calls": 1,
         "selected": {
-          "tool": "manage_belief",
-          "action": "perception_for_event"
+          "tool": "manage_diagnostics",
+          "action": "event"
         },
         "correct": false
       },

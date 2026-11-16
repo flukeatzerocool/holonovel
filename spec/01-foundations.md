@@ -1,8 +1,8 @@
 # Holonovel
 
-> **Quick Reference.** An AI build prompt for an MCP server that reads a tabletop RPG
-> ruleset, extracts mechanics, builds the server, and proves it works. Output: a running
-> MCP server with dice, combat, character management, rules lookup, narrative directives,
+> **Quick Reference.** An AI build prompt for a ruleset-free MCP host and the declarative
+> ruleset packages it loads: read a tabletop RPG ruleset, extract its mechanics, emit the
+> package, and prove the host runs it. Output: a running host with dice, combat, character management, rules lookup, narrative directives,
 > dynamic lore, action suggestions, voice examples, macros, scene-type tagging, audit
 > compression, scene-state tracking, NPC management, countdowns, session recap, hybrid
 > adventure modules, and Ruleset Wisdom — plus four handoff artifacts
@@ -11,7 +11,7 @@
 > the spatial foundation for scene composition — defining what is physically possible in the
 > story — with configurable surface prominence (REQ-309). Optional synthesis
 > workflow adds web-sourced play advice and Novel-state insights. Quality is enforced by
-> verification workflows, 18 handoff verification steps,
+> verification workflows, 18 handoff verification steps (H1–H18, §9),
 > and a golden-transcript replay. One base server — the ruleset-free `holonovel`
 > host — loads one or more declarative ruleset packages at startup (packages are
 > data, not code: extracted models, tool schemas, and indexes). Ruleset-derived
@@ -54,7 +54,10 @@
 
 ### How to read this specification
 
-Read this specification in layers — not front to back.
+Read this specification in layers — not front to back. It is written for two
+readers: the builder, an AI agent implementing a host or a ruleset package from
+it, and the maintainer, who edits it. A player, Game Master, or operator needs no
+knowledge of this document; §1 names the product's own front doors.
 
 This spec lives as 14 source files under `spec/`. `npm run assemble` joins
 them into one document. A builder reads `build-phase-map.md` to load only the
@@ -103,17 +106,20 @@ transcript) set the quality bar.
 
 ## 1. Mission and Play Model
 
-**Mission.** Build an MCP server from a tabletop RPG ruleset provided as Markdown (or
-converted from PDF/HTML/web scrape). The server exposes the ruleset's resolution mechanics,
-entity management, tables, and guidance as MCP tools, resources, and prompts. No manual
-coding — the AI reads the ruleset and builds. The specification is the permanent
-artifact; implementations are disposable and rebuilt on demand. This is a
-Spec-as-Source (SDD) system — the specification is the canonical source
-code. Humans edit the spec; the builder AI generates, verifies, and regenerates
-the server code. Generated server code is never edited by hand. Full rebuilds have
-token and time costs. The builder prefers incremental updates when the spec delta is
-narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
-model changes, or the spec version changes.
+**Mission.** Give a solo player a world that runs their own books, and remembers
+what happened. Holonovel is a narrative simulation engine for tabletop play: it
+binds a ruleset to a living world, resolves play through that ruleset's own
+mechanics, and keeps a durable record of every consequence. One person wears the
+badge; an AI takes the counterpart seat; the two play one story from opposite
+sides of the screen. What the engine refuses is arbitration by vibes — when the
+ruleset answers, the ruleset answers.
+
+**Why this is not a chatbot.** Chat forgets. A holonovel does not. State is
+canonical and server-side: characters, scenes, factions, clocks, lore, and the
+audit trail outlive the process, the connection, and the host. The world model
+holds what is physically possible; the narrative layer holds what is happening;
+the epistemic layers hold what each character believes and has perceived. Prose
+is rendered against engine truth; truth is never reconstructed from prose.
 
 **Engine, adapter, program.** Holonovel is a narrative simulation engine: it owns
 canonical state, resolves the rules, and records what happened. The MCP server is
@@ -122,12 +128,83 @@ Novel is the portable program: the save file that carries a world and its histor
 to another host. Tabletop play is the first application of the engine, not its
 definition.
 
+**The specification is the source.** This document is canonical for the host and
+the package contract. A build yields two artifacts: the host — versioned,
+installed, updated through §6.7 — and a ruleset package — generated data (model,
+index, tool schemas, resources, prompts) emitted by the Package step (REQ-389).
+Packages are never hand-edited. The host is never regenerated per ruleset, and
+loading a package does not modify it (REQ-390). A spec change routes through
+§6.7, where the delta class decides what is rebuilt, updated, or left alone.
+
+**Goals.** Six. Each names the failure it prevents (§3) and the contract that
+makes it checkable.
+
+- **Fidelity** — mechanical outcomes come from the bound ruleset's text; a
+  missing mechanic is reported, never invented (F1, F4; REQ-011, REQ-058).
+- **Continuity** — nothing that happened is lost, across restarts, host updates,
+  package changes, and travel to another host (F5; REQ-055, REQ-092, REQ-396,
+  REQ-397).
+- **Authorship** — the engine governs consequences, the player governs authorship;
+  resolution is enforced, description and direction are free (REQ-031a, REQ-032,
+  REQ-077c).
+- **Legibility** — every consequence is inspectable: what rolled, what ruled, what
+  changed, and why (REQ-040, REQ-174, REQ-589).
+- **Rebuildability** — one spec, many hosts, zero hand-edits; drift surfaces at
+  startup, not in play (REQ-313, REQ-394, REQ-420, REQ-423).
+- **Composability** — rulesets are data; installing or removing one changes
+  neither the host nor the user's Novels (F8; REQ-379, REQ-389, REQ-390).
+
+**Non-goals.** No hosted platform, no multiplayer, no runtime network, no rendered
+presentation, and no curated compact default surface. The authoritative list,
+each entry citing its governing requirement, is `DECISIONS.md` `## Non-goals`.
+
 **The north star.** A *holonovel* is a Star Trek holodeck program — an interactive
-narrative where the user steps inside as a character, the cast responds with intent,
-and the rules govern every outcome. Holonovel builds the server (the Holodeck) and
-loads your campaign (the Holonovel program) from your rulebooks. The Novel is the
-saved program file — create it, resume it, export and share it. No holograms. No 3D.
-Your books, rendered as tools and mechanics, running inside the room.
+narrative where the user steps inside as a character, the cast responds with
+intent, and the rules govern the consequences. Holonovel builds the server (the
+Holodeck) and loads your campaign (the Holonovel program) from your rulebooks. The
+Novel is the saved program file — create it, resume it, export it, share it. No
+holograms. No 3D. Your books, rendered as tools and mechanics, running inside the
+room. *Intent*, here, is recorded intent: an NPC acts from its goals, its memory,
+and what it knows (REQ-077, REQ-122, REQ-308, REQ-339), not from improvised
+characterization.
+
+**The test.** When a proposal is ambiguous, ask one question: does the engine
+govern the consequences, and does the player govern the authorship? Consequences —
+damage, clocks, conditions, who learns what, what persists — resolve through the
+bound ruleset, a stored fact, or a recorded ruling. Authorship — what a character
+attempts, how they are described, where the story goes — belongs to the player and
+is never gated by mechanics. Ruleset-free play does not suspend the test; it
+changes who supplies the rules, and the GM's rulings become the recorded ones.
+
+**Trajectory.** Three commitments decide what the engine becomes; a future REQ
+should serve at least one. Rulesets stay data, so the library grows without
+forking the host. The world keeps memory at three depths — what happened (the
+event log), what is true (causal state), and what each character believes
+(perception, evidence, and subjective memory) — so characters can be wrong in ways
+that persist. And a Novel stays portable, so a campaign outlives the server it was
+played on. A proposal that weakens one of these is probably the wrong proposal.
+
+**Who this document is for.** Two readers: the builder, an AI agent that
+implements the host or a ruleset package from this spec, and the maintainer, who
+edits it. Everyone else meets Holonovel through the product — the README installs
+it, the wiki routes play by task, and the running server explains itself through
+`badge_briefing`. A user needs no knowledge of this document, and the spec assumes
+none.
+
+**Who Holonovel is for.** One person, moving between four uses that never require
+choosing one.
+
+- *Prepare* — build characters, NPCs, factions, lore, clocks, rooms, things, and
+  encounters in a Novel under the Editor badge, or in the codex, a server-level
+  library that needs no Novel and no story (REQ-321).
+- *Play* — solo with an AI counterpart, as Game Master with an AI player, or as an
+  observer watching both.
+- *Build* — convert a book and build a ruleset package other people can install.
+- *Host* — install, back up, and update a server that keeps the data.
+
+The uses hand off: a Novel travels to another host, a ruleset built once runs for
+people who will never build one, and preparation reaches an interchange surface
+without entering play.
 
 **The play model (TTRPG).** Four badges, enforced server-side when the story is active.
 The Novel is the container — a named, persistent save file holding the world model,

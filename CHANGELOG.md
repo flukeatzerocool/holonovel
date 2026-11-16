@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-11-16 — Identity layer: consequences governed, preparation portable
+
+Section 1 now says what the product is for, separately from how it is built: a
+product mission, six falsifiable goals, an out-of-scope pointer, a north star with
+a decision test, a trajectory, and the audiences the document and the product
+serve. The codex gains an export action, so a library built for its own sake can
+leave the server.
+
+- §1 rewritten: Mission, Why this is not a chatbot, Engine/adapter/program, The
+  specification is the source (host + package, replacing "build an MCP server"),
+  Goals (six, 17 REQ anchors, each naming the failure it prevents), Non-goals
+  pointer, The north star, The test, Trajectory, Who this document is for, Who
+  Holonovel is for.
+- The north star now reads "the rules govern the consequences", with **The test**
+  defining consequence (resolution, clocks, conditions, knowledge, persistence)
+  against authorship (attempts, description, direction). Ruleset-free play
+  changes who supplies the rules, not whether the test applies.
+- Removed the mission's full-rebuild clause, which contradicted §6.7's delta
+  classes in the same paragraph.
+- Appendix T.3 gains the four-use projection — prepare, play, build, host —
+  derived from `group`, with no new declaration field and no group rename; the
+  `author` intent group keeps its meaning.
+- `manage_codex (action: export)` with **REQ-321o** (action contract) and
+  **REQ-660** (preparation parity, T792): a deterministic `holonovel.codex/1`
+  payload, kind or id selection, no Novel required, Editor or Game Master only.
+  A codex entry still never enters a Novel export (REQ-321l).
+- §4 registers *Holodeck* and *holonovel*; the reading guide states its two
+  readers and that a user needs no knowledge of the document.
+- Harness: T792 in `test-output-contracts` (596 assertions, 0 failed). Catalog
+  goes 245 → 246 canonical actions; tool count stays 37; recorded surface 29,915
+  full / 25,929 standard tokens.
+- Regenerated: tool definitions, surface baseline and replay, contract
+  fingerprints, G7 attestation, starter Novel, build-phase-map hash, coverage
+  register, proofread register (293 warnings, all accepted by policy).
+- `ROADMAP.md` schedules the codex pack artifact kind (P3) — the export is
+  one-way until an admission path ships.
+
 ## 2026-11-15 — REQ evidence linkage: a citation is only evidence if its row admits it
 
 The coverage audit joins on Appendix F's REQ column and never reads the IDs a REQ

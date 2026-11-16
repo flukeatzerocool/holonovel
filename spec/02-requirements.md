@@ -11,7 +11,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555, 567–581, 583–584, 587–588, 606–610 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306, 598–600 |
-| 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
+| 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332, 660 |
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586, 615–621 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566, 613, 614 |
@@ -2312,6 +2312,12 @@ WHEN a Codex entry's `modified_at` timestamp is newer than the import timestamp 
 
 **REQ-332c — Codex provenance (Part c).**
 Updating the blacksmith Codex entry via `manage_codex (action: set)`, then calling `manage_codex (action: import, "blacksmith")` again updates the existing NPC (same entity ID) rather than creating a new one. `manage_novel (action: info)` reports `codex_sources` including the blacksmith entry. After updating the Codex entry, `spec_health` reports `[codex-stale]` for the Novel's blacksmith NPC. _Check:_ T380, T384.
+
+**REQ-321o — Codex export (Part o).**
+`manage_codex (action: export, kind?, id?)` SHALL return the selected entries as one payload carrying schema `holonovel.codex/1`, ordered by entry id, each with kind, name, content, description, tags, and ruleset. The action SHALL require the Editor or Game Master badge, SHALL need no active Novel, and SHALL NOT mutate stored state. A `kind` selects one kind; an id string or array selects entries; an unknown id SHALL return `[NOT_FOUND]` naming it and export nothing. Two calls over unchanged state SHALL be byte-identical. *Acceptance criterion:* exporting a two-entry library twice yields identical bytes, a kind filter returns only that kind, an unknown id returns `[NOT_FOUND]`, and a Player badge call returns `[FORBIDDEN]`. _Check:_ T792.
+
+**REQ-660 — Preparation parity.**
+A Novel SHALL be fully preparable under the Editor badge and reach an exchange surface without one. Prepared surfaces — roster entities, NPCs, factions, lore entries, world-model rooms and things, notes, and story entries — SHALL export with narrative fields and provenance intact. The codex SHALL export as one deterministic payload selected by kind or id, with no Novel, and a codex entry SHALL NOT enter a Novel export (REQ-321l). Preparation SHALL require no installed ruleset, and it SHALL enter play unchanged. *Acceptance criterion:* a Novel prepared with one of each prepared kind exports intact and resumes unchanged under a play badge; two codex exports with no Novel are byte-identical, a kind filter excludes other kinds, and an unknown id returns `[NOT_FOUND]`. _Check:_ T792.
 
 ### 5.7 Determinism, Safety, and Performance
 

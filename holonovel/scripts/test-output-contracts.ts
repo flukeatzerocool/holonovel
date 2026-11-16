@@ -1452,6 +1452,30 @@ async function main() {
     await kill(p);
   });
 
+  // ── REQ-660 preparation parity: the library leaves the server ──
+  await test("T792/REQ-660: codex export is deterministic and complete", async () => {
+    const p = await boot();
+    await call(p, "set_badge", { badge: "game_master" });
+    await call(p, "manage_codex", { action: "set",  kind: "npc", name: "Archivist", content: { description: "Keeper of records" } });
+    await call(p, "manage_codex", { action: "set",  kind: "faction", name: "Lantern Guild", content: { goals: ["Keep the lamps lit"] } });
+    const first = await call(p, "manage_codex", { action: "export" });
+    const second = await call(p, "manage_codex", { action: "export" });
+    if (first !== second) throw new Error("T792 export is not deterministic");
+    assertContains(first, "holonovel.codex/1", "T792 export carries its schema");
+    assertContains(first, "Archivist", "T792 export carries the npc");
+    assertContains(first, "Lantern Guild", "T792 export carries the faction");
+    const filtered = await call(p, "manage_codex", { action: "export", kind: "faction" });
+    if (/Archivist/.test(filtered)) throw new Error("T792 kind filter leaked another kind");
+    const missing = await call(p, "manage_codex", { action: "export", id: "npc_missing" });
+    assertContains(missing, "[NOT_FOUND]", "T792 unknown id is refused");
+    await call(p, "manage_novel", { action: "create",  name: "w4export" });
+    await call(p, "set_badge", { badge: "player" });
+    const refused = await call(p, "manage_codex", { action: "export" });
+    assertContains(refused, "[FORBIDDEN]", "REQ-660 export is Editor/GM only");
+    passed++;
+    await kill(p);
+  });
+
   await test("T383/REQ-321: bidirectional codex sync updates source in place", async () => {
     const p = await boot();
     await call(p, "manage_novel", { action: "create",  name: "w4sync" });

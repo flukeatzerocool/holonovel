@@ -1,19 +1,19 @@
 {
   "schema_version": 3,
   "tool_count": 37,
-  "tools_list_bytes": 119607,
+  "tools_list_bytes": 119660,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 119607,
-        "tokens": 29902
+        "bytes": 119660,
+        "tokens": 29915
       },
       "standard": {
         "tools": 37,
-        "bytes": 103660,
-        "tokens": 25915
+        "bytes": 103713,
+        "tokens": 25929
       },
       "small": {
         "tools": 6,
@@ -594,14 +594,15 @@
     {
       "name": "manage_codex",
       "title": "Codex Library Management",
-      "description": "Manage the server-level library of reusable, cross-Novel content — stored entries, not generated synthesis or Novel-scoped lore. Entries cover NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, and adventures, and persist to `.holonovel-state/codex.json` outside every Novel and survive restarts; mutations are audited. Out-of-play and badge-free: requires the Editor or Game Master badge, a Player mid-adventure gets `[FORBIDDEN]`, and reads are not badge-filtered. When no Novel is active, the codex is the default store; `import` and `capture` require an active Novel. `set` needs `kind` + `name` (the id derives from them); merge=true shallow-merges content. Revert the most recent mutation with manage_history (action: undo). Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
-      "description_bytes": 976,
+      "description": "Manage the server-level library of reusable, cross-Novel content — stored entries, not generated synthesis or Novel-scoped lore. Entries cover NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, and adventures; they persist to `.holonovel-state/codex.json`, survive restarts, and mutations are audited. Requires the Editor or Game Master badge; reads are not badge-filtered. With no Novel active, the codex is the default store; `import`/`capture` need an active Novel. `set` needs `kind` + `name` (the id derives from them); merge=true shallow-merges content. `export` emits the library, or a `kind`/`id` selection, as one deterministic payload. Revert the most recent mutation with manage_history (action: undo). Use when: storing reusable content, enumerating/reading/deleting it, or taking the library with you. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+      "description_bytes": 971,
       "action_enum": [
         "set",
         "list",
         "get",
         "capture",
         "import",
+        "export",
         "delete"
       ],
       "param_count": 12,
@@ -649,8 +650,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3319,
-        "descriptionBytes": 976
+        "definitionBytes": 3372,
+        "descriptionBytes": 971
       },
       "category": "",
       "gate": ""

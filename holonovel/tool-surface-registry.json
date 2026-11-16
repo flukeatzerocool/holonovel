@@ -1096,6 +1096,23 @@
       "successors": [],
       "edges": []
     },
+    "manage_codex.export": {
+      "group": "lookup",
+      "phases": [
+        "none",
+        "setup",
+        "scene",
+        "combat",
+        "downtime",
+        "closed"
+      ],
+      "entry": false,
+      "mutation_class": "write",
+      "ruleset": null,
+      "preconditions": [],
+      "successors": [],
+      "edges": []
+    },
     "manage_codex.get": {
       "group": "lookup",
       "phases": [

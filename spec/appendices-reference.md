@@ -632,6 +632,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-321m3 | Codex (Part m3) | 2026-08-11 |
 | REQ-321m4 | Codex (Part m4) | 2026-08-11 |
 | REQ-321n | Codex (Part n) | 2026-09-26 |
+| REQ-321o | Codex export (Part o) | 2026-11-16 |
 | REQ-332a | Codex provenance (Part a) | 2026-08-11 |
 | REQ-332b | Codex provenance (Part b) | 2026-08-11 |
 | REQ-332c | Codex provenance (Part c) | 2026-08-11 |
@@ -1150,6 +1151,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-656 | Window-aware displaced verdict | 2026-11-10 |
 | REQ-658 | Comparable recall benchmark | 2026-11-10 |
 | REQ-659 | Slug derivation | 2026-11-14 |
+| REQ-660 | Preparation parity | 2026-11-16 |
 | REQ-425a | Output format catalog (Part a) | 2026-09-01 |
 | REQ-425b | Output format validation (Part b) | 2026-09-01 |
 | REQ-425c | Output format consistency (Part c) | 2026-09-01 |
@@ -2148,6 +2150,7 @@ diet.
 | T789 | Automated | Internal synthesis category rules: seed a Novel with more than five NPCs, a lore entry naming an NPC, themed journal entries, three distinct scene anchors with an unresolved decision, two factions, a hostile relationship with no secret, a countdown at one tick, three connected rooms, and a readable thing naming a proper noun. Call `manage_synthesis (action: run)` — assert `novel://`-sourced items appear for the lore cross-reference, narrative voice profile, scene hook, faction/secret tension, revelation opportunity, secret suggestion, countdown urgency, and room hook; assert an un-triggered lore keyword produces a hook while a triggered one does not; assert a readable thing links to its room in `lore_templates`. | REQ-262, REQ-264 |
 | T790 | Automated | Internal synthesis budgets: with `TTRPG_MAX_SYNTHESIS_ITEMS=2`, seed six NPCs and run synthesis — assert each module stops at two internal items, `spec_health.synthesis_health.caps.modules` reports count, maximum, and overflow, the result records the overflow count, and vendor items are neither counted nor truncated. With `TTRPG_MAX_SYNTHESIS_ITEMS=0`, assert `manage_synthesis (action: run)` returns `[ERROR] [STATE_CONFLICT]` naming the synthesis group with count and maximum, and that a second call never replies with the up-to-date message. | REQ-129, REQ-160 |
 | T791 | Automated | Badge guidance from live synthesis state: boot ruleset-free and read `guidance://player/tone` and `guidance://game_master/tone` — assert each carries a `[narrative-tone]` line with a `[ruleset]` provenance, tag intact. Set the GM badge and read `guidance://game_master/voice` — assert the shipped `[vendor]` profile is present before synthesis (Ruleset Wisdom always present); set the Player badge and read `guidance://player/voice` — assert the explicit empty marker, that no GM-scoped profile leaks into it, and that a Player caller reading the GM URI receives no GM-scoped item. Run `manage_synthesis (action: run)` — assert the vendor tier survives. Assert `spec_health.resource_uris` reports `guidance://{badge}/voice` and `guidance://{badge}/tone` as `present`, and that the Player `resources/list` includes the Player view and omits the GM view. | REQ-071 |
+| T792 | Automated | Codex export (REQ-321o, REQ-660): with no Novel active and the Game Master badge, store an `npc` and a `faction`, then call `manage_codex (action: export)` twice — assert the two payloads are byte-identical, carry schema `holonovel.codex/1`, and contain both entries; call export with `kind="faction"` and assert the npc is absent; call export with an unknown `id` and assert `[NOT_FOUND]` with nothing exported; switch to the Player badge with a Novel active and assert `[FORBIDDEN]`. | REQ-321o, REQ-660 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
@@ -3580,6 +3583,16 @@ folded into the TDQS score.
 loop: `table` → `explore` → `resolve` → `narrate` → `table`, with `referee` and
 `author` as modes. Group order is stable and is the order a directory lists
 them in.
+
+**The four uses.** The groups project onto four uses a person moves between, and
+the projection is derived from `group` — no action declares a use, and no use is
+a group. *Prepare* is `author` with `table` set-up and `referee` world-building.
+*Play* is `table`, `explore`, `resolve`, `narrate`, and `referee`. *Build* — the
+Convert and Build workflows of §6 — is not a runtime use and declares no group.
+*Host* is `maintain` with `table` open and close and package install or removal.
+The uses order the directory and frame `badge_briefing` orientation; the eight
+groups remain the classification, because `play` alone would exceed the ten-tool
+balance rule.
 
 **Phases.** A Novel carries one phase: `none` (no Novel active), `setup`
 (session zero or character creation), `scene` (exploration or social play),

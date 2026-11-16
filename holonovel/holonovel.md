@@ -1,8 +1,8 @@
 # Holonovel
 
-> **Quick Reference.** An AI build prompt for an MCP server that reads a tabletop RPG
-> ruleset, extracts mechanics, builds the server, and proves it works. Output: a running
-> MCP server with dice, combat, character management, rules lookup, narrative directives,
+> **Quick Reference.** An AI build prompt for a ruleset-free MCP host and the declarative
+> ruleset packages it loads: read a tabletop RPG ruleset, extract its mechanics, emit the
+> package, and prove the host runs it. Output: a running host with dice, combat, character management, rules lookup, narrative directives,
 > dynamic lore, action suggestions, voice examples, macros, scene-type tagging, audit
 > compression, scene-state tracking, NPC management, countdowns, session recap, hybrid
 > adventure modules, and Ruleset Wisdom — plus four handoff artifacts
@@ -11,7 +11,7 @@
 > the spatial foundation for scene composition — defining what is physically possible in the
 > story — with configurable surface prominence (REQ-309). Optional synthesis
 > workflow adds web-sourced play advice and Novel-state insights. Quality is enforced by
-> verification workflows, 18 handoff verification steps,
+> verification workflows, 18 handoff verification steps (H1–H18, §9),
 > and a golden-transcript replay. One base server — the ruleset-free `holonovel`
 > host — loads one or more declarative ruleset packages at startup (packages are
 > data, not code: extracted models, tool schemas, and indexes). Ruleset-derived
@@ -54,7 +54,10 @@
 
 ### How to read this specification
 
-Read this specification in layers — not front to back.
+Read this specification in layers — not front to back. It is written for two
+readers: the builder, an AI agent implementing a host or a ruleset package from
+it, and the maintainer, who edits it. A player, Game Master, or operator needs no
+knowledge of this document; §1 names the product's own front doors.
 
 This spec lives as 14 source files under `spec/`. `npm run assemble` joins
 them into one document. A builder reads `build-phase-map.md` to load only the
@@ -103,17 +106,20 @@ transcript) set the quality bar.
 
 ## 1. Mission and Play Model
 
-**Mission.** Build an MCP server from a tabletop RPG ruleset provided as Markdown (or
-converted from PDF/HTML/web scrape). The server exposes the ruleset's resolution mechanics,
-entity management, tables, and guidance as MCP tools, resources, and prompts. No manual
-coding — the AI reads the ruleset and builds. The specification is the permanent
-artifact; implementations are disposable and rebuilt on demand. This is a
-Spec-as-Source (SDD) system — the specification is the canonical source
-code. Humans edit the spec; the builder AI generates, verifies, and regenerates
-the server code. Generated server code is never edited by hand. Full rebuilds have
-token and time costs. The builder prefers incremental updates when the spec delta is
-narrow (§6.7). A full rebuild is required when the ruleset changes, the extraction
-model changes, or the spec version changes.
+**Mission.** Give a solo player a world that runs their own books, and remembers
+what happened. Holonovel is a narrative simulation engine for tabletop play: it
+binds a ruleset to a living world, resolves play through that ruleset's own
+mechanics, and keeps a durable record of every consequence. One person wears the
+badge; an AI takes the counterpart seat; the two play one story from opposite
+sides of the screen. What the engine refuses is arbitration by vibes — when the
+ruleset answers, the ruleset answers.
+
+**Why this is not a chatbot.** Chat forgets. A holonovel does not. State is
+canonical and server-side: characters, scenes, factions, clocks, lore, and the
+audit trail outlive the process, the connection, and the host. The world model
+holds what is physically possible; the narrative layer holds what is happening;
+the epistemic layers hold what each character believes and has perceived. Prose
+is rendered against engine truth; truth is never reconstructed from prose.
 
 **Engine, adapter, program.** Holonovel is a narrative simulation engine: it owns
 canonical state, resolves the rules, and records what happened. The MCP server is
@@ -122,12 +128,83 @@ Novel is the portable program: the save file that carries a world and its histor
 to another host. Tabletop play is the first application of the engine, not its
 definition.
 
+**The specification is the source.** This document is canonical for the host and
+the package contract. A build yields two artifacts: the host — versioned,
+installed, updated through §6.7 — and a ruleset package — generated data (model,
+index, tool schemas, resources, prompts) emitted by the Package step (REQ-389).
+Packages are never hand-edited. The host is never regenerated per ruleset, and
+loading a package does not modify it (REQ-390). A spec change routes through
+§6.7, where the delta class decides what is rebuilt, updated, or left alone.
+
+**Goals.** Six. Each names the failure it prevents (§3) and the contract that
+makes it checkable.
+
+- **Fidelity** — mechanical outcomes come from the bound ruleset's text; a
+  missing mechanic is reported, never invented (F1, F4; REQ-011, REQ-058).
+- **Continuity** — nothing that happened is lost, across restarts, host updates,
+  package changes, and travel to another host (F5; REQ-055, REQ-092, REQ-396,
+  REQ-397).
+- **Authorship** — the engine governs consequences, the player governs authorship;
+  resolution is enforced, description and direction are free (REQ-031a, REQ-032,
+  REQ-077c).
+- **Legibility** — every consequence is inspectable: what rolled, what ruled, what
+  changed, and why (REQ-040, REQ-174, REQ-589).
+- **Rebuildability** — one spec, many hosts, zero hand-edits; drift surfaces at
+  startup, not in play (REQ-313, REQ-394, REQ-420, REQ-423).
+- **Composability** — rulesets are data; installing or removing one changes
+  neither the host nor the user's Novels (F8; REQ-379, REQ-389, REQ-390).
+
+**Non-goals.** No hosted platform, no multiplayer, no runtime network, no rendered
+presentation, and no curated compact default surface. The authoritative list,
+each entry citing its governing requirement, is `DECISIONS.md` `## Non-goals`.
+
 **The north star.** A *holonovel* is a Star Trek holodeck program — an interactive
-narrative where the user steps inside as a character, the cast responds with intent,
-and the rules govern every outcome. Holonovel builds the server (the Holodeck) and
-loads your campaign (the Holonovel program) from your rulebooks. The Novel is the
-saved program file — create it, resume it, export and share it. No holograms. No 3D.
-Your books, rendered as tools and mechanics, running inside the room.
+narrative where the user steps inside as a character, the cast responds with
+intent, and the rules govern the consequences. Holonovel builds the server (the
+Holodeck) and loads your campaign (the Holonovel program) from your rulebooks. The
+Novel is the saved program file — create it, resume it, export it, share it. No
+holograms. No 3D. Your books, rendered as tools and mechanics, running inside the
+room. *Intent*, here, is recorded intent: an NPC acts from its goals, its memory,
+and what it knows (REQ-077, REQ-122, REQ-308, REQ-339), not from improvised
+characterization.
+
+**The test.** When a proposal is ambiguous, ask one question: does the engine
+govern the consequences, and does the player govern the authorship? Consequences —
+damage, clocks, conditions, who learns what, what persists — resolve through the
+bound ruleset, a stored fact, or a recorded ruling. Authorship — what a character
+attempts, how they are described, where the story goes — belongs to the player and
+is never gated by mechanics. Ruleset-free play does not suspend the test; it
+changes who supplies the rules, and the GM's rulings become the recorded ones.
+
+**Trajectory.** Three commitments decide what the engine becomes; a future REQ
+should serve at least one. Rulesets stay data, so the library grows without
+forking the host. The world keeps memory at three depths — what happened (the
+event log), what is true (causal state), and what each character believes
+(perception, evidence, and subjective memory) — so characters can be wrong in ways
+that persist. And a Novel stays portable, so a campaign outlives the server it was
+played on. A proposal that weakens one of these is probably the wrong proposal.
+
+**Who this document is for.** Two readers: the builder, an AI agent that
+implements the host or a ruleset package from this spec, and the maintainer, who
+edits it. Everyone else meets Holonovel through the product — the README installs
+it, the wiki routes play by task, and the running server explains itself through
+`badge_briefing`. A user needs no knowledge of this document, and the spec assumes
+none.
+
+**Who Holonovel is for.** One person, moving between four uses that never require
+choosing one.
+
+- *Prepare* — build characters, NPCs, factions, lore, clocks, rooms, things, and
+  encounters in a Novel under the Editor badge, or in the codex, a server-level
+  library that needs no Novel and no story (REQ-321).
+- *Play* — solo with an AI counterpart, as Game Master with an AI player, or as an
+  observer watching both.
+- *Build* — convert a book and build a ruleset package other people can install.
+- *Host* — install, back up, and update a server that keeps the data.
+
+The uses hand off: a Novel travels to another host, a ruleset built once runs for
+people who will never build one, and preparation reaches an interchange surface
+without entering play.
 
 **The play model (TTRPG).** Four badges, enforced server-side when the story is active.
 The Novel is the container — a named, persistent save file holding the world model,
@@ -411,6 +488,8 @@ do not alter meaning are editorial and do not require a version bump.
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
 | Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P61) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
+| Holodeck | The product metaphor for the host server — the room the engine runs in. In prose it names the server together with its world-model and narrative layers; *Holodeck Coupling* (§7.7) is the cross-property contract inside it. Not a component, and not a rendered environment. |
+| holonovel | Two senses. The project and its host (`holonovel`, the MCP server). A saved program in the north-star sense — a Novel together with the ruleset it is bound to. Where the senses could collide, prose says "the host" or "the Novel". |
 | Pattern Buffer         | The §6.6 operational verification suite, in two families: the Ruleset Pattern Buffer (sub-workflows S1–S37) gates ruleset (TTRPG) builds; the Holonovel Pattern Buffer (sub-workflows I1–I18) gates the holonovel host package. Named "the Gauntlet" in revisions before 2026-08-10; that term is retired (Appendix R). |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
@@ -501,7 +580,7 @@ Sub-REQs (XXXa, XXXb) handle composable concerns. Enforced by `npm run check`._
 | 5.3    | Tools, Resources, and Lookups                           | 020–025, 057–059, 063, 067, 078, 105–107, 110, 112, 138, 139, 160–164, 169, 182, 183, 187, 269, 278, 296, 323, 388, 408, 411, 413–415, 426, 427, 450, 552–555, 567–581, 583–584, 587–588, 606–610 |
 | 5.4    | Decision Workflows                                      | 042, 056, 104, 140, 151, 152, 181, 190–193, 224, 235, 399, 548 |
 | 5.5    | Badges and Access                                       | 030–032, 066, 109, 133–137, 148–150, 159, 180, 211, 216, 220, 223, 275, 276, 281, 286, 304–306, 598–600 |
-| 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332 |
+| 5.6    | State, Lifecycle, Entities, and Adventure Content       | 040, 041, 043, 044, 065, 069, 072–077, 079, 116, 119–124, 126–129, 132, 156, 165–168, 170–178, 203–206, 217, 221, 229, 232, 233, 236, 237, 239, 241, 242, 247–250, 252, 255, 279, 282, 285, 289, 292, 302, 307, 308, 311, 313, 314, 321, 322, 329, 330, 332, 660 |
 | 5.7    | Determinism, Safety, and Performance                    | 050–052, 054, 055, 100, 157, 213, 251, 253, 273, 274, 291, 312, 409, 410, 416, 417, 433, 444–449, 586, 615–621 |
 | 5.8    | Synthesis, Lore, and Macros                             | 080–087, 103, 114, 115, 125, 130, 155, 158, 185, 186, 226–228, 230, 231, 234, 243–246, 260–266, 310, 328, 331, 333, 589 |
 | 5.9    | Novel Persistence and Transport                         | 088–097, 117, 131, 238, 240, 256–259, 294, 295, 334, 565, 566, 613, 614 |
@@ -2802,6 +2881,12 @@ WHEN a Codex entry's `modified_at` timestamp is newer than the import timestamp 
 
 **REQ-332c — Codex provenance (Part c).**
 Updating the blacksmith Codex entry via `manage_codex (action: set)`, then calling `manage_codex (action: import, "blacksmith")` again updates the existing NPC (same entity ID) rather than creating a new one. `manage_novel (action: info)` reports `codex_sources` including the blacksmith entry. After updating the Codex entry, `spec_health` reports `[codex-stale]` for the Novel's blacksmith NPC. _Check:_ T380, T384.
+
+**REQ-321o — Codex export (Part o).**
+`manage_codex (action: export, kind?, id?)` SHALL return the selected entries as one payload carrying schema `holonovel.codex/1`, ordered by entry id, each with kind, name, content, description, tags, and ruleset. The action SHALL require the Editor or Game Master badge, SHALL need no active Novel, and SHALL NOT mutate stored state. A `kind` selects one kind; an id string or array selects entries; an unknown id SHALL return `[NOT_FOUND]` naming it and export nothing. Two calls over unchanged state SHALL be byte-identical. *Acceptance criterion:* exporting a two-entry library twice yields identical bytes, a kind filter returns only that kind, an unknown id returns `[NOT_FOUND]`, and a Player badge call returns `[FORBIDDEN]`. _Check:_ T792.
+
+**REQ-660 — Preparation parity.**
+A Novel SHALL be fully preparable under the Editor badge and reach an exchange surface without one. Prepared surfaces — roster entities, NPCs, factions, lore entries, world-model rooms and things, notes, and story entries — SHALL export with narrative fields and provenance intact. The codex SHALL export as one deterministic payload selected by kind or id, with no Novel, and a codex entry SHALL NOT enter a Novel export (REQ-321l). Preparation SHALL require no installed ruleset, and it SHALL enter play unchanged. *Acceptance criterion:* a Novel prepared with one of each prepared kind exports intact and resumes unchanged under a play badge; two codex exports with no Novel are byte-identical, a kind filter excludes other kinds, and an unknown id returns `[NOT_FOUND]`. _Check:_ T792.
 
 ### 5.7 Determinism, Safety, and Performance
 
@@ -6760,6 +6845,7 @@ sub-workflow. Gaps detected by validation are errors — they block assembly.
 | REQ-619 | S30 | Reference package provenance emission |
 | REQ-620 | S1, S6, S29 | Local artifact registry |
 | REQ-621 | S1, S24, S29, S30 | Artifact admission |
+| REQ-660 | S15, S16, S17 | Preparation parity — codex export and prepared-Novel resume |
 | REQ-321 | S15, S16, S17 | Codex |
 | REQ-322 | S23 | Vow-countdown coupling |
 | REQ-329 | S16, S23 | Countdown-world coupling |
@@ -10045,6 +10131,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-321m3 | Codex (Part m3) | 2026-08-11 |
 | REQ-321m4 | Codex (Part m4) | 2026-08-11 |
 | REQ-321n | Codex (Part n) | 2026-09-26 |
+| REQ-321o | Codex export (Part o) | 2026-11-16 |
 | REQ-332a | Codex provenance (Part a) | 2026-08-11 |
 | REQ-332b | Codex provenance (Part b) | 2026-08-11 |
 | REQ-332c | Codex provenance (Part c) | 2026-08-11 |
@@ -10563,6 +10650,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-656 | Window-aware displaced verdict | 2026-11-10 |
 | REQ-658 | Comparable recall benchmark | 2026-11-10 |
 | REQ-659 | Slug derivation | 2026-11-14 |
+| REQ-660 | Preparation parity | 2026-11-16 |
 | REQ-425a | Output format catalog (Part a) | 2026-09-01 |
 | REQ-425b | Output format validation (Part b) | 2026-09-01 |
 | REQ-425c | Output format consistency (Part c) | 2026-09-01 |
@@ -11561,6 +11649,7 @@ diet.
 | T789 | Automated | Internal synthesis category rules: seed a Novel with more than five NPCs, a lore entry naming an NPC, themed journal entries, three distinct scene anchors with an unresolved decision, two factions, a hostile relationship with no secret, a countdown at one tick, three connected rooms, and a readable thing naming a proper noun. Call `manage_synthesis (action: run)` — assert `novel://`-sourced items appear for the lore cross-reference, narrative voice profile, scene hook, faction/secret tension, revelation opportunity, secret suggestion, countdown urgency, and room hook; assert an un-triggered lore keyword produces a hook while a triggered one does not; assert a readable thing links to its room in `lore_templates`. | REQ-262, REQ-264 |
 | T790 | Automated | Internal synthesis budgets: with `TTRPG_MAX_SYNTHESIS_ITEMS=2`, seed six NPCs and run synthesis — assert each module stops at two internal items, `spec_health.synthesis_health.caps.modules` reports count, maximum, and overflow, the result records the overflow count, and vendor items are neither counted nor truncated. With `TTRPG_MAX_SYNTHESIS_ITEMS=0`, assert `manage_synthesis (action: run)` returns `[ERROR] [STATE_CONFLICT]` naming the synthesis group with count and maximum, and that a second call never replies with the up-to-date message. | REQ-129, REQ-160 |
 | T791 | Automated | Badge guidance from live synthesis state: boot ruleset-free and read `guidance://player/tone` and `guidance://game_master/tone` — assert each carries a `[narrative-tone]` line with a `[ruleset]` provenance, tag intact. Set the GM badge and read `guidance://game_master/voice` — assert the shipped `[vendor]` profile is present before synthesis (Ruleset Wisdom always present); set the Player badge and read `guidance://player/voice` — assert the explicit empty marker, that no GM-scoped profile leaks into it, and that a Player caller reading the GM URI receives no GM-scoped item. Run `manage_synthesis (action: run)` — assert the vendor tier survives. Assert `spec_health.resource_uris` reports `guidance://{badge}/voice` and `guidance://{badge}/tone` as `present`, and that the Player `resources/list` includes the Player view and omits the GM view. | REQ-071 |
+| T792 | Automated | Codex export (REQ-321o, REQ-660): with no Novel active and the Game Master badge, store an `npc` and a `faction`, then call `manage_codex (action: export)` twice — assert the two payloads are byte-identical, carry schema `holonovel.codex/1`, and contain both entries; call export with `kind="faction"` and assert the npc is absent; call export with an unknown `id` and assert `[NOT_FOUND]` with nothing exported; switch to the Player badge with a Novel active and assert `[FORBIDDEN]`. | REQ-321o, REQ-660 |
 | T660 | Automated | Tool surface declaration: assert every registered action resolves to exactly one registry entry; assert a fixture with an ungrouped, duplicated, or unknown-term action fails `check-tool-surface` naming the tool and action. | REQ-567 |
 | T661 | Automated | Surface conformance report: assert `spec_health.tool_surface` reports group coverage, orphan count, entry uniqueness, balance, workflow call counts, catalog size per profile, and active profile; assert the derivation reports an orphan action and a duplicated entry declaration from a fixture registry. | REQ-568 |
 | T662 | Automated | Surface baseline: assert the baseline reports expected-action selection precision, wrong-selection count, tool calls per intent, and catalog size over at least thirty fixed intents including ambiguous and near-miss intents; assert a visibility-only proxy fails; assert changing the intent set or estimator without a recorded re-baseline fails. | REQ-569 |
@@ -13386,6 +13475,16 @@ folded into the TDQS score.
 loop: `table` → `explore` → `resolve` → `narrate` → `table`, with `referee` and
 `author` as modes. Group order is stable and is the order a directory lists
 them in.
+
+**The four uses.** The groups project onto four uses a person moves between, and
+the projection is derived from `group` — no action declares a use, and no use is
+a group. *Prepare* is `author` with `table` set-up and `referee` world-building.
+*Play* is `table`, `explore`, `resolve`, `narrate`, and `referee`. *Build* — the
+Convert and Build workflows of §6 — is not a runtime use and declares no group.
+*Host* is `maintain` with `table` open and close and package install or removal.
+The uses order the directory and frame `badge_briefing` orientation; the eight
+groups remain the classification, because `play` alone would exceed the ten-tool
+balance rule.
 
 **Phases.** A Novel carries one phase: `none` (no Novel active), `setup`
 (session zero or character creation), `scene` (exploration or social play),

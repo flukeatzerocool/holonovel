@@ -16831,9 +16831,9 @@ function codexImportPrecheck(novel: any, entry: any): string | null {
 // (REQ-321 completeness; previously a gap flagged by the coverage audit).
 server.registerTool("manage_codex", {
   title: "Codex Library Management",
-  description: "Manage the server-level library of reusable, cross-Novel content — stored entries, not generated synthesis or Novel-scoped lore. Entries cover NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, and adventures, and persist to `.holonovel-state/codex.json` outside every Novel and survive restarts; mutations are audited. Out-of-play and badge-free: requires the Editor or Game Master badge, a Player mid-adventure gets `[FORBIDDEN]`, and reads are not badge-filtered. When no Novel is active, the codex is the default store; `import` and `capture` require an active Novel. `set` needs `kind` + `name` (the id derives from them); merge=true shallow-merges content. Revert the most recent mutation with manage_history (action: undo). Use when: storing reusable content for later import, or enumerating/reading/deleting it. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
+  description: "Manage the server-level library of reusable, cross-Novel content — stored entries, not generated synthesis or Novel-scoped lore. Entries cover NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, and adventures; they persist to `.holonovel-state/codex.json`, survive restarts, and mutations are audited. Requires the Editor or Game Master badge; reads are not badge-filtered. With no Novel active, the codex is the default store; `import`/`capture` need an active Novel. `set` needs `kind` + `name` (the id derives from them); merge=true shallow-merges content. `export` emits the library, or a `kind`/`id` selection, as one deterministic payload. Revert the most recent mutation with manage_history (action: undo). Use when: storing reusable content, enumerating/reading/deleting it, or taking the library with you. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
   inputSchema: {
-    action: z.enum(["set", "list", "get", "capture", "import", "delete"]).describe("set (create/update), list, get, capture (Novel artifact per kind), import (into active Novel), or delete."),
+    action: z.enum(["set", "list", "get", "capture", "import", "export", "delete"]).describe("set (create/update), list, get, capture (Novel artifact per kind), import (into active Novel), export (the library as one interchange payload), or delete."),
     kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
     name: z.string().optional().describe("Entry name (for set)."),
     entry_id: z.string().optional().describe("Entry identifier (for get/import/delete); alias of `id`."),
@@ -16894,6 +16894,23 @@ server.registerTool("manage_codex", {
       const entry = state.codex.get(entryId);
       if (!entry) return err("NOT_FOUND", `Codex entry '${entryId}' not found.`);
       return raw(JSON.stringify(entry, null, 2));
+    }
+    case "export": {
+      // REQ-321o / REQ-660 — preparation leaves the server: the codex exports
+      // as one deterministic interchange payload, with no Novel active.
+      requireGM();
+      const ids = args.id === undefined ? null : (Array.isArray(args.id) ? args.id : [args.id]);
+      if (ids) {
+        const missing = ids.filter((id: string) => !state.codex.has(id));
+        if (missing.length > 0) {
+          return err("NOT_FOUND", `Codex export found no entry for: ${missing.join(", ")}. Corrective action: call manage_codex (action: list) for available ids.`);
+        }
+      }
+      let entries = [...state.codex.values()];
+      if (args.kind) entries = entries.filter((e: any) => e.kind === args.kind);
+      if (ids) entries = entries.filter((e: any) => ids.includes(e.id));
+      entries.sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
+      return raw(JSON.stringify({ schema: "holonovel.codex/1", entries }, null, 2));
     }
     case "capture": {
       // REQ-321n — general capture: pull a Novel artifact into the Codex as an

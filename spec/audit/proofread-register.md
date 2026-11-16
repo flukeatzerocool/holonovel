@@ -395,3 +395,15 @@ bodies were not rewritten.
 
 **Disposition: all 288 warnings `Accepted` by policy.** No contract-bearing
 rewrite is outstanding.
+
+## Batch 16 — identity layer (2026-11-15)
+
+Re-verified against live `npm run validate`: **0 errors, 293 warnings**.
+This increment rewrites §1's identity paragraphs, adds the four-use projection
+to Appendix T.3, and registers two terms in §4. The +5 over Batch 15 are
+readability lines in new prose — two in §1 (the mission and the four-use
+paragraph), one in the reading guide, and two in the T.3 projection — none of
+which changes a contract-bearing sentence.
+
+**Disposition: all 293 warnings `Accepted` by policy.** No contract-bearing
+rewrite is outstanding.

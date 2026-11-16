@@ -114,6 +114,8 @@ do not alter meaning are editorial and do not require a version bump.
 | Convergence loop | Iterative quality-enforcement (§6.5) measuring extraction quality, coverage, and compliance. |
 | Danger           | Non-entity combat participant with no persistent ID or state; auto-resolved. |
 | Holodeck Coupling | Cross-property interaction contract (§7.7). Pattern rules (P1–P61) define archetype-pair interactions; the coupling table (§7.7.1a) instantiates them as specific property-group pairs. Each coupling has a nature (Mechanical, Navigational, or Narrative) and badge scope. |
+| Holodeck | The product metaphor for the host server — the room the engine runs in. In prose it names the server together with its world-model and narrative layers; *Holodeck Coupling* (§7.7) is the cross-property contract inside it. Not a component, and not a rendered environment. |
+| holonovel | Two senses. The project and its host (`holonovel`, the MCP server). A saved program in the north-star sense — a Novel together with the ruleset it is bound to. Where the senses could collide, prose says "the host" or "the Novel". |
 | Pattern Buffer         | The §6.6 operational verification suite, in two families: the Ruleset Pattern Buffer (sub-workflows S1–S37) gates ruleset (TTRPG) builds; the Holonovel Pattern Buffer (sub-workflows I1–I18) gates the holonovel host package. Named "the Gauntlet" in revisions before 2026-08-10; that term is retired (Appendix R). |
 | Badge briefing         | `badge_briefing` prompt — composes guidance, state, lore, and registry content badge-filtered. |
 | Macro            | Token `{{<path>}}` expanded to live state values before delivery. REQ-085. |
