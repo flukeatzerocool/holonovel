@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-11-16 — Torre Nosferatu readiness: player-visible lore and a secret holder
+
+The bundled tutorial now shows the knowledge and secrets machinery added after
+it was authored.
+
+- Two lore entries — the candle clock and the tower's resources — are readable
+  by the Player badge, so the tutorial's "discover lore by keyword" promise
+  holds once the Player badge is on. The entries stay high-priority in the GM
+  briefing. (REQ-083d/083e)
+- The Survivors know Ilona was bitten. The faction's copy of the secret
+  surfaces at `faction://<id>` for the GM, and the server suggests a
+  `suspicious` relationship between the faction and Ilona. (REQ-234b)
+- The starter harness now checks both surfaces, so a future content edit cannot
+  silently remove them.
+- The wiki tutorial tells a new player to put on the Player badge. The seeded
+  Novel starts on the Editor badge, which otherwise shows GM-only material.
+
 ## 2026-11-16 — Identity layer: consequences governed, preparation portable
 
 Section 1 now says what the product is for, separately from how it is built: a
