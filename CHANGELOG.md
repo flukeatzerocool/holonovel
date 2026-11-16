@@ -1,5 +1,50 @@
 # Changelog
 
+## 2026-11-16 — Publication reconciliation: an evidence gate the operator can actually satisfy
+
+The publication update gate asked for evidence the operator could not produce
+from inside an opencode session. It now asks for a record the operator can
+author — and derives most of it from evidence the repository already carries.
+
+- REQ-394a rewritten: evidence is a reconciliation record — gate results on the
+  published revision plus one disposition per REQ the delta changed
+  (implemented / deferred / waived), derived from committed evidence where it
+  exists. The dated deferral is retained; the format stays in §6.7 and
+  Appendix V.4, not in the REQ body (749 chars, under the 800 limit).
+- §6.7 states the contract additively: the specification defines contracts, so
+  an update reconciles and never rewrites conforming implementation.
+  Appendix V.4 carries the disposition duty in happy-path step 5 and a blocking
+  case in Recovery.
+- `scripts/update-server.ts` no longer constructs or executes `opencode run`
+  commands. `HOLONOVEL_INVOKE_UPDATE`, `invokeEnabled`, `--auto-update`, and the
+  script-discipline rule that guarded the export are retired, as are harness
+  tests T84c and T84d.
+- Disposition derivation reads the committed coverage register
+  (`spec/audit/req-coverage.md`), base-collapses sub-parts, sweeps deferral →
+  removal → derivation → block, maps C/D to implemented, E to implemented when
+  the row carries exercised tests (else waived), and sends A/B and
+  register-absent REQs to the operator. `--dispositions <path>` is the authoring
+  channel; `--delta-report <path>` carries the changed-REQ set; `--check`
+  derives nothing and writes nothing.
+- A complete record is written into `fingerprint-deltas.json` and rendered into
+  the Spec Update entry as an evidence line plus one table row per REQ; the
+  baseline is reconciled only on a complete record, so an incomplete one can
+  never be recorded as applied. Removal is dispositioned waived, not dropped.
+- The pipeline passes the delta report and the operator table, and `--dry-run`
+  now writes nothing: `update` passes `--check`, `record` passes `--dry-run`,
+  the follow-on `--check` is skipped, and preflight needs no `--yes` on
+  non-interactive stdin. `harness` skips a second `test:all` when this run's
+  `build-order` recorded the full suite; `registry` follows the publish, not the
+  mirror (REQ-428).
+- Evidence: T84b/T84e rewritten with a new T18b control (an absent or bucket-B
+  REQ blocks and is named; a complete record reconciles; a removed REQ is
+  waived), plus a pipeline case proving dry-run non-mutation. Measured against
+  `origin/main`, the 120 changed REQs derive 115 implemented and 5 waived with
+  zero operator exceptions.
+- ROADMAP: the ruleset-side `opencode run` printers
+  (`scripts/build-ruleset.ts`, `scripts/update-rulesets.ts`) are scheduled for
+  the same treatment.
+
 ## 2026-11-16 — Torre Nosferatu readiness: player-visible lore and a secret holder
 
 The bundled tutorial now shows the knowledge and secrets machinery added after

@@ -300,8 +300,11 @@ function main(): void {
     unchanged: ["config", "lockfile", "extraction"],
     changed_count: 2,
     scoping: "partial" as const,
-    invoked: false,
-    deferred: true,
+    deferred: false,
+    dispositions: [
+      { req: "REQ-032c", disposition: "implemented" as const, evidence: "bucket C (cited, exercised)" },
+      { req: "REQ-075j", disposition: "waived" as const, evidence: "bucket E (intended gap, no exercised test)" },
+    ],
     reused: ["config", "lockfile", "extraction"],
     current: { source: componentHash, config: componentHash, lockfile: componentHash, extraction: componentHash, surfaces: componentHash },
     prior: { source: componentHash, config: componentHash, lockfile: componentHash, extraction: componentHash, surfaces: componentHash },
@@ -309,7 +312,8 @@ function main(): void {
   const rendered = renderFingerprintDelta(deltaRecord);
   check(hasFingerprintDelta(rendered), "rendered fingerprint delta carries the gated bullet");
   check(rendered.includes("scoping") || rendered.includes("partial"), "rendered delta names the scoping decision");
-  check(rendered.includes("deferred") && !rendered.includes("invoked: yes"), "rendered delta records a deferral");
+  check(rendered.includes("reconciliation record (2 changed REQ)") && !rendered.includes("update invoked"), "rendered delta records the evidence kind, not an invocation");
+  check(rendered.includes("| REQ | Disposition | Evidence |") && rendered.includes("| REQ-032c | implemented |") && rendered.includes("| REQ-075j | waived |"), "rendered delta carries the disposition table");
   check(rendered.includes("changed: source, surfaces") && rendered.includes("unchanged: config, lockfile, extraction"), "rendered delta lists changed and unchanged components");
   check(rendered.includes("reused: config, lockfile, extraction"), "rendered delta lists the reused components");
   check(!hasFingerprintDelta("- **Verification:** done"), "an entry without the bullet fails the delta predicate");

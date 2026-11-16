@@ -34,7 +34,6 @@ const USAGE = `Usage: npx tsx scripts/publish/run.ts [flags]
   --allow-missing-deploy  Skip deploy verification when the clone is absent.
   --allow-stale-base      Classify the delta against a possibly stale origin.
   --full-tests            Always run the server harness suite.
-  --auto-update           Execute the §6.7 update command.
   --allow-secrets         Warn, do not block, on a staged secret-pattern match.
   --from <step>           Start at a step (inclusive).
   --only <step>           Run exactly one step.
@@ -93,7 +92,7 @@ function main(): void {
     argv,
     new Set([
       "--dry-run", "--yes", "-y", "--no-push", "--allow-pending", "--allow-untracked",
-      "--allow-missing-deploy", "--allow-stale-base", "--full-tests", "--auto-update",
+      "--allow-missing-deploy", "--allow-stale-base", "--full-tests",
       "--allow-secrets", "--from", "--only", "--stage", "--resume", "--help", "-h",
     ]),
     USAGE,
@@ -108,7 +107,6 @@ function main(): void {
     allowMissingDeploy: parseFlag(argv, "--allow-missing-deploy"),
     allowStaleBase: parseFlag(argv, "--allow-stale-base"),
     fullTests: parseFlag(argv, "--full-tests"),
-    autoUpdate: parseFlag(argv, "--auto-update"),
     allowSecrets: parseFlag(argv, "--allow-secrets"),
   };
 
@@ -146,11 +144,13 @@ function main(): void {
     deployDir: process.env.HOLONOVEL_DEPLOY_DIR ?? join(homedir(), "Holonovel-deployed"),
     state: {
       delta: {},
+      deltaReport: {},
       base: "origin/main",
       checkRan: false,
       suiteRan: false,
       contractChanged: false,
       needTests: false,
+      harness: "",
       suite: "fast",
       verification: "",
       didCommit: false,

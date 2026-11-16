@@ -74,7 +74,7 @@ else
     if ! npx tsx scripts/update-server.ts --server holonovel --spec-hash "$spec_hash" --delta-class "$delta_class" --check >/dev/null 2>&1; then
         echo ""
         echo "BLOCKED: A spec update is pending — the implementation has not been updated to match the spec."
-        echo "To fix: run the push pipeline (or the opencode Update workflow first)."
+        echo "To fix: run the push pipeline, which derives the reconciliation record (REQ-394a)."
         echo "  ./scripts/push-pipeline.sh"
         echo ""
         exit 1

@@ -39,7 +39,6 @@ Usage: ./scripts/push-pipeline.sh [options]
   --allow-missing-deploy  Skip deploy verification when the clone is absent.
   --allow-stale-base      Classify the delta against a possibly stale origin.
   --full-tests            Always run the server harness suite.
-  --auto-update           Execute the §6.7 update command.
   --allow-secrets         Warn, do not block, on a staged secret-pattern match.
   --from <step>           Start at a step (inclusive).
   --only <step>           Run exactly one step.
@@ -54,7 +53,7 @@ ARGS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --help|-h) usage; exit 0 ;;
-        --dry-run|--yes|-y|--no-push|--allow-pending|--allow-untracked|--allow-missing-deploy|--allow-stale-base|--full-tests|--auto-update|--allow-secrets|--resume)
+        --dry-run|--yes|-y|--no-push|--allow-pending|--allow-untracked|--allow-missing-deploy|--allow-stale-base|--full-tests|--allow-secrets|--resume)
             ARGS+=("$1") ;;
         --from|--only|--stage)
             if [[ $# -lt 2 ]]; then

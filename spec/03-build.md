@@ -2049,7 +2049,12 @@ fingerprint delta summary — which components changed, which remain unchanged, 
 the scoping decision — is recorded in DECISIONS.md (6) before the gap audit.
 An update is complete only when the implementation fingerprints advance to reflect
 the new revision; a Minor or Major revision SHALL NOT be recorded as applied ahead
-of its implementation (REQ-394).
+of its implementation (REQ-394). The specification defines contracts, not
+implementations: an update reconciles a gap or records a disposition, and never
+rewrites conforming implementation to match wording. Reconciliation evidence for the
+published revision is the gate results produced on it plus one disposition per
+changed REQ — implemented, deferred, or waived — derived from committed evidence
+where it exists (REQ-394a).
 
 The implementation fingerprints are computed against the live, deployed server
 source tree — never against the spec repository's own working tree or historical

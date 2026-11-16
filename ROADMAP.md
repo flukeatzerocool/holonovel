@@ -96,6 +96,19 @@ when `grep -c '^| T553 ' spec/appendices-reference.md` is 1.
 move a codex library between hosts; closes when `manage_artifact (action:
 install)` admits a `codex pack` and `spec_health` reports its count.
 
+## Ruleset-side `opencode run` printers (P2)
+
+- `scripts/build-ruleset.ts:284` and `scripts/update-rulesets.ts:53` still print
+  `opencode run --agent build` commands for the ruleset side, the same channel
+  the publication update retired (REQ-394a). Replace them with the
+  reconciliation-style remedy the spec update uses: report the pending intakes
+  as evidence and let the operator act, with no agent subprocess in the contract.
+- The printers sit behind no gate, so a publish never blocks on them; they are
+  wrong guidance, not a deadlock. Fix both sites in one increment.
+
+**Trigger:** the next edit to either script, or the next ruleset build that
+prints an invocation; closes when `grep -rn "opencode run" scripts/` is empty.
+
 ## Non-goals
 
 Authoritative list and rationale: `holonovel/DECISIONS.md` § Non-goals.

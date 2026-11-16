@@ -16,7 +16,7 @@
 // `.holonovel-state/pipeline-fingerprints.json`; no tracked file is mutated.
 
 import { spawnSync, execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync, rmSync, mkdtempSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync, mkdtempSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -124,38 +124,6 @@ function main(): void {
       if (r.status !== 0) throw new Error(`expected exit 0 for patch delta, got ${r.status}: ${r.stdout} ${r.stderr}`);
       assertContains(r.stdout, "patch-class");
     });
-
-    // REQ-098 self-invocation contract: the update command is printed but not
-    // executed unless HOLONOVEL_INVOKE_UPDATE=1 (unattended shell/CI only).
-    const fakeDir = mkdtempSync(join(tmpdir(), "holonovel-fake-opencode-"));
-    const fakeBin = join(fakeDir, "opencode");
-    writeFileSync(fakeBin, `#!/bin/sh\necho "$@" > "$FAKE_OPENCODE_MARKER"\n`, { mode: 0o755 });
-    const defaultMarker = join(fakeDir, "default-marker.txt");
-    const execMarker = join(fakeDir, "exec-marker.txt");
-
-    test("T84c/REQ-098: update command is printed, not executed, by default", () => {
-      const r = runUpdate(["--server", "holonovel", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint"], {
-        HOLONOVEL_INVOKE_UPDATE: "0",
-        PATH: `${fakeDir}:${process.env.PATH}`,
-        FAKE_OPENCODE_MARKER: defaultMarker,
-      });
-      if (r.status === 0) throw new Error(`expected non-zero exit for pending update: ${r.stdout}`);
-      assertContains(r.stdout, "Invoking: opencode run");
-      if (existsSync(defaultMarker)) throw new Error("update command executed without HOLONOVEL_INVOKE_UPDATE=1");
-    });
-
-    test("T84d/REQ-098: HOLONOVEL_INVOKE_UPDATE=1 executes the update command", () => {
-      const r = runUpdate(["--server", "holonovel", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint"], {
-        HOLONOVEL_INVOKE_UPDATE: "1",
-        PATH: `${fakeDir}:${process.env.PATH}`,
-        FAKE_OPENCODE_MARKER: execMarker,
-      });
-      if (r.status !== 0) throw new Error(`expected exit 0, got ${r.status}: ${r.stdout} ${r.stderr}`);
-      if (!existsSync(execMarker)) throw new Error("update command was not executed with HOLONOVEL_INVOKE_UPDATE=1");
-      const invoked = readFileSync(execMarker, "utf-8");
-      assertContains(invoked, "--agent build");
-    });
-    rmSync(fakeDir, { recursive: true, force: true });
 
     // ── REQ-556 / T649 — user-data reconciliation ─────────────────────────
     // A deployed instance whose package and artifact fingerprints are stale.
@@ -371,39 +339,137 @@ for (const [f, o] of Object.entries(files)) writeFileSync(join(out, f), JSON.str
 
     // ── REQ-394a / T84e — publication update evidence ──────────────────
     // Seed a baseline for the synthetic tree, then advance its fingerprints.
+    // The evidence contract is a reconciliation record: one disposition per
+    // changed REQ, derived from the committed coverage register where it
+    // exists and from an operator table where it does not (T18b control).
     const deltaDecisionsDir = mkdtempSync(join(tmpdir(), "update-delta-decisions-"));
     const deltaDecisionsPath = join(deltaDecisionsDir, "DECISIONS.md");
     const today = new Date();
     const date = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const FIXTURE_REGISTER = join(deltaDecisionsDir, "req-coverage.md");
+    const OPERATOR_TABLE = join(deltaDecisionsDir, "dispositions.md");
+    writeFileSync(
+      FIXTURE_REGISTER,
+      [
+        "# REQ Coverage Register",
+        "",
+        "| REQ | Title | Section | Bucket | Exercised tests | §5.12 disposition |",
+        "|-----|-------|---------|--------|-----------------|-------------------|",
+        "| REQ-099 | Synthetic evidenced | 5.1 Output | C | T1, T2 | — |",
+        "| REQ-098 | Synthetic intended gap | 5.2 Extraction | E | — | — |",
+        "| REQ-101 | Synthetic needs review | 5.3 Loop | B | — | — |",
+        "",
+      ].join("\n"),
+    );
+    writeFileSync(
+      OPERATOR_TABLE,
+      [
+        "| REQ | Disposition | Evidence |",
+        "|---|---|---|",
+        "| REQ-101 | deferred | operator: scheduled in the next increment |",
+        "",
+      ].join("\n"),
+    );
+    const noDeferral = (): void => writeFileSync(deltaDecisionsPath, "# DECISIONS\n\nNo deferral recorded.\n");
+    const deltaReportFor = (ids: { added?: string[]; removed?: string[]; modified?: string[] }): string => {
+      const path = join(deltaDecisionsDir, `delta-${Math.random().toString(36).slice(2)}.json`);
+      writeFileSync(
+        path,
+        JSON.stringify({ requirements_changed: { added: [], removed: [], modified: [], ...ids } }, null, 2) + "\n",
+      );
+      return path;
+    };
     try {
-      writeFileSync(deltaDecisionsPath, "# DECISIONS\n\nNo deferral recorded.\n");
+      noDeferral();
       const seed = runDelta(["--server", "fixture", "--spec-hash", currentHash]);
       if (seed.status !== 0) throw new Error(`delta baseline seed failed: ${seed.stdout} ${seed.stderr}`);
 
       // source + surfaces change (two components) → scoping "partial".
       writeFileSync(join(DELTA_SERVER, "src", "index.ts"), "export const version = 2;\n");
-      const evidenceArgs = ["--server", "fixture", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint"];
+      // Each run presents a different spec hash so the script takes the delta
+      // path rather than the spec-unchanged branch.
+      const specHashN = (n: number): string => String(n).repeat(64);
+      const evidenceArgs = (hash: string): string[] => [
+        "--server", "fixture", "--spec-hash", hash, "--delta-class", "minor",
+        "--scope-by-fingerprint", "--coverage-register", FIXTURE_REGISTER,
+      ];
+      const h2 = specHashN(2);
+      const h3 = specHashN(3);
+      const h4 = specHashN(4);
+      const h5 = specHashN(5);
 
       test("T84e/REQ-394a: advanced fingerprints without evidence block publication", () => {
-        const r = runDelta(evidenceArgs, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        const args = evidenceArgs(h2);
+        const r = runDelta(args, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
         if (r.status !== 1) throw new Error(`expected exit 1, got ${r.status}: ${r.stdout} ${r.stderr}`);
         assertContains(r.stderr, "UPDATE REQUIRED");
         assertContains(r.stderr, "scoping: partial");
         assertContains(r.stderr, "Update-deferred");
         if (storedSpecHash() !== currentHash) throw new Error("stored baseline advanced despite the block");
-        const again = runDelta(evidenceArgs, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        const again = runDelta(args, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
         if (again.status !== 1) throw new Error(`blocked run did not leave the delta detected: ${again.stdout}`);
+      });
+
+      test("T18b/REQ-394a: check mode derives nothing and writes no baseline", () => {
+        const r = runDelta([...evidenceArgs(h2), "--check"], { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        if (r.status !== 0) throw new Error(`expected exit 0 in check mode, got ${r.status}: ${r.stdout} ${r.stderr}`);
+        if (storedSpecHash() !== currentHash) throw new Error("check mode advanced the stored baseline");
+      });
+
+      test("T18b/REQ-394a: a changed REQ absent from the register is named and blocks", () => {
+        const report = deltaReportFor({ modified: ["100a"] });
+        const r = runDelta([...evidenceArgs(h2), "--delta-report", report], { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        if (r.status !== 1) throw new Error(`expected exit 1, got ${r.status}: ${r.stdout} ${r.stderr}`);
+        assertContains(r.stderr, "REQ-100");
+        assertContains(r.stderr, "absent from");
+        assertContains(r.stderr, "--write-register");
+        if (storedSpecHash() !== currentHash) throw new Error("an incomplete record advanced the stored baseline");
+        const record = JSON.parse(readFileSync(join(DELTA_STATE_DIR, "fingerprint-deltas.json"), "utf-8")).fixture;
+        if (!Array.isArray(record.dispositions)) throw new Error("the incomplete record did not carry a dispositions array");
+      });
+
+      test("T18b/REQ-394a: a bucket-B REQ requires an operator disposition", () => {
+        const report = deltaReportFor({ added: ["101"] });
+        const blocked = runDelta([...evidenceArgs(h2), "--delta-report", report], { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        if (blocked.status !== 1) throw new Error(`expected exit 1, got ${blocked.status}: ${blocked.stdout} ${blocked.stderr}`);
+        assertContains(blocked.stderr, "bucket B");
+        if (storedSpecHash() !== currentHash) throw new Error("a missing operator disposition advanced the stored baseline");
+      });
+
+      test("T18b/REQ-394a: a complete record reconciles and records one disposition per changed REQ", () => {
+        const report = deltaReportFor({ added: ["099a"], modified: ["101"] });
+        const r = runDelta([...evidenceArgs(h2), "--delta-report", report, "--dispositions", OPERATOR_TABLE], { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        if (r.status !== 0) throw new Error(`expected exit 0, got ${r.status}: ${r.stdout} ${r.stderr}`);
+        if (storedSpecHash() !== h2) throw new Error("a complete record did not advance the stored baseline");
+        const record = JSON.parse(readFileSync(join(DELTA_STATE_DIR, "fingerprint-deltas.json"), "utf-8")).fixture;
+        const rows = record.dispositions as Array<{ req: string; disposition: string }>;
+        const byReq = new Map(rows.map((row) => [row.req, row.disposition]));
+        if (byReq.get("REQ-099a") !== "implemented") throw new Error(`REQ-099a should derive implemented, got ${byReq.get("REQ-099a")}`);
+        if (byReq.get("REQ-101") !== "deferred") throw new Error(`REQ-101 should take the operator row, got ${byReq.get("REQ-101")}`);
+        if (record.scoping !== "partial") throw new Error(`unexpected scoping ${record.scoping}`);
+      });
+
+      test("T18b/REQ-394a: a removed REQ is dispositioned waived, not dropped", () => {
+        writeFileSync(join(DELTA_SERVER, "src", "index.ts"), "export const version = 3;\n");
+        const report = deltaReportFor({ removed: ["097"] });
+        const r = runDelta([...evidenceArgs(h3), "--delta-report", report], { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        if (r.status !== 0) throw new Error(`expected exit 0, got ${r.status}: ${r.stdout} ${r.stderr}`);
+        const record = JSON.parse(readFileSync(join(DELTA_STATE_DIR, "fingerprint-deltas.json"), "utf-8")).fixture;
+        const row = (record.dispositions as Array<{ req: string; disposition: string; evidence: string }>).find((d) => d.req === "REQ-097");
+        if (!row || row.disposition !== "waived") throw new Error("a removed REQ was not dispositioned waived");
       });
 
       writeFileSync(deltaDecisionsPath, `# DECISIONS\n\n- **Update-deferred:** fixture ${date} — synthetic fixture rebuild\n`);
 
       test("T84e/REQ-394a: a dated deferral publishes and is recorded in the delta record", () => {
-        const r = runDelta(evidenceArgs, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
+        writeFileSync(join(DELTA_SERVER, "src", "state.ts"), "export const state = { advanced: true };\n");
+        const r = runDelta(evidenceArgs(h4), { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
         if (r.status !== 0) throw new Error(`expected exit 0, got ${r.status}: ${r.stdout} ${r.stderr}`);
         assertContains(r.stdout, "deferred");
-        if (storedSpecHash() !== otherHash) throw new Error("stored baseline was not advanced after the recorded deferral");
+        if (storedSpecHash() !== h4) throw new Error("stored baseline was not advanced after the recorded deferral");
         const record = JSON.parse(readFileSync(join(DELTA_STATE_DIR, "fingerprint-deltas.json"), "utf-8")).fixture;
-        if (record.deferred !== true || record.invoked !== false) throw new Error("delta record did not mark the rebuild deferred");
+        if (record.deferred !== true) throw new Error("delta record did not mark the reconciliation deferred");
+        if (!Array.isArray(record.dispositions) || record.dispositions.length !== 0) throw new Error("a deferral should carry no derived rows");
         if (record.scoping !== "partial") throw new Error(`unexpected scoping ${record.scoping}`);
         for (const key of ["source", "config", "lockfile", "extraction", "surfaces"]) {
           // config concatenates two file hashes, so it is 128 hex chars; the
@@ -415,31 +481,12 @@ for (const [f, o] of Object.entries(files)) writeFileSync(join(out, f), JSON.str
         if (!record.prior?.source) throw new Error("delta record missing the prior component hashes");
       });
 
-      test("T84e/REQ-394a: a failed invocation does not advance the baseline", () => {
-        const failDir = mkdtempSync(join(tmpdir(), "update-fail-opencode-"));
-        try {
-          writeFileSync(join(failDir, "opencode"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
-          writeFileSync(join(DELTA_SERVER, "src", "state.ts"), "export const state = { advanced: true };\n");
-          const failedHash = "e".repeat(64);
-          const r = runDelta(
-            ["--server", "fixture", "--spec-hash", failedHash, "--delta-class", "minor", "--scope-by-fingerprint"],
-            { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir, HOLONOVEL_INVOKE_UPDATE: "1", PATH: `${failDir}:${process.env.PATH}` }
-          );
-          if (r.status !== 1) throw new Error(`expected exit 1, got ${r.status}: ${r.stdout} ${r.stderr}`);
-          assertContains(r.stderr, "Update invocation failed");
-          if (storedSpecHash() !== otherHash) throw new Error("a failed invocation advanced the stored baseline");
-        } finally {
-          rmSync(failDir, { recursive: true, force: true });
-        }
-      });
       test("T84e/REQ-394a: a zero-change publication records a none delta", () => {
-        // Re-seed the synthetic tree's current fingerprints, then present a
-        // Minor delta with no component change and a dated pending override.
-        const seed = runDelta(["--server", "fixture", "--spec-hash", currentHash]);
-        if (seed.status !== 0) throw new Error(`none-delta seed failed: ${seed.stdout} ${seed.stderr}`);
+        // No fingerprint change this time: a Minor delta with a dated pending
+        // override takes the pending path and records the "none" delta.
         writeFileSync(deltaDecisionsPath, `# DECISIONS\n\n- **Pending-update override:** fixture ${date} — builder-side delta\n`);
         const r = runDelta(
-          ["--server", "fixture", "--spec-hash", otherHash, "--delta-class", "minor", "--scope-by-fingerprint", "--allow-pending"],
+          ["--server", "fixture", "--spec-hash", h5, "--delta-class", "minor", "--scope-by-fingerprint", "--allow-pending"],
           { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir }
         );
         if (r.status !== 0) throw new Error(`expected exit 0, got ${r.status}: ${r.stdout} ${r.stderr}`);

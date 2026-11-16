@@ -17,6 +17,9 @@ export interface PreflightOptions {
   deployDir: string;
   noPush: boolean;
   yes: boolean;
+  // A dry run changes nothing and prompts for nothing, so a non-interactive
+  // stdin is not a reason to refuse it (REQ-394 diagnostic path).
+  dryRun: boolean;
   allowUntracked: boolean;
   allowMissingDeploy: boolean;
 }
@@ -79,7 +82,7 @@ export function runPreflight(options: PreflightOptions): PreflightResult {
   }
 
   if (!options.noPush) {
-    if (!options.yes && !process.stdin.isTTY) {
+    if (!options.yes && !options.dryRun && !process.stdin.isTTY) {
       problems.push("non-interactive stdin without --yes: refusing to guess");
     }
 

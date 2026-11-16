@@ -6,7 +6,7 @@
  * the process exit code).
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { writeGateRun } from "../lib/gate-run-manifest.js";
@@ -25,8 +25,14 @@ export interface Flags {
   allowMissingDeploy: boolean;
   allowStaleBase: boolean;
   fullTests: boolean;
-  autoUpdate: boolean;
   allowSecrets: boolean;
+}
+
+// The changed-REQ set `spec-delta.ts` already emits (REQ-394a input). Carried
+// through the pipeline so `update` can hand it to the derivation; a flat set
+// cannot express `removed`.
+export interface DeltaReport {
+  requirements_changed: { added: string[]; removed: string[]; modified: string[] };
 }
 
 export interface Ctx {
@@ -41,11 +47,13 @@ export interface Ctx {
   state: {
     specHash?: string;
     delta: Record<string, string>;
+    deltaReport: Record<string, DeltaReport>;
     base: string;
     checkRan: boolean;
     suiteRan: boolean;
     contractChanged: boolean;
     needTests: boolean;
+    harness: string;
     suite: "fast" | "full";
     verification: string;
     tagToPush?: string;
@@ -108,7 +116,7 @@ function must(condition: boolean, message: string): void {
   if (!condition) throw new Error(message);
 }
 
-function classifyDelta(ctx: Ctx, server: string): string {
+function classifyDelta(ctx: Ctx, server: string): { classification: string; report: DeltaReport | null } {
   const dir = mkdtempSync(join(tmpdir(), "holonovel-delta-"));
   try {
     const result = spawnSync(
@@ -121,7 +129,11 @@ function classifyDelta(ctx: Ctx, server: string): string {
     }
     const start = result.stdout.indexOf("{");
     const end = result.stdout.lastIndexOf("}");
-    const parsed = JSON.parse(result.stdout.slice(start, end + 1)) as { classification?: string; baseline_missing?: boolean };
+    const parsed = JSON.parse(result.stdout.slice(start, end + 1)) as {
+      classification?: string;
+      baseline_missing?: boolean;
+      requirements_changed?: Partial<DeltaReport["requirements_changed"]>;
+    };
     // REQ-394 — `--report-only` keeps exit 0, so the explicit flag is the
     // enforcement point: a missing published baseline blocks publication.
     if (parsed.baseline_missing === true) {
@@ -131,7 +143,17 @@ function classifyDelta(ctx: Ctx, server: string): string {
     if (!classification || !["none", "patch", "editorial", "minor", "major"].includes(classification)) {
       throw new Error(`invalid delta classification: ${classification}`);
     }
-    return classification === "none" ? "patch" : classification;
+    const changed = parsed.requirements_changed;
+    const report: DeltaReport | null = changed
+      ? {
+          requirements_changed: {
+            added: changed.added ?? [],
+            removed: changed.removed ?? [],
+            modified: changed.modified ?? [],
+          },
+        }
+      : null;
+    return { classification: classification === "none" ? "patch" : classification, report };
   } finally {
     try {
       rmSync(dir, { recursive: true, force: true });
@@ -167,11 +189,13 @@ function ensureDelta(ctx: Ctx, server: string): string {
   if (cached) return cached;
   if (ctx.stub) {
     ctx.state.delta[server] = "patch";
+    ctx.state.deltaReport[server] = { requirements_changed: { added: [], removed: [], modified: [] } };
     return "patch";
   }
   ensureBase(ctx);
-  const classification = classifyDelta(ctx, server);
+  const { classification, report } = classifyDelta(ctx, server);
   ctx.state.delta[server] = classification;
+  if (report) ctx.state.deltaReport[server] = report;
   return classification;
 }
 
@@ -205,6 +229,7 @@ export const STEPS: Step[] = [
         deployDir: ctx.deployDir,
         noPush: ctx.flags.noPush,
         yes: ctx.flags.yes,
+        dryRun: ctx.flags.dryRun,
         allowUntracked: ctx.flags.allowUntracked,
         allowMissingDeploy: ctx.flags.allowMissingDeploy,
       });
@@ -279,7 +304,10 @@ export const STEPS: Step[] = [
       if (ctx.stub) {
         ctx.state.base = "HEAD";
         ctx.state.specHash = "stub";
-        for (const server of ctx.servers) ctx.state.delta[server] = "patch";
+        for (const server of ctx.servers) {
+          ctx.state.delta[server] = "patch";
+          ctx.state.deltaReport[server] = { requirements_changed: { added: [], removed: [], modified: [] } };
+        }
         ctx.log("  [stub] delta classification skipped (patch)");
         return "pass";
       }
@@ -287,8 +315,10 @@ export const STEPS: Step[] = [
       ctx.log(`  delta base: ${ctx.state.base}`);
       ctx.state.specHash = out(ctx, "npx", ["tsx", "scripts/spec-hash.ts"]);
       for (const server of ctx.servers) {
-        ctx.state.delta[server] = classifyDelta(ctx, server);
-        ctx.log(`  ${server}: delta class = ${ctx.state.delta[server]}`);
+        const { classification, report } = classifyDelta(ctx, server);
+        ctx.state.delta[server] = classification;
+        if (report) ctx.state.deltaReport[server] = report;
+        ctx.log(`  ${server}: delta class = ${classification}`);
       }
       return "pass";
     },
@@ -301,7 +331,6 @@ export const STEPS: Step[] = [
         ctx.log("  [stub] pending-update gate skipped");
         return "pass";
       }
-      const env: NodeJS.ProcessEnv = ctx.flags.autoUpdate ? { HOLONOVEL_INVOKE_UPDATE: "1" } : {};
       for (const server of ctx.servers) {
         const specHash = ensureSpecHash(ctx);
         const deltaClass = ensureDelta(ctx, server);
@@ -316,8 +345,20 @@ export const STEPS: Step[] = [
           "--delta-class",
           deltaClass,
         ];
+        // REQ-394a — hand the derivation the changed-REQ set and the operator
+        // channel. A dry run passes `--check`, so it derives nothing and writes
+        // no baseline (the promise the dry run makes).
+        const report = ctx.state.deltaReport[server];
+        if (report) {
+          const reportPath = join(ctx.root, ".holonovel-state", `delta-${server}.json`);
+          mkdirSync(join(ctx.root, ".holonovel-state"), { recursive: true });
+          writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+          args.push("--delta-report", reportPath);
+        }
+        args.push("--dispositions", join(ctx.root, "spec", "audit", "update-dispositions.md"));
         if (ctx.flags.allowPending) args.push("--allow-pending");
-        const status = sh(ctx, "npx", args, ctx.root, env);
+        if (ctx.flags.dryRun) args.push("--check");
+        const status = sh(ctx, "npx", args, ctx.root);
         must(
           status === 0,
           `pending update for ${server}: the implementation has not been updated to match the spec (REQ-394)`,
@@ -349,7 +390,16 @@ export const STEPS: Step[] = [
         ctx.log("  skipped: patch/editorial delta, no contract or server-source change (§6.7 G0-only)");
         return "skip";
       }
+      // The full `check` suite runs `test:all` (full mode only), so a run whose
+      // build-order recorded it on this tree needs no second pass. Anything
+      // else runs it: a missing record is the closed direction, never a skip.
+      if (ctx.state.checkRan) {
+        ctx.log("  skipped: build-order's full check suite already ran test:all on this tree");
+        ctx.state.harness = "ran in the build-order full check suite";
+        return "pass";
+      }
       must(sh(ctx, "npm", ["run", "test:all"], join(ctx.root, "holonovel")) === 0, "server harness suite failed");
+      ctx.state.harness = "ran";
       return "pass";
     },
   },
@@ -361,14 +411,20 @@ export const STEPS: Step[] = [
         ctx.log("  [stub] spec-update record skipped");
         return "pass";
       }
-      const harness = ctx.state.needTests ? "ran" : "skipped (§6.7 G0 or not run in this bounded range)";
+      const harness = ctx.state.harness ? ctx.state.harness : "skipped (§6.7 G0 or not run in this bounded range)";
       ctx.state.verification =
         `Gates: ${ctx.state.suite} check suite passed; server harness suite ${harness}; ` +
         `spec SHA ${ensureSpecHash(ctx)}; deploy verification is the deploy stage (REQ-418).`;
-      must(
-        sh(ctx, "npx", ["tsx", "scripts/spec-update-record.ts", "--verification", ctx.state.verification]) === 0,
-        "Spec Update record generation failed",
-      );
+      const recordArgs = ["tsx", "scripts/spec-update-record.ts", "--verification", ctx.state.verification];
+      // A dry run prints the entry and writes nothing, and skips the follow-on
+      // --check: check mode wrote no delta record, so that assertion would fail
+      // on an artifact the dry run deliberately did not produce.
+      if (ctx.flags.dryRun) recordArgs.push("--dry-run");
+      must(sh(ctx, "npx", recordArgs) === 0, "Spec Update record generation failed");
+      if (ctx.flags.dryRun) {
+        ctx.log("  [dry run] Spec Update entry printed; DECISIONS.md and the baseline unchanged");
+        return "pass";
+      }
       for (const server of ctx.servers) {
         const decisions = join(ctx.root, server, "DECISIONS.md");
         if (!existsSync(decisions)) continue;
@@ -510,8 +566,10 @@ export const STEPS: Step[] = [
     stage: "release",
     optional: true,
     run(ctx) {
-      if (!ctx.state.didMirror) {
-        ctx.log("  skipped: no mirror push this run");
+      // REQ-428 — the registry check follows the publish, not the mirror: a push
+      // with nothing pending (or a failed mirror) must not suppress it.
+      if (ctx.flags.noPush) {
+        ctx.log("  skipped: no-push run");
         return "skip";
       }
       const status = sh(ctx, "npx", ["tsx", "scripts/check-registry-publish.ts", "--wait", "900"]);

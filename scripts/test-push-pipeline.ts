@@ -146,6 +146,17 @@ function main(): void {
     // summary must not claim a completed deploy (F-P6b-13).
     check("a stubbed verification does not report a completed deploy", full.output.includes("deploy=false"), full.output.split("\n").slice(-2).join(" | "));
 
+    // Case 2c — T18/REQ-394: a dry run prompts for nothing on a non-interactive
+    // stdin, stops before staging, and leaves the repository state untouched.
+    const dryHead = git(work, ["rev-parse", "HEAD"]);
+    const dry = runPipeline(work, ["--dry-run", "--allow-untracked"], deploy);
+    check("a dry run needs no --yes on a non-interactive stdin", dry.status === 0, dry.output.split("\n").slice(-3).join(" | "));
+    check("a dry run stops before staging", dry.output.includes("stopping before staging"), dry.output.split("\n").slice(-3).join(" | "));
+    check(
+      "T18/REQ-394: a dry run leaves HEAD and the working tree unchanged",
+      git(work, ["rev-parse", "HEAD"]) === dryHead && git(work, ["status", "--porcelain"]) === "",
+    );
+
     // Case 2b — T465/REQ-396: ignored state is preserved, untracked state is refused.
     const ignoredState = join(deploy, "holonovel", ".holonovel-state");
     mkdirSync(ignoredState, { recursive: true });

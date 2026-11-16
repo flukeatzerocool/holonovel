@@ -107,7 +107,11 @@ Update workflow (§6.7) driven manually.
    surfaces, and verification — before pushing. The push pipeline generates the
    scaffold (`scripts/spec-update-record.ts`): it prefills the delta class, the
    changed-surface summary from the CHANGELOG, and the spec hash, and inserts
-   the dated entry; the operator fills the verification line. Step 5b blocks
+   the dated entry; the operator fills the verification line. The entry also
+   carries the reconciliation record for the published revision: one disposition
+   per REQ the delta changed — implemented, deferred, or waived — derived from
+   committed evidence where it exists, with operator-authored rows only where it
+   does not (REQ-394a). Step 5b blocks
    publication when an unpublished delta has no dated entry. An Editorial delta
    additionally records the repaired REQ set in the entry.
 6. Record the deployed server location the gate evaluated, if it differs from
@@ -129,7 +133,10 @@ Update workflow (§6.7) driven manually.
 
 The pending-update gate blocks publication with unchanged fingerprints: advance
 the fingerprints by completing the implementation, or record an operator
-override in `DECISIONS.md` when the update is deliberately scheduled.
+override in `DECISIONS.md` when the update is deliberately scheduled. Publication
+also blocks when a changed REQ has no disposition: derive it from committed
+evidence, or record the disposition as deferred or waived with a reason
+(REQ-394a).
 
 ### V.5 Remove a ruleset
 

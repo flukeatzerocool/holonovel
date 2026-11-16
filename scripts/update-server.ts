@@ -1,33 +1,26 @@
 #!/usr/bin/env npx tsx
 /**
- * update-server.ts — Fingerprint-scoped Update workflow invoker (§6.7). [entry point]
+ * update-server.ts — Fingerprint-scoped Update reconciliation (§6.7). [entry point]
  *
  * Compares stored implementation fingerprints against current source and
- * determines rebuild scope (full, partial, scoped, or skip). Records
- * fingerprint baselines for future delta comparisons.
+ * determines the reconciliation scope (full, partial, scoped, seed, or none).
+ * Records fingerprint baselines for future delta comparisons.
  *
- * REQ-394a: a Minor/Major delta whose fingerprints advanced requires evidence
- * that the rebuild ran — an executed invocation or a dated operator deferral in
- * DECISIONS.md. Without either, publication is blocked and the stored baseline
- * is left untouched. The baseline is reconciled only after a successful
- * invocation, so a failed update can never be recorded as applied. Every
- * scoped run also writes a machine-readable fingerprint delta
- * (fingerprint-deltas.json) for the Spec Update record (REQ-313a/REQ-314b).
- *
- * LIMITATION: By default this script prints `opencode run` commands but does
- * NOT invoke them — opencode cannot recursively invoke itself from within an
- * opencode session (that would deadlock). Set `HOLONOVEL_INVOKE_UPDATE=1`
- * when running OUTSIDE a session (bare shell, CI) to execute the printed
- * command automatically. A human or CI with opencode access may otherwise run
- * the printed command manually.
+ * REQ-394a: a Minor/Major delta whose fingerprints advanced requires a
+ * reconciliation record — one disposition per REQ the delta changed, derived
+ * from committed evidence (the coverage register, `spec/audit/req-coverage.md`)
+ * where it exists and from an operator-authored table (`--dispositions`) where
+ * it does not. A dated operator deferral in DECISIONS.md also satisfies the
+ * requirement. Without either, publication is blocked and the stored baseline
+ * is left untouched. Every scoped run also writes a machine-readable fingerprint
+ * delta (fingerprint-deltas.json) for the Spec Update record (REQ-313a/REQ-314b).
  */
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { execSync } from "node:child_process";
 import { computeFingerprints, type Fingerprints } from "./lib/fingerprints";
-import type { FingerprintDelta } from "./lib/spec-update.js";
+import type { FingerprintDelta, ReqDisposition, ReqDispositionKind } from "./lib/spec-update.js";
 
 const root = join(import.meta.dirname, "..");
 // State-dir override (REQ-314): the update-workflow harness points
@@ -35,6 +28,10 @@ const root = join(import.meta.dirname, "..");
 // the live pipeline baseline. Default preserves the push-pipeline path.
 const STATE_DIR = process.env.HOLONOVEL_STATE_DIR ?? join(root, ".holonovel-state");
 const FINGERPRINT_FILE = join(STATE_DIR, "pipeline-fingerprints.json");
+// REQ-394a — the committed coverage register is the derivation source. The
+// register's freshness is owned by `validate`: `build` and `gates` both precede
+// `update` in the publication pipeline, and a stale register is a hard error.
+const COVERAGE_REGISTER = join(root, "spec", "audit", "req-coverage.md");
 
 interface StoredRecord {
   server: string;
@@ -43,29 +40,31 @@ interface StoredRecord {
   last_update: string;
 }
 
-const server = process.argv.includes("--server")
-  ? process.argv[process.argv.indexOf("--server") + 1]
-  : null;
-const specHash = process.argv.includes("--spec-hash")
-  ? process.argv[process.argv.indexOf("--spec-hash") + 1]
-  : null;
+function argValue(flag: string): string | null {
+  const index = process.argv.indexOf(flag);
+  return index >= 0 ? process.argv[index + 1] ?? null : null;
+}
+
+const server = argValue("--server");
+const specHash = argValue("--spec-hash");
 const scopeByFingerprint = process.argv.includes("--scope-by-fingerprint");
 const checkOnly = process.argv.includes("--check");
 const allowPending = process.argv.includes("--allow-pending");
-const deltaClassArg = process.argv.includes("--delta-class")
-  ? process.argv[process.argv.indexOf("--delta-class") + 1]
-  : null;
+const deltaClassArg = argValue("--delta-class");
 const deltaClass: "patch" | "editorial" | "minor" | "major" =
   deltaClassArg === "patch" || deltaClassArg === "editorial" || deltaClassArg === "minor" || deltaClassArg === "major"
     ? deltaClassArg
     : "major";
 
-const serverDirArg = process.argv.includes("--server-dir")
-  ? process.argv[process.argv.indexOf("--server-dir") + 1]
-  : null;
+const serverDirArg = argValue("--server-dir");
 const verifyDeployed = process.argv.includes("--verify-deployed");
-const invokeEnabled = process.env.HOLONOVEL_INVOKE_UPDATE === "1";
-let updateCommand: string | null = null;
+// REQ-394a inputs. `--delta-report` is the `spec-delta.ts` report (an input
+// file, shape `{ requirements_changed: { added, removed, modified } }`);
+// `--coverage-register` lets a fixture point derivation at a synthetic
+// register; `--dispositions` carries operator-authored rows.
+const deltaReportPath = argValue("--delta-report");
+const coverageRegisterPath = argValue("--coverage-register") ?? COVERAGE_REGISTER;
+const dispositionsPath = argValue("--dispositions");
 
 function localDate(): string {
   const d = new Date();
@@ -86,9 +85,9 @@ function hasRecordedOverride(dir: string, server: string): boolean {
   return pattern.test(readFileSync(path, "utf-8"));
 }
 
-// REQ-394a permits a required rebuild to be deferred only by a dated operator
-// record naming this server and the verification performed. The date must be
-// today, so a stale acknowledgement cannot silently cover a new delta.
+// REQ-394a permits a required reconciliation to be deferred only by a dated
+// operator record naming this server and the verification performed. The date
+// must be today, so a stale acknowledgement cannot silently cover a new delta.
 function hasRecordedDeferral(dir: string, server: string): boolean {
   const path = join(dir, "DECISIONS.md");
   if (!existsSync(path)) return false;
@@ -156,14 +155,155 @@ function writeDeltaRecord(record: DeltaRecord): void {
   writeFileSync(DELTA_RECORD_FILE, JSON.stringify(records, null, 2) + "\n");
 }
 
+// ── REQ-394a disposition derivation ─────────────────────────────────────────
+
+interface ChangedReqs {
+  added: string[];
+  removed: string[];
+  modified: string[];
+}
+
+interface RegisterRow {
+  bucket: string;
+  tests: string;
+}
+
+// Delta IDs are bare suffixes including sub-parts ("032c"); register rows are
+// base IDs ("REQ-032"). Normalize to `REQ-<suffix>` and collapse to the base
+// for lookup: a sub-part inherits its base row's bucket.
+function normalizeReq(raw: string): string {
+  const trimmed = raw.trim();
+  const prefixed = trimmed.startsWith("REQ-") ? trimmed : `REQ-${trimmed}`;
+  return /^REQ-\d+[a-z0-9]*$/.test(prefixed) ? prefixed : trimmed;
+}
+
+function baseReq(req: string): string {
+  const match = /^REQ-(\d+)/.exec(req);
+  return match ? `REQ-${match[1]}` : req;
+}
+
+function hasExercisedTests(cell: string): boolean {
+  return cell.replace(/[—–-]/g, "").trim().length > 0;
+}
+
+function loadRegister(path: string): Map<string, RegisterRow> | null {
+  if (!existsSync(path)) return null;
+  const rows = new Map<string, RegisterRow>();
+  for (const line of readFileSync(path, "utf-8").split("\n")) {
+    const match = /^\|\s*(REQ-\d+[a-z0-9]*)\s*\|[^|]*\|[^|]*\|\s*([A-E])\s*\|([^|]*)\|/.exec(line);
+    if (match) rows.set(match[1], { bucket: match[2], tests: match[3].trim() });
+  }
+  return rows;
+}
+
+// Operator-authored rows: a Markdown table `| REQ | Disposition | Evidence |`.
+// Only rows whose disposition is one of the three REQ-394a kinds are read.
+function loadOperatorDispositions(path: string): Map<string, ReqDisposition> | null {
+  if (!existsSync(path)) return null;
+  const rows = new Map<string, ReqDisposition>();
+  for (const line of readFileSync(path, "utf-8").split("\n")) {
+    const cells = line.split("|").slice(1, -1).map((cell) => cell.trim());
+    if (cells.length < 2) continue;
+    const req = normalizeReq(cells[0]);
+    if (!/^REQ-\d+[a-z0-9]*$/.test(req)) continue;
+    const disposition = cells[1].toLowerCase();
+    if (disposition !== "implemented" && disposition !== "deferred" && disposition !== "waived") continue;
+    rows.set(req, { req, disposition: disposition as ReqDispositionKind, evidence: cells[2] || "operator-authored" });
+  }
+  return rows;
+}
+
+function loadDeltaReport(path: string): ChangedReqs | null {
+  if (!existsSync(path)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(path, "utf-8")) as { requirements_changed?: Partial<ChangedReqs> };
+    const changed = parsed.requirements_changed;
+    if (!changed) return null;
+    return { added: changed.added ?? [], removed: changed.removed ?? [], modified: changed.modified ?? [] };
+  } catch {
+    // An unreadable report is an absent report: the caller blocks with a name
+    // for the missing input rather than deriving from a partial parse.
+    return null;
+  }
+}
+
+function compareReq(a: ReqDisposition, b: ReqDisposition): number {
+  const left = Number.parseInt(/^REQ-(\d+)/.exec(a.req)?.[1] ?? "0", 10);
+  const right = Number.parseInt(/^REQ-(\d+)/.exec(b.req)?.[1] ?? "0", 10);
+  return left - right || a.req.localeCompare(b.req);
+}
+
+interface Derivation {
+  dispositions: ReqDisposition[];
+  missing: string[];
+}
+
+// Sweep order (pass-5 M2): removal → derivation → block. Deferral is checked by
+// the caller first, so an operator deferral still satisfies REQ-394a.
+function deriveDispositions(
+  changed: ChangedReqs,
+  register: Map<string, RegisterRow> | null,
+  operator: Map<string, ReqDisposition> | null,
+  registerLabel: string,
+): Derivation {
+  const dispositions = new Map<string, ReqDisposition>();
+  const missing: string[] = [];
+
+  // A removed REQ cannot appear in a register regenerated from the current
+  // spec, and REQ-394a requires a disposition for every REQ the delta changed.
+  const removed = new Set(changed.removed.map(normalizeReq));
+  for (const req of removed) {
+    dispositions.set(
+      req,
+      operator?.get(req) ?? { req, disposition: "waived", evidence: "removed from the specification" },
+    );
+  }
+
+  const candidates = [...new Set([...changed.added, ...changed.modified].map(normalizeReq))].sort();
+  for (const req of candidates) {
+    if (removed.has(req)) continue;
+    // An operator row wins over derivation: it is the documented channel for a
+    // judgement the committed evidence cannot express (pass-5 B3).
+    const authored = operator?.get(req) ?? operator?.get(baseReq(req));
+    if (authored) {
+      dispositions.set(req, { ...authored, req });
+      continue;
+    }
+    if (!register) {
+      missing.push(`${req} (no coverage register at ${registerLabel})`);
+      continue;
+    }
+    const row = register.get(baseReq(req));
+    if (!row) {
+      missing.push(`${req} (absent from ${registerLabel})`);
+      continue;
+    }
+    if (row.bucket === "C" || row.bucket === "D") {
+      dispositions.set(req, {
+        req,
+        disposition: "implemented",
+        evidence: row.bucket === "C" ? "bucket C (cited, exercised)" : "bucket D (cited, no Check:)",
+      });
+    } else if (row.bucket === "E") {
+      dispositions.set(req, hasExercisedTests(row.tests)
+        ? { req, disposition: "implemented", evidence: "bucket E with exercised tests on record" }
+        : { req, disposition: "waived", evidence: "bucket E (intended gap, no exercised test)" });
+    } else {
+      missing.push(`${req} (bucket ${row.bucket}; requires an operator disposition)`);
+    }
+  }
+
+  return { dispositions: [...dispositions.values()].sort(compareReq), missing: missing.sort() };
+}
+
 if (!server) {
-  console.error("Usage: npx tsx scripts/update-server.ts --server <name> [--spec-hash <hash>] [--scope-by-fingerprint] [--delta-class patch|editorial|minor|major] [--server-dir <path>] [--verify-deployed] [--check] [--allow-pending]");
+  console.error("Usage: npx tsx scripts/update-server.ts --server <name> [--spec-hash <hash>] [--scope-by-fingerprint] [--delta-class patch|editorial|minor|major] [--delta-report <path>] [--coverage-register <path>] [--dispositions <path>] [--server-dir <path>] [--verify-deployed] [--check] [--allow-pending]");
   process.exit(1);
 }
 
 const serverName = server;
-// The name is interpolated into the printed/invoked command and into the
-// server directory path; accept only the slug shape (CR-17).
+// The name is interpolated into paths and console messages; accept only the
+// slug shape (CR-17).
 if (!/^[a-z0-9-]+$/.test(serverName)) {
   console.error(`Invalid --server '${serverName}': expected a lowercase slug ([a-z0-9-]+).`);
   process.exit(1);
@@ -256,18 +396,6 @@ function reconcile(spec_hash: string, fingerprints: Fingerprints): void {
   saveStored(stored);
 }
 
-// REQ-098/REQ-314 — when running outside an opencode session
-// (HOLONOVEL_INVOKE_UPDATE=1) the printed update command is executed here.
-function invokeUpdate(cmd: string): void {
-  console.log(`\nHOLONOVEL_INVOKE_UPDATE=1 — executing: ${cmd}`);
-  try {
-    execSync(cmd, { stdio: "inherit", cwd: root });
-  } catch (e: any) {
-    console.error(`Update invocation failed: ${e.message}`);
-    process.exit(1);
-  }
-}
-
 if ((scopeByFingerprint || checkOnly) && previous) {
   const delta = compareFingerprints(currentFingerprints, previous.fingerprints);
   console.log(`\nFingerprint delta: ${delta.changedCount} changed (${delta.changed.join(", ")}), ${delta.unchanged.length} unchanged (${delta.unchanged.join(", ")})`);
@@ -281,7 +409,7 @@ if ((scopeByFingerprint || checkOnly) && previous) {
 
   // A zero-change publication still records the delta ("none"), so the Spec
   // Update entry can state that no component changed (REQ-394a).
-  const writeNoneDelta = (invoked: boolean, deferred: boolean): void =>
+  const writeNoneDelta = (deferred: boolean): void =>
     writeDeltaRecord({
       spec_hash: currentHash,
       prior_spec_hash: previous.spec_hash ?? null,
@@ -289,8 +417,8 @@ if ((scopeByFingerprint || checkOnly) && previous) {
       unchanged: delta.unchanged,
       changed_count: 0,
       scoping: "none",
-      invoked,
       deferred,
+      dispositions: [],
       reused: delta.unchanged,
       current: currentFingerprints,
       prior: previous.fingerprints,
@@ -298,14 +426,6 @@ if ((scopeByFingerprint || checkOnly) && previous) {
 
   if (pendingUpdate) {
     console.log(`\nPENDING UPDATE: spec ${deltaClass} delta but no implementation fingerprints changed.`);
-    updateCommand = `opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${previous.spec_hash?.substring(0, 16)} to ${currentHash.substring(0, 16)} (${deltaClass} delta)."`;
-    console.log(`Invoking: ${updateCommand}`);
-    if (invokeEnabled && !checkOnly) {
-      invokeUpdate(updateCommand);
-      writeNoneDelta(true, false);
-      reconcile(currentHash, currentFingerprints);
-      process.exit(0);
-    }
     if (checkOnly || !allowPending) {
       process.exit(1);
     }
@@ -318,68 +438,84 @@ if ((scopeByFingerprint || checkOnly) && previous) {
       process.exit(1);
     }
     console.log(`  (overridden with --allow-pending — recording reconciled hash without performing the update.)`);
-    writeNoneDelta(false, true);
+    writeNoneDelta(true);
     reconcile(currentHash, currentFingerprints);
     process.exit(0);
   }
 
   if (delta.changedCount === 0) {
-    console.log("Spec hash changed (patch-class) with no implementation fingerprints changed — nothing to rebuild.");
+    console.log("Spec hash changed (patch-class) with no implementation fingerprints changed — nothing to reconcile.");
     if (checkOnly) { console.log("  (check mode — no write)"); process.exit(0); }
-    writeNoneDelta(false, false);
+    writeNoneDelta(false);
     reconcile(currentHash, currentFingerprints);
     process.exit(0);
   }
 
+  // Check mode never derives and never writes: the pre-push hook runs it on
+  // every push and must not block on a record authored after the gate.
   if (checkOnly) { process.exit(0); }
 
   // REQ-394a — a Minor/Major delta whose implementation fingerprints advanced
-  // needs evidence that the rebuild ran: an executed invocation or a dated
-  // operator deferral. Reconcile only after a successful invocation, so a
-  // failed update is never recorded as applied.
+  // needs a reconciliation record. A dated operator deferral is checked first
+  // (pass-5 M1), so the operator can satisfy the requirement the way the REQ
+  // states. Reconcile only after a complete record: an incomplete one leaves
+  // the baseline untouched, so a failed run can never be recorded as applied.
   const scoping = scopingFor(delta.changedCount, true);
   const requiresEvidence = deltaClass === "minor" || deltaClass === "major";
+  // HOLONOVEL_DECISIONS_DIR isolates the record lookup for the harness (the
+  // same way HOLONOVEL_STATE_DIR isolates the fingerprint baseline).
+  const decisionsDir = process.env.HOLONOVEL_DECISIONS_DIR ?? serverDir;
   let deferred = false;
-  if (requiresEvidence && !invokeEnabled) {
-    // HOLONOVEL_DECISIONS_DIR isolates the record lookup for the harness (the
-    // same way HOLONOVEL_STATE_DIR isolates the fingerprint baseline).
-    const decisionsDir = process.env.HOLONOVEL_DECISIONS_DIR ?? serverDir;
-    if (!hasRecordedDeferral(decisionsDir, server)) {
-      writeDeltaRecord({
-        spec_hash: currentHash,
-        prior_spec_hash: previous.spec_hash ?? null,
-        changed: delta.changed,
-        unchanged: delta.unchanged,
-        changed_count: delta.changedCount,
-        scoping,
-        invoked: false,
-        deferred: false,
-        reused: delta.unchanged,
-        current: currentFingerprints,
-        prior: previous.fingerprints,
-      });
-      console.error(`\nUPDATE REQUIRED: spec ${deltaClass} delta advanced ${delta.changedCount} fingerprint component(s) (${delta.changed.join(", ")}); scoping: ${scoping}.`);
-      console.error(`Publication is blocked until the rebuild is evidenced (REQ-394a).`);
-      console.error(`  Run the update outside a session: HOLONOVEL_INVOKE_UPDATE=1 npx tsx scripts/update-server.ts --server ${server} --scope-by-fingerprint`);
-      console.error(`  Or record a dated deferral in ${join(decisionsDir, "DECISIONS.md")}:`);
-      console.error(`- **Update-deferred:** ${server} ${localDate()} — <revision range and verification performed>`);
-      process.exit(1);
+  let dispositions: ReqDisposition[] = [];
+
+  if (requiresEvidence) {
+    if (hasRecordedDeferral(decisionsDir, server)) {
+      deferred = true;
+    } else {
+      const changedReqs = deltaReportPath ? loadDeltaReport(deltaReportPath) : null;
+      const register = loadRegister(coverageRegisterPath);
+      const operator = dispositionsPath ? loadOperatorDispositions(dispositionsPath) : null;
+      const derivation = changedReqs
+        ? deriveDispositions(changedReqs, register, operator, coverageRegisterPath)
+        : { dispositions: [], missing: ["the changed-REQ set (no readable --delta-report)"] };
+      dispositions = derivation.dispositions;
+
+      if (derivation.missing.length > 0) {
+        // Record the incomplete table for inspection, but do not reconcile.
+        writeDeltaRecord({
+          spec_hash: currentHash,
+          prior_spec_hash: previous.spec_hash ?? null,
+          changed: delta.changed,
+          unchanged: delta.unchanged,
+          changed_count: delta.changedCount,
+          scoping,
+          deferred: false,
+          dispositions,
+          reused: delta.unchanged,
+          current: currentFingerprints,
+          prior: previous.fingerprints,
+        });
+        console.error(`\nUPDATE REQUIRED: spec ${deltaClass} delta advanced ${delta.changedCount} fingerprint component(s) (${delta.changed.join(", ")}); scoping: ${scoping}.`);
+        console.error(`Reconciliation record is incomplete — no disposition for: ${derivation.missing.join("; ")}.`);
+        console.error(`Publication is blocked until every changed REQ has a disposition (REQ-394a).`);
+        console.error(`  Derive from committed evidence: npm run validate -- --write-register`);
+        console.error(`  Or author the rows in a dispositions table and pass --dispositions <path>.`);
+        console.error(`  Or record a dated deferral in ${join(decisionsDir, "DECISIONS.md")}:`);
+        console.error(`- **Update-deferred:** ${server} ${localDate()} — <revision range and verification performed>`);
+        process.exit(1);
+      }
+      console.log(`\nReconciliation record: ${dispositions.length} changed REQ(s) dispositioned.`);
     }
-    deferred = true;
   }
 
   if (scoping === "full") {
-    console.log(`>2 components changed — full Build workflow required.`);
-    updateCommand = `opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${previous.spec_hash?.substring(0, 16)} to ${currentHash.substring(0, 16)}. Full rebuild needed."`;
+    console.log(`>2 components changed — full reconciliation scope.`);
   } else if (scoping === "scoped") {
-    console.log(`Only ${delta.changed[0]} changed — scoped rebuild (typecheck + affected Pattern Buffer sub-workflows).`);
-    updateCommand = `opencode run --agent build "Perform scoped Update on ${server}. Only ${delta.changed[0]} changed. Typecheck and re-run affected Pattern Buffer sub-workflows."`;
+    console.log(`Only ${delta.changed[0]} changed — scoped reconciliation (typecheck + affected Pattern Buffer sub-workflows).`);
   } else {
-    console.log(`${delta.changedCount} components changed — partial rebuild.`);
-    updateCommand = `opencode run --agent build "Perform partial Update on ${server}. Changed: ${delta.changed.join(", ")}. Implement only changed surfaces and their dependents."`;
+    console.log(`${delta.changedCount} components changed — partial reconciliation.`);
   }
-  console.log(`Invoking: ${updateCommand}`);
-  if (invokeEnabled) invokeUpdate(updateCommand);
+
   writeDeltaRecord({
     spec_hash: currentHash,
     prior_spec_hash: previous.spec_hash ?? null,
@@ -387,40 +523,50 @@ if ((scopeByFingerprint || checkOnly) && previous) {
     unchanged: delta.unchanged,
     changed_count: delta.changedCount,
     scoping,
-    invoked: invokeEnabled,
     deferred,
+    dispositions,
     reused: delta.unchanged,
     current: currentFingerprints,
     prior: previous.fingerprints,
   });
   reconcile(currentHash, currentFingerprints);
-  if (invokeEnabled) {
-    console.log("\nFingerprints saved. Update workflow invoked.");
-  } else if (deferred) {
-    console.log("\nFingerprints saved. Rebuild deferred with a dated DECISIONS.md acknowledgement (REQ-394a).");
+  if (deferred) {
+    console.log("\nFingerprints saved. Reconciliation deferred with a dated DECISIONS.md acknowledgement (REQ-394a).");
   } else {
-    console.log("\nFingerprints saved. Next: run the printed `opencode run` command to perform the actual update.");
+    console.log("\nFingerprints saved. Reconciliation recorded — no implementation rewrite required.");
   }
   process.exit(0);
-} else {
-  if (checkOnly) {
-    console.log(`\nNo stored fingerprints — cannot determine pending-update status.`);
-    process.exit(1);
-  }
-  console.log(`\nFull update required (no stored fingerprints or unscoped mode).`);
-  updateCommand = `opencode run --agent build "Perform Update workflow (§6.7) on ${server}. Spec hash changed from ${storedHash?.substring(0, 16) ?? "none"} to ${currentHash.substring(0, 16)}."`;
-  console.log(`Invoking: ${updateCommand}`);
 }
 
-// Auto-invoke only when explicitly enabled and running outside a session.
-// Reconcile AFTER a successful invocation: invokeUpdate exits 1 on failure, so
-// a failed rebuild can never be recorded as applied (CR-1).
-if (updateCommand && invokeEnabled && !checkOnly) {
-  invokeUpdate(updateCommand);
-  reconcile(currentHash, currentFingerprints);
-  console.log("\nFingerprints saved. Update workflow invoked.");
-} else {
-  if (!checkOnly) reconcile(currentHash, currentFingerprints);
-  console.log("\nFingerprints saved. Next: run the printed `opencode run` command to perform the actual update.");
+if (checkOnly) {
+  console.log(`\nNo stored fingerprints — cannot determine pending-update status.`);
+  process.exit(1);
 }
+
+if (previous) {
+  // Unscoped run over an existing baseline: REQ-394a would be enforced on a
+  // set this mode never computes, so refuse rather than reconcile blindly.
+  console.error(`\nUnscoped update with a stored baseline: pass --scope-by-fingerprint (REQ-394a).`);
+  process.exit(1);
+}
+
+// Seed: no stored baseline, so no fingerprint advanced and there is nothing to
+// evidence — REQ-394a applies to an advance. Record the baseline without one.
+const seed = compareFingerprints(currentFingerprints, undefined);
+console.log(`\nFull reconciliation scope (no stored fingerprints): seeding the baseline.`);
+writeDeltaRecord({
+  spec_hash: currentHash,
+  prior_spec_hash: null,
+  changed: seed.changed,
+  unchanged: seed.unchanged,
+  changed_count: seed.changedCount,
+  scoping: "seed",
+  deferred: false,
+  dispositions: [],
+  reused: seed.unchanged,
+  current: currentFingerprints,
+  prior: null,
+});
+reconcile(currentHash, currentFingerprints);
+console.log("Fingerprints saved (seed).");
 process.exit(0);
