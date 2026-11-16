@@ -314,6 +314,16 @@ function main(): void {
     process.exit(1);
   }
 
+  // Anchors are line-based evidence: assemble and the increment's own edits move
+  // them above their recorded position. Heal before gating so a moved anchor is
+  // repaired here rather than discovered as a red suite. A refused symbol
+  // (missing or ambiguous) aborts the close instead of guessing.
+  const anchors = spawnSync("npm", ["run", "fix-anchors"], { cwd: ROOT, stdio: "inherit", shell: false });
+  if (anchors.status !== 0) {
+    console.error("session-close: fix-anchors could not resolve every anchor — nothing committed");
+    process.exit(1);
+  }
+
   const startedAt = new Date().toISOString();
   const gates = spawnSync("npm", ["run", "check:fast"], { cwd: ROOT, stdio: "inherit", shell: false });
   const finishedAt = new Date().toISOString();

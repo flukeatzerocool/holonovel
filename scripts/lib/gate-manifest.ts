@@ -324,7 +324,7 @@ const RAW_GATES: Gate[] = [
   {
     name: "check-anchors",
     description: "Evidence anchors resolve to their symbols; repair with fix-anchors",
-    fast: null,
+    fast: npm("check-anchors"),
     full: npm("check-anchors"),
   },
   {

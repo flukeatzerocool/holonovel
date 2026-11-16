@@ -33,3 +33,8 @@ Majors resolved.
 2. D1/D2 read as undecided while I3/I4 already execute the recommended branch.
 3. Two consecutive closes share the top CHANGELOG heading; the second dated entry
    must be authored before the second close.
+
+## Binding
+
+Plan sha256: 72012ea6ed8d894dc27c039944c2809f1edb825a191c8a0d9e206fbce1c0e43b
+Report verdict: independent-review passed.

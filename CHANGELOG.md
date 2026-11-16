@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-11-15 — Anchor maintenance: the fast tier catches drift, the close heals it
+
+Line-based evidence anchors drift whenever code moves, and the check that catches
+it ran only in the full suite: 54 of 97 increments in the retrospective recorded a
+repair, and the repair arrived in batches. This makes the check routine and the
+repair automatic.
+
+- `check-anchors` joins the fast tier (`scripts/lib/gate-manifest.ts`), so a
+  moved anchor fails `check:fast` and the pre-commit hook instead of surfacing
+  after a three-minute `test:all`. The AGENTS.md gate table is regenerated.
+- `session:close` runs `fix-anchors` after `assemble` and before the fast suite;
+  an unresolved or ambiguous symbol aborts the close rather than guessing.
+- Red probe recorded in the AAR: a three-line insertion moved 21 anchors, the gate
+  failed, the heal resolved all 21, and the tree restored clean.
+
+No spec source change; no tool surface change.
+
 ## 2026-11-15 — Session economics: four standing rules, five admitted increments
 
 A retrospective over 117 commits, 97 increments, and 337 sessions found that the
