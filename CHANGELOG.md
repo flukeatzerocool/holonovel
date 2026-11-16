@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-16 — Linkage chunk 3: six citations closed, the remainder split
+
+The REQ evidence-linkage check fell from 91 to 85 findings. Six rows were closed by naming the check that already asserts them, the two bogus citation paths were fixed, and the remaining residue was measured row by row and split on `ROADMAP.md` instead of being swept.
+
+- `T17`, `T88`, `T421`, `T434`, `T435`, `T540` labelled on the tests and gates that assert
+- `T541`/`T542` citation paths corrected to `holonovel/scripts/…`; the rows stay findings —
+- Two `labelsFromContent` quirks measured: a leading `\n` escape in a report literal is not
+- `T420`/`T425`/`T439` proven class (b): "≥1 archetype per group" is asserted nowhere
+- `ROADMAP.md` item 3 rewritten with the measured 85 and the split by owner; dated
+
 ## 2026-11-16 — Linkage predicate admits gate labels; 8 citations close (chunk 2 of 3)
 
 The REQ evidence-linkage check now sees the assertion shapes the root gates actually emit, so a builder-side REQ can be evidenced by the check that enforces it. Eight citations closed and the corpus fell from 99 to 91; the remaining 30 gate-side citations are reclassified as builder drills, unasserted rows, or stale script paths, and the 61 script-less citations stay with chunk 3.

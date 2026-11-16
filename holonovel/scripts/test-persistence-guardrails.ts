@@ -436,7 +436,7 @@ async function main() {
       assertContains(recap, String(windows[0]));
     });
 
-    await test("T475/REQ-406: backup restore surfaces [state-regression]", async () => {
+    await test("T88/REQ-092h2 + T475/REQ-406: backup restore surfaces [state-regression]", async () => {
       // Simulate a corrupt save with a backup present: write a novel file, then
       // corrupt the primary and rely on the .bak path. The state_regression
       // marker should surface in spec_health after resume.

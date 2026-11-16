@@ -769,7 +769,7 @@ async function main() {
     writeFileSync(fpPath, JSON.stringify(fp, null, 2) + "\n");
 
     proc = await boot({ TTRPG_DATA_DIR: dir });
-    await test("T224/REQ-065: startup drift comparison reports spec, version, and ruleset drift", async () => {
+    await test("T17/REQ-044 + T224/REQ-065: startup drift comparison reports spec, version, and ruleset drift", async () => {
       const health = JSON.parse(await call(proc, "manage_diagnostics", { action: "health" }));
       if (health.spec_hash_current !== false) throw new Error("spec_hash_current should be false after drift");
       if (health.spec_hash !== "0".repeat(64)) throw new Error("spec_hash should report the stored value (REQ-187a)");

@@ -35,25 +35,21 @@ large enough to report a catch rate with a useful confidence interval.
 
 ## REQ evidence linkage (P1)
 
-- The report-only `checkReqEvidenceLinkage` pass shipped (2026-11-15); triage its
-  99 remaining findings to zero, then promote the check to error. A REQ whose
-  `_Check:_` cites a T-ID must land on an Automated Appendix F row a harness
-  names, or a Manual row whose procedure `DECISIONS.md` documents. Appendix F has
-  no `Gate` kind. The 23 Manual rows were documented 2026-11-16 (chunk 1 of 3).
-- T22, T35, and T103 all have asserting harnesses. Chunk 2 of 3 landed 2026-11-16:
-  **91 findings remain** (was 99). The predicate now admits the label shapes the
-  gates emit; 8 closed (6 already-labelled, 2 named on their asserting check). Of
-  the 38 gate-side citations, 16 rows are builder drills, 11 have no admitted
-  assertion, and 3 name paths that do not exist; 61 citations over 49 REQs have no
-  script citation at all. Chunk 3 decides whether a declared gate kind is admitted
-  or each REQ gets a T-named assertion.
-- The companion class is evidence *granularity*: `check:conformance --
-  --dedicated` reports 126 bucket-C REQs whose only evidence is shared with
-  another REQ (bucket-C cited only in comments: 42, advisory). A REQ is not
-  evidenced until its own assertion names it; triage both lists together.
+- The report holds **85 findings** (2026-11-16 chunk 3 closed six — `T17`, `T88`, `T421`,
+  `T434`, `T435`, `T540` — and fixed the two citation paths, `T541`/`T542`). Each remaining
+  row needs a per-row assertion read before it can be labelled or flipped; that read is
+  chunk 4's whole scope, not a sweep.
+- Residue by owner: gate-side builder rows confirmed against their check function
+  (`checkPatternBufferCoverageMap`, `checkSection52CoverageMap`, `checkAppendixFAssertions`,
+  `checkPhaseMapHash`, `checkConfigSurfaceParity`, `compare-spec-code`) and server-runtime
+  rows whose harness assertion must be located or authored. `REQ-107a` (`T493`) and
+  `REQ-569` (`T682`) are **not** label-closeable — their reports sit in top-level script
+  sections the label scan does not read.
+- Class (b) is real, not a bookkeeping artefact: `T420`/`T425`/`T439` require "≥1 archetype
+  per group" and no check asserts non-emptiness (`scripts/validate.ts:1097`).
 
-**Trigger:** the corpus dry-run list is triaged to zero; closes when the check is
-error-mode in `validate`.
+**Trigger:** every remaining row dispositioned and class (a) at zero; closes when the check
+is error-mode in `validate`.
 
 ## Split `index.ts` (P2)
 

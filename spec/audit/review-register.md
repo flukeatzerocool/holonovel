@@ -3119,6 +3119,31 @@ disposition, not an evidence one, so nothing is suppressed and triage splits
 them across chunks 2–3. The duplicated `T553` identifier this pass also surfaced
 is resolved below (2026-11-16).
 
+### 2026-11-16 — REQ evidence linkage chunk 3 (partial, split recorded)
+
+Chunk 3 (`docs/plans/2026-11-16-roadmap-drain-4`) closed **six** citations and
+fixed the two bogus paths. Closed by naming the check that already asserts the
+row: `T17` (harness drift test), `T88` (backup-restore test), `T421`, `T434`,
+`T435` (coupling derivation in `checkCouplingCompleteness`), `T540`
+(blocking-parity in `checkPatternBufferBlockingParity`). `T541`/`T542` now cite
+`holonovel/scripts/…` but stay findings — the citation fix moves no verdict,
+because neither checker carries a `test()` name the scan reads. The report is
+**85 findings**, `validate` 0 errors, corpus regenerated.
+
+Two predicate quirks were measured and are carried to chunk 4: a report literal
+that begins with a `\n` escape is not collected (it silently dropped `T434`
+until removed), and a report in a top-level script section is unreadable at all,
+so `T493` and `T682` cannot be closed by labelling. Class (b) was also *proven*
+rather than assumed: `T420`/`T425`/`T439` require "≥1 archetype per group" and
+`checkCouplingCompleteness` validates only unrecognised archetype tokens
+(`scripts/validate.ts:1097`), never non-emptiness.
+
+The remaining 85 rows over 75 T-IDs each need a per-row assertion read; the plan
+sized that "M" and one session cannot finish it. The split is recorded on
+`ROADMAP.md` (gate-side builder rows vs server-runtime rows) and the full bar
+returns unchanged as chunk 4. No row was reclassified to shorten the list.
+
+
 ## Resolved — 2026-11-16 T553 duplicate identifier
 
 `T553` was defined twice — `spec/appendices-reference.md:1824` (REQ-284f) and

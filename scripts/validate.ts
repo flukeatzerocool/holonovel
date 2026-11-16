@@ -1045,7 +1045,7 @@ function checkPatternBufferBlockingParity(text: string): string[] {
     if (!isNaN(n)) listBlocking.add(n);
   }
   for (const n of [...proseBlocking].sort((a, b) => a - b)) {
-    if (!listBlocking.has(n)) issues.push(`ERROR: S${n} is marked (Blocking.) in §6.6 prose but absent from the REQ-141i blocking list`);
+    if (!listBlocking.has(n)) issues.push(`ERROR: T540 — S${n} is marked (Blocking.) in §6.6 prose but absent from the REQ-141i blocking list`);
   }
   for (const n of [...listBlocking].sort((a, b) => a - b)) {
     if (!proseBlocking.has(n)) issues.push(`ERROR: S${n} is in the REQ-141i blocking list but not marked (Blocking.) in §6.6 prose`);
@@ -1185,7 +1185,7 @@ function checkCouplingCompleteness(text: string): string[] {
 
   let orphanedRules = 0;
   for (const rule of patternRules) {
-    if (!usedRules.has(rule)) { issues.push(`ERROR: Pattern rule ${rule} has zero coupling rows in §7.7.1a`); orphanedRules++; }
+    if (!usedRules.has(rule)) { issues.push(`ERROR: T435 — Pattern rule ${rule} has zero coupling rows in §7.7.1a`); orphanedRules++; }
   }
   for (const rule of usedRules) {
     if (!patternRules.has(rule)) issues.push(`WARNING: Coupling rows cite undefined pattern rule ${rule}`);
@@ -1212,14 +1212,14 @@ function checkCouplingCompleteness(text: string): string[] {
     const srcOk = rule.src.every((a) => union.has(a));
     const tgtOk = rule.tgt.some((a) => union.has(a));
     if (!srcOk || !tgtOk) {
-      issues.push(`ERROR: Coupling row "${row.pair}" cites ${row.patternRule} (${rule.srcText} → ${rule.tgtText}) but property archetypes [${[...union].join(", ")}] do not match`);
+      issues.push(`ERROR: T421 — Coupling row "${row.pair}" cites ${row.patternRule} (${rule.srcText} → ${rule.tgtText}) but property archetypes [${[...union].join(", ")}] do not match`);
       mismatches++;
     }
   }
   if (mismatches > 0) console.log(`  ${mismatches} coupling row(s) with mismatched archetype rule`);
 
   const populatedRules = patternRules.size - orphanedRules;
-  console.log(`\nCoupling derivation: ${populatedRules}/${patternRules.size} pattern rules have ≥1 coupling row`);
+  console.log(`T434 — Coupling derivation: ${populatedRules}/${patternRules.size} pattern rules have ≥1 coupling row`);
   if (orphanedRules > 0) console.log(`  ${orphanedRules} orphaned pattern rule(s) with zero coupling rows`);
   else console.log("PASS: All pattern rules have ≥1 coupling row");
   return issues;

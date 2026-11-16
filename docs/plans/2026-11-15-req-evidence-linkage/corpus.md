@@ -5,12 +5,10 @@
 | REQ-013 | T25 | Automated | automated-unexercised |
 | REQ-013 | T36 | Automated | automated-unexercised |
 | REQ-014 | T21 | Automated | automated-unexercised |
-| REQ-044 | T17 | Automated | automated-unexercised |
 | REQ-082b | T205 | Automated | automated-unexercised |
 | REQ-088h2 | T379 | Automated | automated-unexercised |
 | REQ-088h2 | T72 | Automated | automated-unexercised |
 | REQ-088h2 | T73 | Automated | automated-unexercised |
-| REQ-092h2 | T88 | Automated | automated-unexercised |
 | REQ-100b | T87 | Automated | automated-unexercised |
 | REQ-100d | T87 | Automated | automated-unexercised |
 | REQ-107a | T493 | Automated | automated-unexercised |
@@ -26,7 +24,6 @@
 | REQ-141k | T537 | Automated | automated-unexercised |
 | REQ-141l | T539 | Automated | automated-unexercised |
 | REQ-142b | T164 | Automated | automated-unexercised |
-| REQ-142c | T540 | Automated | automated-unexercised |
 | REQ-146d | T174 | Automated | automated-unexercised |
 | REQ-149 | T184 | Automated | automated-unexercised |
 | REQ-150b | T185 | Automated | automated-unexercised |
@@ -73,9 +70,6 @@
 | REQ-369b | T436 | Automated | automated-unexercised |
 | REQ-369b | T437 | Automated | automated-unexercised |
 | REQ-369b | T438 | Automated | automated-unexercised |
-| REQ-370b | T421 | Automated | automated-unexercised |
-| REQ-370b | T434 | Automated | automated-unexercised |
-| REQ-370b | T435 | Automated | automated-unexercised |
 | REQ-371b | T422 | Automated | automated-unexercised |
 | REQ-371b | T428 | Automated | automated-unexercised |
 | REQ-371b | T496 | Automated | automated-unexercised |

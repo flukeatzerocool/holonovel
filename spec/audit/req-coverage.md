@@ -31,7 +31,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T10, T76, T79, T90, T91, T103, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
 | REQ-043 | Conflict lifecycle (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T47, T56, T90, T91, T110, T131, T161, T162, T287 | — |
-| REQ-044 | Ruleset hash recording | 5.6 State, Lifecycle, Entities, and Adventure Content | E | S17 | — |
+| REQ-044 | Ruleset hash recording | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T17, S17 | — |
 | REQ-050 | Determinism (Part a) (3 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T27, T90, T111 | — |
 | REQ-051 | No runtime network access | 5.7 Determinism, Safety, and Performance | C | T41 | — |
 | REQ-052 | Path containment | 5.7 Determinism, Safety, and Performance | C | T739 | — |
@@ -72,7 +72,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-089 | Novel setup (Part a) (6 sub-parts) | 5.9 Novel Persistence and Transport | C | T74, T74a, T219 | — |
 | REQ-090 | Adventure generation (Part a) (5 sub-parts) | 5.9 Novel Persistence and Transport | C | T75, T146, T367 | — |
 | REQ-091 | Enhanced encounter generation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T76 | — |
-| REQ-092 | Novel persistence (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T475, T77, T125, T138, T156, T261 | — |
+| REQ-092 | Novel persistence (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T475, T77, T88, T125, T138, T156, T261 | — |
 | REQ-093 | Novel listing and metadata (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T78, T99, T110 | — |
 | REQ-094 | Lorebook interchange (Part a) (3 sub-parts) | 5.9 Novel Persistence and Transport | C | T80 | — |
 | REQ-095 | Novel switching (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T98 | — |
@@ -122,7 +122,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-139 | Resource URI completeness reporting | 5.3 Tools, Resources, and Lookups | C | T153 | — |
 | REQ-140 | End-Novel confirmation dispatch | 5.4 Decision workflows | C | T158 | — |
 | REQ-141 | Input-validation convergence metric (Part a) (13 sub-parts) | 6.6 The Pattern Buffer | E | T627 | — |
-| REQ-142 | Blocking classification principle (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
+| REQ-142 | Blocking classification principle (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | T540 | — |
 | REQ-146 | Reconciliation authority (Part a) (4 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-147 | Confidence aggregation (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | T181 | — |
 | REQ-148 | Structural integrity gate | 5.5 Badges and Access | E | S6 | — |
@@ -336,7 +336,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-367 | Property propagation across containment (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T418 | — |
 | REQ-368 | Countdown-world effect coupling (Part a) (5 sub-parts) | 5.10 World-Model Layer | C | T419 | — |
 | REQ-369 | Holodeck archetype taxonomy (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
-| REQ-370 | Coupling derivation (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
+| REQ-370 | Coupling derivation (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | T421, T434, T435 | — |
 | REQ-371 | Ruleset Wisdom as rendered reality (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
 | REQ-372 | Supplementary ruleset import (Part a) (5 sub-parts) | 5.14 Content Sources | C | T423 | — |
 | REQ-373 | Dynamic tool registration (Part a1) (2 sub-parts) | 5.14 Content Sources | E | T424 | — |
