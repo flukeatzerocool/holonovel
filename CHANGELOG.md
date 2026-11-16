@@ -1,5 +1,21 @@
 # Changelog
 
+## 2026-11-15 — Session economics: four standing rules, five admitted increments
+
+A retrospective over 117 commits, 97 increments, and 337 sessions found that the
+cost was structural rather than intellectual: 98.2% of 3.37 B tokens was cache
+read, main threads averaged 175 k tokens per turn against 60 k in subagents, 54 of
+97 AARs recorded anchor drift, and 70% of the diff was plan artifacts.
+
+- Adds four per-session rules to the cadence — context budget, review the delta,
+  review budget, shell ergonomics — with one routine pointer in `AGENTS.md`.
+- Admits five followed-on increments to `ROADMAP.md`: REQ evidence linkage (P1),
+  loop-artifact gate ordering, single assembled spec copy, split `index.ts`
+  (P2), and bookkeeping derivation (P3). The existing fix-up re-measurement
+  section now carries the rework classifier.
+
+No spec source changes; no tool surface change.
+
 ## 2026-11-15 — Gate retirement: a green streak is a candidate, not a decision
 
 The monthly ritual told the operator to run `npm run gate-cost -- --apply`, and that

@@ -200,6 +200,9 @@ session. These mappings are the standing agreement.
   and report the baseline. A red baseline is fixed first, as its own commit,
   never folded into the feature work.
 - **"status" / "what's left"** — `npm run status`.
+- **Session shape** — one increment per session, restart near 100 k tokens, and
+  review the delta rather than the corpus (`docs/workflow-cadence.md`, "Four
+  rules that keep the session cheap").
 - **Split limits** — a spec increment is one commit. A non-spec session splits
   by concern; keep the series at five commits or fewer (print the planned
   grouping above that) and under roughly 300 changed lines per commit unless

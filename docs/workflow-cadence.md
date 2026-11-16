@@ -20,6 +20,22 @@ questions → research → plan → execute → AAR → fix if necessary → com
    increment stays one commit; a non-spec session is split by concern with
    docs/CHANGELOG last. `--single` is the explicit opt-out.
 
+**Four rules that keep the session cheap.**
+
+- **Context budget.** One increment per main session. Restart the session when the
+  context approaches 100 k tokens; a second increment starts a new session.
+  Delegate exploration to subagents, and read only the files a claim cites. The
+  measured baseline is 175 k tokens average per turn in main threads against 60 k
+  in subagents, and cache read was 98% of a week's token spend.
+- **Review the delta.** Scope a review sweep to the sections whose REQs changed
+  since the last coverage-register snapshot; re-verify untouched sections by gate
+  only. A corpus-wide sweep is the expensive path and it mostly re-proves
+  cleanliness.
+- **Review budget.** Standard (cold) depth for new or changed surface; light
+  depth for repair of surface already reviewed in the same program.
+- **Shell ergonomics.** Set the tool's working directory instead of prefixing
+  `cd`; prefer `edit` over `sed`; batch independent reads into one turn.
+
 **Push on demand, not on a schedule.** The obligation is a cost bound: a push
 must be resumable (`.holonovel-state/publish-run.json`, `--from`/`--only`/
 `--resume`) so an on-demand push stays single-purpose instead of accumulating
