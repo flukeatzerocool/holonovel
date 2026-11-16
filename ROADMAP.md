@@ -24,10 +24,11 @@ and its `DISPUTED` adjudications are recorded.
 
 ## Mutation-sample depth (P2)
 
-- `test:holosuite-mutation` scores 8 transcript-derived mutants against one
-  synthetic three-turn transcript. Reaching a meaningful sample needs new lenses
-  with their own evidence fixtures, not repeated seeds (the tautology
-  `ORACLE_DERIVED`/CR-32 already excludes).
+- `test:holosuite-mutation` scores 12 transcript-derived cases: the lens set
+  plus four contract mutants with clean controls (2026-11-16, 8 → 12). The two
+  uncomputed lanes (`world_population_failure`, `coupling_failure`) are judgment
+  lanes, so a larger *lens* sample needs new deterministic lenses rather than
+  repeated seeds (the tautology `ORACLE_DERIVED`/CR-32 already excludes).
 
 **Trigger:** the next Holosuite lens change; closes when the derived sample is
 large enough to report a catch rate with a useful confidence interval.

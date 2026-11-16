@@ -71,7 +71,7 @@ refused surfaces.
 
 `independent-review passed.` — reads 3/4.
 
-Plan sha256: e9d8cb5763c688097f7407a94feb586cbbbc9f2f50f96bc6cd6339c4e50639c3
+Plan sha256: 289d9632948cd591a985a2da22af459cfde916a86a1f1d932d4211ff91779e1a
 
 ## Pass 4 — P2 delta (revision 5)
 
@@ -95,3 +95,13 @@ silent cut; the AAR carries the gate table, F1–F12 dispositions, and LOOP OPEN
 undispositioned residual float. Nits applied (gate-table count, tasks row).
 
 `independent-review passed.` — reads 5/6.
+
+## Pass 6 — P3-T1 executed (revision 7)
+
+First pass flagged a Major: four of six contract mutants tested harness-local
+helpers against literals and were scored as derived. Fixed by deleting those two
+and rebinding the survivors to `REQUIRED_PARAMS`, `hasUndefinedRecord`,
+`classifyResult`, and `stateDelta`, each with an opposite case. Re-review:
+genuinely bound, no residual inflation, controls fail a constant evaluator.
+Applied the cosmetic note (contract cases now record a miss on a throw).
+Verdict: `independent-review passed.` — reads 2/4.

@@ -3687,8 +3687,11 @@ Closed by `docs/plans/2026-11-16-release-hardening/` (P1 and P2 executed).
   section records the loss and points at the roadmap item.
 - **F11 — container image unverified locally. Accepted risk**, recorded in
   `docs/publish-pipeline.md`.
-- **F12 — the plan over-scoped P3-T1. Recorded**; rescoped to F9.
-- **F9 — the mutation sample (8) is too small. Scheduled-roadmap.** New lens
-  design, not a parameter change.
+- **F12 — the plan over-scoped P3-T1. Resolved** by the bounded execution:
+  four contract mutants with controls bound to production evaluators (8 → 12 scored, catch rate 1).
+- **F9 — the mutation sample was too small. Scheduled-roadmap (partly
+  shipped).** The contract-mutant block covers the predicates this increment
+  added; a wider *lens* sample needs new deterministic lenses, since the two
+  uncomputed lanes are judgment lanes (`JUDGMENT_GM_LANES`).
 - **F10 — §10 independent verification never run. Scheduled-roadmap.** Operator
   step; first post-publish action.

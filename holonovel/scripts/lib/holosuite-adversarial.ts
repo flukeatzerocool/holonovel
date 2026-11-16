@@ -18,7 +18,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { bootServer } from "./mcp-client.js";
 import { classifyResult, fingerprintOf } from "./eval-oracle.js";
-import { persistedNovels } from "./eval-state.js";
+import { persistedNovels, hasUndefinedRecord } from "./eval-state.js";
 import { REQUIRED_PARAMS } from "../../src/core/param-contract.js";
 import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
 import { anchor } from "./eval-predicate.js";
@@ -95,19 +95,6 @@ function surfacesFrom(tools: Array<{ name: string; inputSchema?: unknown }>): Ar
     }
   }
   return out;
-}
-
-/** Deep structural scan: any map key, key/name/id value equal to "undefined". */
-function hasUndefinedRecord(value: unknown): boolean {
-  if (Array.isArray(value)) return value.some(hasUndefinedRecord);
-  if (value && typeof value === "object") {
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      if (k === "undefined") return true;
-      if ((k === "key" || k === "name" || k === "id" || k === "slug") && v === "undefined") return true;
-      if (hasUndefinedRecord(v)) return true;
-    }
-  }
-  return false;
 }
 
 /** Persisted Novels, including ones the sweep moved to the trash. */

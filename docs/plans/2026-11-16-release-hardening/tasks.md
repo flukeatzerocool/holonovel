@@ -68,11 +68,10 @@ P2-T5; (4) P2-T6.
 
 ## P3 — Verification depth (R6, R8)
 
-- [ ] P3-T1 `holonovel/scripts/lib/holosuite-mutation.ts`: grow the derived
-      sample (the "~30" estimate was superseded by plan revision 6); record the
-      catch rate.
-      **Not executed — rescoped (plan revision 6): the tier's evidence is one
-      synthetic transcript, so 30 non-tautological mutants need new lens design.**
+- [x] P3-T1 `holonovel/scripts/lib/holosuite-mutation.ts`: four contract mutants
+      with clean controls (missing param, raw exception, unnamed resource,
+      undefined record, ungated Player mutation, unrecorded mutation); scored
+      sample 8 → 12. Gate: `test:holosuite-mutation` 12/12, catch_rate 1.
 - [ ] P3-T2 §10 independent verification; write
       `independent-verification.md`; disposition every finding into the
       registers. **Not executed — operator step by construction (different

@@ -4,13 +4,17 @@
 // into the evaluation evidence, selected by the `TTRPG_MUTANT` identifier so
 // normal runs are unaffected), runs the oracle/lens predicates over each, and
 // reports the fraction of seeded mutants the oracle detects — the catch rate
-// §8 defines. Never blocks a build and is not part of the `all` tier.
+// §8 defines. A contract-mutant block audits the response-contract predicates
+// added by the 2026-11-16 input-contract increment, each with a clean control.
+// Never blocks a build and is not part of the `all` tier.
 //
 // Exit codes: n/a (library). REQ citations: none — informational evaluation
 // harness support implementing the §8 Holosuite evaluation method.
 
 import { fingerprintStable, fingerprintChanged, envelopeRecognized } from "./eval-oracle.js";
-import { LENSES, computeLenses } from "./playtest-lib.js";
+import { LENSES, computeLenses, classifyResult, stateDelta } from "./playtest-lib.js";
+import { REQUIRED_PARAMS, paramKey, isAbsent } from "../../src/core/param-contract.js";
+import { hasUndefinedRecord } from "./eval-state.js";
 import type { TierResult } from "./eval-schema.js";
 
 /** Environment identifier that selects the active mutant. */
@@ -96,13 +100,65 @@ interface Mutant {
 const ORACLE_DERIVED = new Set(["hallucinated_tool", "unrecovered_error", "state_divergence", "gating_leak", "unreachable_goal"]);
 
 /** Deterministic mutant set: nine lens mutants plus three invariant mutants. */
-const MUTANTS: Mutant[] = [
-  ...LENSES.filter((l) => l !== "wrong_tool").map((lens) => ({ id: lens, lens, detail: `oracle detects a seeded ${lens}`, caught: () => computeLenses(evidence().tx, evidence().oracle)[lens]!.length > 0, derived: !ORACLE_DERIVED.has(lens) })),
+const MUTANTS: Mutant[] = [  ...LENSES.filter((l) => l !== "wrong_tool").map((lens) => ({ id: lens, lens, detail: `oracle detects a seeded ${lens}`, caught: () => computeLenses(evidence().tx, evidence().oracle)[lens]!.length > 0, derived: !ORACLE_DERIVED.has(lens) })),
   { id: "gating_leak", lens: "gating_leak", detail: "oracle detects a narrated unearned success", caught: () => computeLenses(evidence().tx, evidence().oracle).gating_leak!.length > 0, derived: false },
   { id: "unreachable_goal", lens: "unreachable_goal", detail: "oracle detects an unreachable escape target", caught: () => computeLenses(evidence().tx, evidence().oracle).unreachable_goal!.length > 0, derived: false },
   { id: "fingerprint_drift", lens: "determinism", detail: "fingerprintStable flags a read-only mutation", caught: () => !fingerprintStable("a", "b").ok, derived: true },
   { id: "missed_mutation", lens: "determinism", detail: "fingerprintChanged flags a no-op mutation", caught: () => !fingerprintChanged("a", "a").ok, derived: true },
   { id: "unrecognized_envelope", lens: "determinism", detail: "envelopeRecognized flags a bare result", caught: () => !envelopeRecognized("garbage result", false).ok, derived: true },
+];
+
+// ── Contract mutants ──────────────────────────────────────────────────
+// The lenses audit play quality; these audit the evaluators the tiers use,
+// bound to their real definitions rather than to literals in this file:
+// `REQUIRED_PARAMS` (the guard's table), `hasUndefinedRecord` (shared by the
+// adversarial tier), `classifyResult` and `stateDelta` (the playtest oracle).
+// Each case seeds a fault the evaluator must classify correctly and an
+// opposite case it must not misclassify.
+
+interface ContractCase {
+  id: string;
+  detail: string;
+  detects: () => boolean;
+  control: () => boolean;
+}
+
+const isMissingParamEnvelope = (text: string): boolean => /^\[ERROR\] \[MISSING_PARAM\]/.test(text.trim());
+
+/** True when the call is acceptable: either unclassified, supplied, or refused. */
+function missingParamRefused(tool: string, args: Record<string, unknown>, text: string): boolean {
+  const req = REQUIRED_PARAMS[paramKey(tool, args.action)];
+  if (!req) return true;
+  if (req.unless?.some((alternative) => !isAbsent(args[alternative]))) return true;
+  if (!req.params.some((parameter) => isAbsent(args[parameter]))) return true;
+  return isMissingParamEnvelope(text);
+}
+
+const CONTRACT_MUTANTS: ContractCase[] = [
+  {
+    id: "unguarded_missing_param",
+    detail: "the guard's table classifies an [OK] for an absent parameter as unrefused",
+    detects: () => !missingParamRefused("manage_lore", { action: "set" }, "[OK] Lore entry 'undefined' created."),
+    control: () => missingParamRefused("manage_lore", { action: "set", key: "k" }, "[OK] Lore entry 'k' created."),
+  },
+  {
+    id: "undefined_record",
+    detail: "the shared scanner flags a Novel persisted under an undefined key",
+    detects: () => hasUndefinedRecord({ lore: { undefined: {} } }),
+    control: () => !hasUndefinedRecord({ lore: { k: { content: "x" } } }),
+  },
+  {
+    id: "denial_vs_defect",
+    detail: "the oracle separates a denial from a defect",
+    detects: () => classifyResult("[FORBIDDEN] GM only", true).error_class === "denial",
+    control: () => classifyResult("Cannot read properties of undefined (reading 'trim')", true).error_class !== "denial",
+  },
+  {
+    id: "mutation_counted",
+    detail: "the oracle counts a created room as a state delta",
+    detects: () => stateDelta({}, { world: { rooms: { a: {} } } }).rooms === 1,
+    control: () => stateDelta({}, { world: { rooms: {} } }).rooms === 0,
+  },
 ];
 
 /** Run the method audit and return the catch rate (report-only, never fails). */
@@ -123,6 +179,20 @@ export async function runMutationAudit(): Promise<TierResult> {
   if (prior === undefined) delete process.env[MUTANT_ENV];
   else process.env[MUTANT_ENV] = prior;
 
+  // Contract cases do not depend on TTRPG_MUTANT: each carries its own fault
+  // and clean evidence, and a predicate that always answers one way fails its
+  // control.
+  const controls = CONTRACT_MUTANTS.map((c) => {
+    try {
+      return { id: c.id, fault: c.detects(), control: c.control() };
+    } catch {
+      // A predicate whose evaluator changed shape is recorded as a miss, not a
+      // crash: the audit reports, it does not block.
+      return { id: c.id, fault: false, control: false };
+    }
+  });
+  for (const c of controls) results.push({ id: c.id, lens: "contract", caught: c.fault, derived: true });
+
   // The published catch rate counts only transcript/fixture-derived mutants;
   // oracle-seeded mutants are reported separately (CR-32).
   const derived = results.filter((r) => r.derived);
@@ -142,6 +212,8 @@ export async function runMutationAudit(): Promise<TierResult> {
       caught,
       missed: derived.filter((r) => !r.caught).map((r) => r.id),
       oracle_derived: tautological,
+      controls_passed: controls.filter((c) => c.control).length,
+      controls_failed: controls.filter((c) => !c.control).map((c) => c.id),
       mutants: results,
     },
   };

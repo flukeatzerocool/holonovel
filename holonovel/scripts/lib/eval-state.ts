@@ -27,3 +27,21 @@ export function readPersistedNovel(dataDir: string, nameOrSlug: string): Record<
   }
   throw new Error(`novel '${nameOrSlug}' not persisted in ${dataDir}`);
 }
+
+/**
+ * Deep structural scan for a record persisted under the literal key
+ * "undefined", or whose key/name/id/slug value is that string. The
+ * 2026-11-16 input-contract increment exists because 22 surfaces used to write
+ * such records; the tiers assert the absence rather than matching prose.
+ */
+export function hasUndefinedRecord(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(hasUndefinedRecord);
+  if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k === "undefined") return true;
+      if ((k === "key" || k === "name" || k === "id" || k === "slug") && v === "undefined") return true;
+      if (hasUndefinedRecord(v)) return true;
+    }
+  }
+  return false;
+}

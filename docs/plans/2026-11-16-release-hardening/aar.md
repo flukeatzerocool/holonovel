@@ -35,7 +35,8 @@ shared-evidence class; the review-register's dangling sentence is repaired; the
 `[AMBIGUOUS]` half was amended rather than implemented: no surface emits the
 category, and the parser's multi-match path is the REQ-196e numbered prompt.
 
-**P3 — not executed.** T1 was rescoped (see §4); T2 is an operator step by
+**P3 — partially executed.** T1 grew the scored sample 8 → 12 with four contract
+mutants bound to production evaluators and four controls, all caught (12/12). T2 is an operator step by
 construction. **P4 — not executed**; publication needs the operator's order.
 
 ### Gate outcomes
@@ -45,6 +46,7 @@ construction. **P4 — not executed**; publication needs the operator's order.
 | plan-review | `plan-review passed.` | passed (self + cold, 5 stages) |
 | independent-review | `independent-review passed.` ×4 | passed (initial, P1 delta, P2 delta, final disposition) |
 | build-review | `build-review passed.` | passed |
+| `test:holosuite-mutation` | `PASS 12/12`, `catch_rate=1` | passed |
 | drift-report | not run | n/a |
 | spec-review | not run | n/a |
 | proofread | not run (validator proofreading ran inside `validate`: 0 errors, 427 warnings) | passed as a gate |
@@ -52,7 +54,7 @@ construction. **P4 — not executed**; publication needs the operator's order.
 Evidence per phase: `check:fast` PASS (46/0); `test:all` 56/56 (174.8 s);
 `test:package-smoke` 11/11; `test:pipeline` 35/35; `test:update-workflow` 22/22;
 `test:g7` 4/4; `check-anchors` 17 written, 0 unresolved; the sweep 0/0/0 with no
-undefined-keyed record.
+undefined-keyed record; `test:holosuite-mutation` 12/12.
 
 ## 3. What went right
 
@@ -69,10 +71,11 @@ undefined-keyed record.
 ## 4. What went wrong
 
 - **P3-T1 was over-scoped at plan time.** "Grow 8 → ~30 mutants" reads like a
-  parameter change; the tier's evidence is a single synthetic transcript, so
-  reaching 30 means new lenses and fixtures. Padding with repeated lens seeds
-  would be the exact tautology `ORACLE_DERIVED`/CR-32 excludes. The estimate,
-  not the execution, was wrong.
+  parameter change; the tier's evidence is a single synthetic transcript, and
+  the two uncomputed lanes are judgment lanes by contract. The estimate was
+  wrong. The bounded execution — four contract mutants bound to production evaluators, each with an
+  opposite case — shipped the coverage that matters (the predicates this increment
+  added); the wider lens sample is scheduled rather than padded.
 - **Two fixture dependencies surfaced only at `test:all`.** The blast-radius
   preflight checked for config shapes, not for tool calls that omit required
   parameters. A grep for `manage_*(action: set` without a key would have found
@@ -82,8 +85,9 @@ undefined-keyed record.
 
 ## 5. Session performance
 
-- **Outcome vs done-bar.** P1/P2 criteria hold; P3/P4 do not, by boundary not by
-  failure. The plan's own done bar is therefore unmet and the loop stays open.
+- **Outcome vs done-bar.** P1, P2, and P3-T1's bounded form hold; §10 and the
+  publish criterion do not, by boundary not by failure. The plan's done bar is
+  therefore unmet and the loop stays open.
 - **Scope adherence.** No out-of-plan surface except the two recorded deltas
   (one fixture, one generated artifact).
 - **Verification quality.** Every claim in this report names a command and its
@@ -107,10 +111,10 @@ undefined-keyed record.
 | F6 | `status` presented a dry run as a publish | Resolved (P2) |
 | F7 | Two moderate `hono` advisories had no disposition | Resolved (P2, documented) |
 | F8 | A review-register section pointed at rows that were gone | Resolved (P2) |
-| F9 | The mutation sample (8) is too small to evidence sensitivity | **Scheduled** — needs new lens design, not a parameter change |
+| F9 | The mutation sample (8) is too small to evidence sensitivity | **Scheduled (partly shipped)** — four contract mutants + controls, 8 → 12; the wider lens sample needs new deterministic lenses |
 | F10 | §10 independent verification never run | **Scheduled** — operator step, post-publish |
 | F11 | Container image unverified locally | Accepted risk (P2, recorded) |
-| F12 | Plan over-scoped P3-T1 | Recorded; rescoped to F9 |
+| F12 | Plan over-scoped P3-T1 | Resolved by the bounded execution (12/12) |
 
 Residual project action items: F9 (P2, scheduled) and F10 (P1, operator). Both
 are named here and tracked on ROADMAP; the AAR does not restate them as
