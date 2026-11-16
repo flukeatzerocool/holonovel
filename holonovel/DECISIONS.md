@@ -27,6 +27,41 @@ dated entries below record changes to this list.
   improve disambiguation and per-tool quality instead. (REQ-429, REQ-554,
   REQ-580)
 
+### Input-contract guard — 2026-11-16
+
+An independent sweep of all 241 tool action values, called with only `{action}`,
+found 22 that returned `[OK]` while persisting a record keyed `undefined`, and
+three that returned raw JavaScript exception text. `[MISSING_PARAM]` is defined
+in Appendix O.2 and required by T177, and no surface emitted it. Two decisions
+carry the repair.
+
+- **D1 — an unexpected handler throw is `[ERROR] [SYSTEM]`.** The envelope is
+  `isError: true` and carries no corrective action, matching O.2's "absent" for
+  the category. The exception text goes to stderr and never into the tool
+  result, so an internal error cannot leak through a response. A thrown
+  `McpError` and a thrown refusal envelope (`[FORBIDDEN] …`) pass through
+  unchanged: the former is a deliberate protocol answer, and the latter is
+  converted by `normalizeRefusal`.
+- **D2 — one dispatch table, not per-action schemas.** The MCP input schemas
+  declare only `action` as required because one tool carries several actions.
+  `REQUIRED_PARAMS` in `holonovel/src/core/param-contract.ts` is keyed
+  `${tool}:${action ?? ""}` — action-discriminated and action-less tools share
+  one lookup — and is consulted in `guardToolCall` before badge authorization.
+  A requirement may name an alternate (`unless`), because
+  `manage_countdown (action: set)` accepts `link_countdown` in place of `name`.
+  Per-action zod discriminated unions remain deferred: the dispatch guard closes
+  the contract without moving `tool-definitions.json`, the surface budget, or
+  any fingerprint.
+
+Scope: the table names the surfaces whose absent-parameter behaviour was
+demonstrated (or structurally identical) to create an undefined-keyed record or
+throw. An unclassified surface is still swept by the adversarial tier, which
+asserts that the sweep leaves no undefined-keyed record; a new mutating action
+without a table entry therefore fails loudly. Evidence: T177 in
+`scripts/test-backfill.ts`, the generated battery in
+`scripts/lib/holosuite-adversarial.ts`, and the `[MISSING_PARAM]` refusals cited
+by `spec/audit/req-coverage.md`.
+
 ### Synthesis fingerprint, persistence, and budgets — 2026-11-15
 
 Internal synthesis (§11.2/§11.3) now records a fingerprint, keeps its items with

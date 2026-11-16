@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-16 — Input contract: an absent parameter is a refusal, not a record named `undefined`
+
+An independent sweep of every tool action called with only `{action}` found 22
+that returned `[OK]` while writing a record keyed `undefined`, three that
+returned raw JavaScript exception text, and `[MISSING_PARAM]` emitted nowhere
+despite Appendix O.2 and T177 requiring it.
+
+- `REQUIRED_PARAMS` in `holonovel/src/core/param-contract.ts` keys each
+  required parameter by `${tool}:${action}` (the empty action covers the five
+  action-less tools) and supports an alternate (`unless`) for
+  `manage_countdown (action: set)` with `link_countdown`. `guardToolCall`
+  consults it before badge authorization, so no handler sees an absent
+  parameter.
+- An unexpected handler throw now returns `[ERROR] [SYSTEM]` with the detail on
+  stderr only. The wrapper is registered per handler, so it also covers the
+  `createEngine()` façade; a thrown `McpError` or refusal envelope still passes
+  through.
+- The three resource projections that mapped a key straight to `name` now
+  stringify it (`lore://`, `server-notes://`, `ui://lore/`), so one malformed
+  record cannot invalidate `resources/list` for a schema-validating client.
+- The adversarial tier gains a generated battery over every callable surface:
+  a classified surface must refuse with `[MISSING_PARAM]` (or a legal `-32602`),
+  every surface must answer with a recognized envelope or declared payload, and
+  the sweep must leave no undefined-keyed record. It reports 269 passed on this
+  tree and 35 failures against the published 2026.11.8 build, so the battery
+  discriminates.
+- T177 now asserts `[MISSING_PARAM]` and names the parameter; its title keeps
+  `T176/T177/T178` so the coverage audit keeps its carrier.
+- 17 Holosuite anchor literals were refreshed after the `index.ts` edit.
+
 ## 2026-11-16 — Publication reconciliation: an evidence gate the operator can actually satisfy
 
 The publication update gate asked for evidence the operator could not produce
