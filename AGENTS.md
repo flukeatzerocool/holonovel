@@ -415,9 +415,12 @@ Setup (`npm ci` ×2) and the build tool (`npm run assemble`) are classified by
 their own class and need no table row.
 
 The implementation-coverage audit runs unconditionally inside every `validate`
-invocation. Two optional flags extend it:
+invocation. Three optional flags extend it:
 
 - `npm run validate -- --write-register` — regenerate `spec/audit/req-coverage.md`.
+- `--write-linkage-corpus <path>` — write the full REQ evidence-linkage
+  finding list (one row per finding) instead of only the first ten printed lines;
+  the committed list is `docs/plans/2026-11-15-req-evidence-linkage/corpus.md`.
 - `HOLONOVEL_IMPL_STRICT=1` — promote bucket-A (gap) REQs to errors. The push
   pipeline exports it before build-order, so the single `check` pass is strict;
   `.githooks/pre-push` runs the same strict check for a direct push and skips it

@@ -3084,6 +3084,18 @@ re-measurement is date-gated and stays scheduled.
 
 ## Scheduled-roadmap
 
+### 2026-11-15 REQ evidence linkage (P1)
+
+The report-only `checkReqEvidenceLinkage` pass reports 122 citations whose
+Appendix F row kind does not admit them: 99 `Automated` IDs that no harness test
+names, and 23 `Manual` IDs that `DECISIONS.md` does not name. 99 of the 122
+belong to REQs already whitelisted in `INTENDED_GAP_REQS`; that list is a
+source-citation disposition, not an evidence one, so nothing is suppressed here
+and triage splits them. The pass also surfaced a duplicated identifier: `T553`
+is defined twice — `spec/appendices-reference.md:1822` (REQ-284f) and `:1984`
+(REQ-463) — both Automated, both exercised by different harness tests; which one
+is renumbered is scheduled separately.
+
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 
 Probe status: the 2026-11-09 assertion-repair session ran the Appendix F rows

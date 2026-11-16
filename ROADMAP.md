@@ -26,12 +26,13 @@ closes when the re-measurement is recorded in the AAR of that session.
 
 ## REQ evidence linkage (P1)
 
-- Add `checkReqEvidenceLinkage`: a REQ whose `*Check:*` cites a T-ID requires an
-  Automated Appendix F row whose harness references that ID; a Manual or Gate row
-  must name the procedure or gate explicitly.
-- Run it report-only against the corpus, triage the list, then promote to error.
-  This is the largest defect class in the 2026-11-08→15 sweep (REQs citing T22,
-  T35, T103 with no asserting harness).
+- The report-only `checkReqEvidenceLinkage` pass shipped (2026-11-15); triage its
+  122 findings to zero, then promote the check to error. A REQ whose `_Check:_`
+  cites a T-ID must land on an Automated Appendix F row a harness names, or a
+  Manual row whose procedure `DECISIONS.md` documents. Appendix F has no `Gate`
+  kind.
+- T22, T35, and T103 all have asserting harnesses; the defect class is the 122
+  unlinked citations, 99 of them in REQs already whitelisted as builder-side.
 
 **Trigger:** the corpus dry-run list is triaged to zero; closes when the check is
 error-mode in `validate`.
@@ -62,6 +63,17 @@ when `git ls-files holonovel/holonovel.md` is empty.
 
 **Trigger:** the next increment that moves more than 50 anchors, or a week with
 more than 100 reads of one file.
+
+## Duplicate Appendix F test ID (T553) (P3)
+
+- `T553` is defined twice — `spec/appendices-reference.md:1822` (REQ-284f) and
+  `:1984` (REQ-463) — and both rows are exercised by different harness tests
+  (`holonovel/scripts/test-output-contracts.ts:2554`, `test-belief.ts:116`), so
+  the reader's `Map` silently keeps the last one.
+- Renumber one row, update its citation, and rename the matching harness test.
+
+**Trigger:** the next Appendix F edit that adds or renumbers a test ID; closes
+when `grep -c '^| T553 ' spec/appendices-reference.md` is 1.
 
 ## Bookkeeping derivation (P3)
 

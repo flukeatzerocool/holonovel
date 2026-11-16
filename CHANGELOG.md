@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-15 — REQ evidence linkage: a citation is only evidence if its row admits it
+
+The coverage audit joins on Appendix F's REQ column and never reads the IDs a REQ
+names in its `_Check:_` trailer, so a citation attributed to another REQ was
+invisible and a `Manual` row could back a claim with no documented procedure.
+A report-only check now reads the trailer, resolves each cited ID's row kind, and
+reports the mismatch.
+
+- `checkReqEvidenceLinkage` and `extractCheckCitations` in
+  `scripts/lib/req-checks.ts`, with `CHECK_MARKERS` replacing the two inline
+  marker pairs in `validate.ts` (`:183`, `:2080`), so "has a Check trailer" has
+  one definition.
+- `parseAppendixFTestText` now carries the kind cell it used to drop; the
+  coverage audit's bucket counts are unchanged (A 0 / B 0 / C 492 / D 0 / E 117).
+- The pass reports **122 findings** — 99 automated IDs no harness test names, 23
+  manual IDs `DECISIONS.md` does not name — printed as at most ten
+  `WARNING: REQ-EVIDENCE` lines plus a summary, with `--write-linkage-corpus` for
+  the full list. All 122 count into the warning total, so the aggregate proves
+  they were found rather than printed.
+- The dry run also surfaced a duplicated identifier: `T553` is defined twice
+  (`spec/appendices-reference.md:1822` and `:1984`) and is scheduled.
+
 ## 2026-11-15 — Anchor maintenance: the fast tier catches drift, the close heals it
 
 Line-based evidence anchors drift whenever code moves, and the check that catches

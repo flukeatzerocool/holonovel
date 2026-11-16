@@ -4,7 +4,7 @@
 // Exercises checkEmptyReqBodies / checkTruncatedReqBodies against synthetic
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
-import { checkNewBucketB } from "./lib/req-checks.js";
+import { checkNewBucketB, CHECK_MARKERS, extractCheckCitations, checkReqEvidenceLinkage } from "./lib/req-checks.js";
 import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount, checkHarnessTitleIds, checkHarnessCommentIds, unresolvedPatternRuleTokens } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings, findDuplicateReqIds, extractReqBodiesWithSentences } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
@@ -687,6 +687,92 @@ test("a zero-padded ID in a harness comment is caught, and a real one is not", (
   // A padded title is still the title pass's finding, and this pass sees it too.
   const both = checkHarnessTitleIds(new Set(["T20"]), [{ file: "bad.ts", name: "T020: padded", all: ["T020"] }]);
   if (both.length !== 1 || !both[0].includes("zero-padded")) throw new Error(`title pass lost the padded case: ${JSON.stringify(both)}`);
+});
+
+
+// ─── REQ evidence linkage (report-only) ─────────────────────────────────
+const LINKAGE_ROWS = new Map([
+  ["T900", { kind: "Automated" }],
+  ["T901", { kind: "Manual" }],
+  ["T902", { kind: "Gate" }],
+]);
+
+test("an unexercised Automated citation is reported", () => {
+  const findings = checkReqEvidenceLinkage({
+    citations: new Map([["REQ-901", ["T900"]]]),
+    rows: LINKAGE_ROWS,
+    exercised: new Set<string>(),
+    decisionsText: "",
+  });
+  if (findings.length !== 1) throw new Error(`expected one finding: ${JSON.stringify(findings)}`);
+  if (findings[0].verdict !== "automated-unexercised") throw new Error(`wrong verdict: ${findings[0].verdict}`);
+});
+
+test("an undocumented Manual citation is reported", () => {
+  const findings = checkReqEvidenceLinkage({
+    citations: new Map([["REQ-902", ["T901"]]]),
+    rows: LINKAGE_ROWS,
+    exercised: new Set<string>(),
+    decisionsText: "T901e is a different row.",
+  });
+  if (findings.length !== 1 || findings[0].verdict !== "manual-undocumented") {
+    throw new Error(`documented-by-prefix leak: ${JSON.stringify(findings)}`);
+  }
+});
+
+test("a cited ID with no Appendix F row is reported with kind none", () => {
+  const findings = checkReqEvidenceLinkage({
+    citations: new Map([["REQ-903", ["T999"]]]),
+    rows: LINKAGE_ROWS,
+    exercised: new Set<string>(),
+    decisionsText: null,
+  });
+  if (findings.length !== 1) throw new Error(`expected one finding: ${JSON.stringify(findings)}`);
+  if (findings[0].verdict !== "no-row" || findings[0].kind !== "none") {
+    throw new Error(`no-row must carry kind none: ${JSON.stringify(findings[0])}`);
+  }
+});
+
+test("an unknown Appendix F kind is reported", () => {
+  const findings = checkReqEvidenceLinkage({
+    citations: new Map([["REQ-904", ["T902"]]]),
+    rows: LINKAGE_ROWS,
+    exercised: new Set<string>(),
+    decisionsText: "",
+  });
+  if (findings.length !== 1 || findings[0].verdict !== "unknown-kind") {
+    throw new Error(`Gate kind not caught: ${JSON.stringify(findings)}`);
+  }
+});
+
+test("extractCheckCitations uses the last marker, de-duplicates, and keeps only T-IDs", () => {
+  const body = "The server SHALL do it. _Check:_ T4, T4.\n*Check:* T9, S22.";
+  const out = extractCheckCitations(new Map([["REQ-905", { body }]]));
+  const ids = out.get("REQ-905") ?? [];
+  if (ids.join(",") !== "T9") throw new Error(`expected [T9], got ${JSON.stringify(ids)}`);
+  if (!CHECK_MARKERS.includes("*Check:*") || !CHECK_MARKERS.includes("_Check:_")) {
+    throw new Error(`marker constant lost a form: ${JSON.stringify(CHECK_MARKERS)}`);
+  }
+});
+
+test("an exercised Automated and a documented Manual produce no finding", () => {
+  const findings = checkReqEvidenceLinkage({
+    citations: new Map([["REQ-906", ["T900", "T901"]]]),
+    rows: LINKAGE_ROWS,
+    exercised: new Set(["T900"]),
+    decisionsText: "Manual procedure for T901 is recorded here.",
+  });
+  if (findings.length !== 0) throw new Error(`expected no findings: ${JSON.stringify(findings)}`);
+});
+
+test("a null decisionsText skips the Manual rule", () => {
+  const findings = checkReqEvidenceLinkage({
+    citations: new Map([["REQ-907", ["T901"]]]),
+    rows: LINKAGE_ROWS,
+    exercised: new Set<string>(),
+    decisionsText: null,
+  });
+  if (findings.length !== 0) throw new Error(`null must skip, not re-label: ${JSON.stringify(findings)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

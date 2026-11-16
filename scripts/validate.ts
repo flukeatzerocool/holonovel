@@ -40,6 +40,9 @@ import {
   checkLicenseSourceParity,
   checkHarnessTitleIds,
   checkHarnessCommentIds,
+  CHECK_MARKERS,
+  extractCheckCitations,
+  checkReqEvidenceLinkage,
   unresolvedPatternRuleTokens,
   extractSection,
 } from "./lib/req-checks.js";
@@ -180,7 +183,7 @@ function checkReqBlocks(text: string): string[] {
     // Only family-base REQs carry the _Check: trailer; sub-REQs (REQ-101a)
     // inherit their family's, which checkFamilyCheckCoverage validates.
     if (!/^REQ-\d{3}$/.test(id)) continue;
-    if (!body.includes("*Check:*") && !body.includes("_Check:_")) {
+    if (!CHECK_MARKERS.some((m) => body.includes(m))) {
       issues.push(`${id}: missing Check: trailer`);
     }
   }
@@ -1569,6 +1572,16 @@ function collectHarnessSources(): HarnessSource[] {
   harnessSourcesCache = sources;
   return sources;
 }
+// REQ bodies are parsed by the coverage audit and by the linkage check; one
+// memo keeps a second pass over the same text out of the hot path.
+let reqBodiesCache: { text: string; bodies: Map<string, { id: string; body: string }> } | null = null;
+function getReqBodies(text: string): Map<string, { id: string; body: string }> {
+  if (reqBodiesCache && reqBodiesCache.text === text) return reqBodiesCache.bodies;
+  const bodies = extractReqBodies(text);
+  reqBodiesCache = { text, bodies };
+  return bodies;
+}
+
 function collectHarnessTestNames(): HarnessTest[] {
   return collectHarnessSources().flatMap((source) => source.tests);
 }
@@ -1669,8 +1682,8 @@ function checkConfigSurfaceParity(text: string): string[] {
 // B4 (Appendix F assertion alignment): when an exercised test's Appendix F
 // definition names a TTRPG_* variable, some harness must reference it — a test
 // spec that requires a config the harness never sets is nominal evidence.
-function parseAppendixFTestText(text: string): Map<string, string> {
-  const map = new Map<string, string>();
+function parseAppendixFTestText(text: string): Map<string, { kind: string; desc: string }> {
+  const map = new Map<string, { kind: string; desc: string }>();
   const start = text.indexOf("| #     | Type     | Test");
   if (start === -1) return map;
   const end = text.indexOf("\n##", start + 1);
@@ -1680,7 +1693,7 @@ function parseAppendixFTestText(text: string): Map<string, string> {
     if (cells.length < 5) continue;
     const tid = cells[1].trim();
     if (!/^T\d+[a-z0-9]*$/.test(tid)) continue;
-    map.set(tid, cells[3]);
+    map.set(tid, { kind: cells[2].trim(), desc: cells[3] });
   }
   return map;
 }
@@ -1720,9 +1733,9 @@ function checkAppendixFAssertions(text: string, exercisedIds: Set<string>): stri
   }
   const issues: string[] = [];
   for (const tid of exercisedIds) {
-    const def = defs.get(tid);
-    if (!def) continue;
-    for (const m of def.matchAll(/\bTTRPG_[A-Z0-9_]+\b/g)) {
+    const row = defs.get(tid);
+    if (!row) continue;
+    for (const m of row.desc.matchAll(/\bTTRPG_[A-Z0-9_]+\b/g)) {
       if (excluded.has(m[0])) continue;
       if (!harnessVars.has(m[0])) {
         issues.push(`Appendix F ${tid} names ${m[0]} but no harness references it`);
@@ -2051,7 +2064,7 @@ const INTENDED_GAP_REQS = new Set([
 function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCites: Set<string>, exercisedIds: Set<string>): CoverageRow[] {
   const appF = parseAppendixFReqTests(text);
   const subMap = parseSubworkflowMap(text);
-  const bodies = extractReqBodies(text);
+  const bodies = getReqBodies(text);
 
   // Collapse the REQ index to base REQs, remembering sub-parts.
   const baseMap = new Map<string, { title: string; subParts: string[] }>();
@@ -2077,7 +2090,7 @@ function checkImplCoverage(text: string, reqIndex: Map<string, string>, sourceCi
 
     const hasCheck = ids.some((id) => {
       const b = bodies.get(id)?.body ?? "";
-      return b.includes("*Check:*") || b.includes("_Check:_");
+      return CHECK_MARKERS.some((m) => b.includes(m));
     });
 
     let bucket: "A" | "B" | "C" | "D" | "E";
@@ -2603,6 +2616,39 @@ function main(): void {
   const sourceCites = gatherSourceCites();
   const exercisedIds = gatherExercisedIds();
   const implRows = checkImplCoverage(text, reqIndex, sourceCites, exercisedIds);
+
+  // ── REQ evidence linkage (REQ-158b family, report-only) ─────────────
+  // A cited T-ID is evidence only if its Appendix F row kind admits it. Every
+  // finding counts into `warnings` while only the first ten print, so the
+  // aggregate proves 122 were found rather than 10 printed.
+  let decisionsText: string | null = null;
+  try {
+    decisionsText = fs.readFileSync(DECISIONS_PATH, "utf-8");
+  } catch {
+    // Absent in a scratch checkout: skip the Manual rule rather than
+    // re-labelling every Manual citation as undocumented.
+    decisionsText = null;
+  }
+  const linkage = checkReqEvidenceLinkage({
+    citations: extractCheckCitations(getReqBodies(text)),
+    rows: parseAppendixFTestText(text),
+    exercised: exercisedIds,
+    decisionsText,
+  });
+  const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+  const linkageSorted = [...linkage].sort((a, b) => cmp(a.reqId, b.reqId) || cmp(a.tid, b.tid));
+  const corpusAt = process.argv.indexOf("--write-linkage-corpus");
+  const corpusPath = corpusAt === -1 ? null : process.argv[corpusAt + 1];
+  if (corpusPath) {
+    const rows = ["| REQ | T-ID | kind | verdict |", "|---|---|---|---|"];
+    for (const f of linkageSorted) rows.push(`| ${f.reqId} | ${f.tid} | ${f.kind} | ${f.verdict} |`);
+    fs.writeFileSync(corpusPath, rows.join("\n") + "\n");
+  }
+  for (const f of linkageSorted.slice(0, 10)) {
+    console.log(`WARNING: REQ-EVIDENCE ${f.reqId} — ${f.tid} — ${f.verdict}`);
+  }
+  console.log(`REQ evidence linkage: ${linkage.length} finding(s)`);
+  warnings += linkage.length;
 
   const bucketCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
   for (const r of implRows) bucketCounts[r.bucket]++;

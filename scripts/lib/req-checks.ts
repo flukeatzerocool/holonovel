@@ -643,3 +643,71 @@ export function checkHarnessTitleIds(
   }
   return issues;
 }
+
+// ─── REQ evidence linkage (REQ-158b family, report-only) ────────────────
+// A REQ's `_Check:_` citation is evidence only if its Appendix F row kind
+// admits it: an Automated row must be named by a harness test, a Manual row by
+// a procedure documented in DECISIONS.md. The marker literals live here so the
+// empty-body pass and validate's `hasCheck` cannot drift from the extractor.
+export const CHECK_MARKERS = ["*Check:*", "_Check:_"] as const;
+
+export interface LinkageFinding {
+  reqId: string;
+  tid: string;
+  kind: string;
+  verdict: "automated-unexercised" | "manual-undocumented" | "no-row" | "unknown-kind";
+}
+
+// Citations are read from the REQ body text, not from Appendix F's REQ column:
+// the coverage audit joins on the latter, so a citation attributed elsewhere is
+// invisible to it. The last marker wins; only T-IDs count (S/I sub-workflow
+// tokens are out of scope); duplicates within one REQ collapse.
+export function extractCheckCitations(
+  bodies: ReadonlyMap<string, { body: string }>,
+): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const [reqId, { body }] of bodies) {
+    let at = -1;
+    for (const marker of CHECK_MARKERS) at = Math.max(at, body.lastIndexOf(marker));
+    if (at === -1) continue;
+    const ids: string[] = [];
+    for (const m of body.slice(at).matchAll(/\bT\d+[a-z0-9]*\b/g)) {
+      if (!ids.includes(m[0])) ids.push(m[0]);
+    }
+    if (ids.length > 0) out.set(reqId, ids);
+  }
+  return out;
+}
+
+export function checkReqEvidenceLinkage(input: {
+  citations: ReadonlyMap<string, string[]>;
+  rows: ReadonlyMap<string, { kind: string }>;
+  exercised: ReadonlySet<string>;
+  decisionsText: string | null;
+}): LinkageFinding[] {
+  const findings: LinkageFinding[] = [];
+  for (const [reqId, tids] of input.citations) {
+    for (const tid of tids) {
+      const row = input.rows.get(tid);
+      if (!row) {
+        findings.push({ reqId, tid, kind: "none", verdict: "no-row" });
+        continue;
+      }
+      if (row.kind === "Automated") {
+        if (!input.exercised.has(tid)) {
+          findings.push({ reqId, tid, kind: row.kind, verdict: "automated-unexercised" });
+        }
+      } else if (row.kind === "Manual") {
+        // A null text means DECISIONS.md is absent: skip, never re-label.
+        if (input.decisionsText === null) continue;
+        // \b-anchored, so T84 is not satisfied by T84e.
+        if (!new RegExp(`\\b${tid}\\b`).test(input.decisionsText)) {
+          findings.push({ reqId, tid, kind: row.kind, verdict: "manual-undocumented" });
+        }
+      } else {
+        findings.push({ reqId, tid, kind: row.kind, verdict: "unknown-kind" });
+      }
+    }
+  }
+  return findings;
+}
