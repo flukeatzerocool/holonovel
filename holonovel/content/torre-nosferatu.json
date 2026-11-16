@@ -417,7 +417,8 @@
         "dread",
         "pages",
         "resources"
-      ]
+      ],
+      "visibility": "shared"
     },
     "sin-envy": {
       "badge_scope": "game_master",
@@ -561,7 +562,8 @@
         "radius",
         "burn",
         "clock"
-      ]
+      ],
+      "visibility": "shared"
     },
     "the-survivors": {
       "badge_scope": "game_master",
@@ -1511,7 +1513,8 @@
               "dread",
               "pages",
               "resources"
-            ]
+            ],
+            "visibility": "shared"
           },
           "sin-envy": {
             "badge_scope": "game_master",
@@ -1655,7 +1658,8 @@
               "radius",
               "burn",
               "clock"
-            ]
+            ],
+            "visibility": "shared"
           },
           "the-survivors": {
             "badge_scope": "game_master",
@@ -2406,7 +2410,9 @@
             "badge_scope": "game_master",
             "content": "Ilona was bitten below the third floor. She is his already; what she sells as \"the way\" is his way. Her candle will never light again.",
             "key": "secret-ilona-bitten",
-            "known_by": [],
+            "known_by": [
+              "faction_mv4q1cba"
+            ],
             "triggers": [
               "unlit candle",
               "bite",
@@ -4977,7 +4983,9 @@
       "badge_scope": "game_master",
       "content": "Ilona was bitten below the third floor. She is his already; what she sells as \"the way\" is his way. Her candle will never light again.",
       "key": "secret-ilona-bitten",
-      "known_by": [],
+      "known_by": [
+        "faction_mv4q1cba"
+      ],
       "triggers": [
         "unlit candle",
         "bite",

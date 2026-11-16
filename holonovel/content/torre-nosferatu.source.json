@@ -453,6 +453,7 @@
         "clock"
       ],
       "badge_scope": "game_master",
+      "visibility": "shared",
       "priority": 10,
       "sticky": 0,
       "sticky_remaining": 0,
@@ -472,6 +473,7 @@
         "resources"
       ],
       "badge_scope": "game_master",
+      "visibility": "shared",
       "priority": 8,
       "sticky": 0,
       "sticky_remaining": 0,
@@ -839,7 +841,7 @@
         "points toward"
       ],
       "badge_scope": "game_master",
-      "known_by": []
+      "known_by": ["faction_mv4q1cba"]
     },
     {
       "key": "secret-borrowed-door",

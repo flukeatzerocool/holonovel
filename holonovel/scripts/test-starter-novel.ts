@@ -255,6 +255,31 @@ async function main(): Promise<void> {
     }
   });
 
+  await test("T658/REQ-565: the starter exposes shared lore and a held secret", () => {
+    const dir = freshDir();
+    const s = new StateManager(dir);
+    s.seedStarterNovel();
+    s.hydrateNovelsFromDisk();
+    const novel = s.novels.get(SLUG);
+    try {
+      assert(novel, "starter hydrated");
+      const shared = [...novel!.lore.values()].filter((e) => e.visibility === "shared");
+      assert(shared.length >= 2, "at least two lore entries are player-readable");
+      assert(shared.some((e) => e.key === "the-candle"), "the-candle is shared");
+      assert(shared.some((e) => e.key === "resources"), "resources is shared");
+      const held = novel!.secrets.filter((secret) => (secret.known_by ?? []).length > 0);
+      assert(held.length >= 1, "at least one secret ships with a holder");
+      const holders = new Set([
+        ...novel!.entities.keys(),
+        ...novel!.npcs.keys(),
+        ...novel!.factions.map((f) => f.id),
+      ]);
+      assert(held.every((secret) => secret.known_by.every((id) => holders.has(id))), "every holder resolves");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   await test("T658/REQ-565: cancelling the opening choice preserves the world", async () => {
     const c = await bootServer({ serverDir: SERVER_DIR, env: { TTRPG_BADGE: "game_master" } });
     try {
