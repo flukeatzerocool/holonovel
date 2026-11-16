@@ -1541,7 +1541,7 @@ async function main() {
       if (JSON.parse(g).active_badge !== "game_master") throw new Error("badge switch not reflected");
     });
 
-    await test("T176/T177/T178: error taxonomy — forbidden + corrective action; missing param surfaces SDK error", async () => {
+    await test("T176/T177/T178: error taxonomy — forbidden + corrective action; missing required param refused with MISSING_PARAM", async () => {
       await call(proc, "set_badge", { badge: "player" });
       const forbidden = await callRaw(proc, "manage_npc", { action: "create",  name: "X", description: "d", disposition: "neutral" });
       const forbText = forbidden.isError
@@ -1560,6 +1560,14 @@ async function main() {
       assert(forbSc?.category === "FORBIDDEN", `T178 structured category missing: ${JSON.stringify(forbSc)}`);
       assert(Boolean(forbSc?.corrective_action), "T178 structured corrective_action missing");
       await call(proc, "set_badge", { badge: "game_master" });
+      // T177 — a required parameter absent is its own category (Appendix O.2),
+      // naming the parameter and its expected format.
+      const missing = await callRaw(proc, "manage_lore", { action: "set" });
+      const missText = (missing.result?.content ?? []).map((c: any) => c?.text ?? "").join("\n");
+      assertContains(missText, "[ERROR] [MISSING_PARAM]");
+      assertContains(missText, "'key'");
+      assert(missing.result?.isError === true, "T177 missing-param result is not isError");
+      assert(missing.result?.structuredContent?.category === "MISSING_PARAM", `T177 structured category: ${JSON.stringify(missing.result?.structuredContent)}`);
     });
 
     await test("T133/T137/T331: scene-state ledger — set_scene_state stores location/time/atmosphere", async () => {
