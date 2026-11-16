@@ -3091,10 +3091,19 @@ Appendix F row kind does not admit them: 99 `Automated` IDs that no harness test
 names, and 23 `Manual` IDs that `DECISIONS.md` does not name. 99 of the 122
 belong to REQs already whitelisted in `INTENDED_GAP_REQS`; that list is a
 source-citation disposition, not an evidence one, so nothing is suppressed here
-and triage splits them. The pass also surfaced a duplicated identifier: `T553`
-is defined twice — `spec/appendices-reference.md:1822` (REQ-284f) and `:1984`
-(REQ-463) — both Automated, both exercised by different harness tests; which one
-is renumbered is scheduled separately.
+and triage splits them. The duplicated `T553` identifier this pass also surfaced
+is resolved below (2026-11-16).
+
+## Resolved — 2026-11-16 T553 duplicate identifier
+
+`T553` was defined twice — `spec/appendices-reference.md:1824` (REQ-284f) and
+`:1986` (REQ-463) — both `Automated`, both exercised by different harness tests
+(`test-output-contracts.ts`, `test-belief.ts`), so the Appendix F reader's `Map`
+silently kept the last row. Resolved 2026-11-16: REQ-463's row is renumbered to
+`T793` (the next free identifier; Appendix F never reuses one), its `_Check:_`
+citation and the belief harness title follow, and REQ-284f keeps `T553` because
+its row describes the bound-key assertion the unlock tests perform. Recorded in
+the 2026-11-16 CHANGELOG entry; the ROADMAP section that scheduled it is retired.
 
 ### 2026-11-09 full-review sweep — chunk P7b (extraction and synthesis)
 

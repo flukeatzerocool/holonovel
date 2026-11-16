@@ -81,7 +81,7 @@
       }
     }
   },
-  "data_format": "72233e5edfb7c07fb9a1c4858c26bd5873fd63be085c26532e519a5a59696102",
+  "data_format": "b37d1d22e962db37cbc005e4eda05eea679eb3c20b453ee93c9b1c48331276a9",
   "description": "Torre Nosferatu — a gothic-horror descent. You wake at the top of a seven-floor tower with one candle and no memory of climbing. Every floor hides a key to the stair down. The wax burns with every step. Five strangers are hunting the same exit, each on their own light. Count Orlok rides the edge of your candle and does not cross it. You name yourself at the opening; the rest you earn on your own light.",
   "entities": {
     "character_01": {
@@ -5009,7 +5009,7 @@
   ],
   "session_zero_completed": false,
   "slug": "torre-nosferatu",
-  "spec_version": "2026.11.15",
+  "spec_version": "2026.11.16",
   "story_beats": [
     {
       "beat": "setup",

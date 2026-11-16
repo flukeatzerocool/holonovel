@@ -21,6 +21,8 @@ import { hashFile } from "./lib/hash.js";
 import { classifyDelta, hasEditorialDisposition, reqFamily } from "./lib/spec-delta-classify.js";
 import { sameRemote } from "./lib/remote-url.js";
 import { parseAppendices } from "./lib/appendices.js";
+import { specCopyFindings } from "./lib/spec-copy.js";
+import { SERVERS } from "./lib/servers.js";
 
 const root = join(import.meta.dirname, "..");
 let passed = 0;
@@ -325,6 +327,26 @@ function main(): void {
   check(specHash === hashFile(join(root, "holonovel.md")), "spec-hash matches the shared hashFile implementation");
   const embeddedHash = run(["scripts/spec-hash.ts", "--file", "holonovel/holonovel.md"]).trim();
   check(embeddedHash === hashFile(join(root, "holonovel", "holonovel.md")), "spec-hash --file hashes the embedded copy");
+
+  // The embedded copy is generated, not tracked; `spec-copy.ts` is what keeps it
+  // honest. Exercise all three states on a throwaway tree.
+  const copyDir = mkdtempSync(join(tmpdir(), "spec-copy-"));
+  try {
+    writeFileSync(join(copyDir, "holonovel.md"), "merged spec\n");
+    mkdirSync(join(copyDir, "holonovel"), { recursive: true });
+    writeFileSync(join(copyDir, "holonovel", "holonovel.md"), "merged spec\n");
+    check(specCopyFindings(copyDir, SERVERS).length === 0, "spec-copy: identical copy has no finding");
+    writeFileSync(join(copyDir, "holonovel", "holonovel.md"), "merged spec\nstale\n");
+    const diverged = specCopyFindings(copyDir, SERVERS);
+    check(diverged.length === 1 && diverged[0].reason === "diverged", "spec-copy: a one-byte divergence is reported");
+    rmSync(join(copyDir, "holonovel", "holonovel.md"));
+    const missing = specCopyFindings(copyDir, SERVERS);
+    check(missing.length === 1 && missing[0].reason === "missing", "spec-copy: an absent copy is reported");
+    rmSync(join(copyDir, "holonovel.md"));
+    check(specCopyFindings(copyDir, SERVERS).length === 0, "spec-copy: no assembled spec is the caller's precondition, not a finding");
+  } finally {
+    rmSync(copyDir, { recursive: true, force: true });
+  }
 
   // CR-1 — staging covers root-level tracked files and leaves the separately
   // owned wiki mirror pages unstaged.

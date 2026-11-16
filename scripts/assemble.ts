@@ -150,7 +150,10 @@ function main(): void {
   console.log(`\nWrote ${OUT_FILE}`);
 
   // Mirror the assembled spec into the reference implementation package, which
-  // loads holonovel.md at runtime to compute its spec-hash fingerprint.
+  // loads holonovel.md at runtime to compute its spec-hash fingerprint. The copy
+  // is generated, not tracked: this, `spec-propagate`, the package's `prepare`
+  // hook, and the publish deploy step all write it, and `prepare-package`
+  // verifies it at pack time.
   if (fs.existsSync(path.dirname(REF_IMPL_OUT))) {
     fs.writeFileSync(REF_IMPL_OUT, content, "utf-8");
     console.log(`Wrote ${REF_IMPL_OUT}`);

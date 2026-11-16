@@ -3,13 +3,14 @@
  * update-rulesets.ts — Ruleset update entry point (REQ-422). [entry point]
  *
  * Lists installed packages whose package-format fingerprint (REQ-420) differs
- * from the host's current value or is absent, and prints the Build workflow
- * invocation for each affected slug, reading slug→source mappings from the
- * source registry (REQ-421). Invoked with no arguments it prints usage, the
- * install directory, and a per-package compatibility summary.
+ * from the host's current value or is absent, and reports each stale slug with
+ * its recorded source so the Build workflow (Appendix V.7) can be run, reading
+ * slug→source mappings from the source registry (REQ-421). Invoked with no
+ * arguments it prints usage, the install directory, and a per-package
+ * compatibility summary.
  *
- * LIMITATION: This script prints `opencode run` commands but does NOT invoke
- * them — opencode cannot recursively invoke itself.
+ * No agent subprocess is part of this contract: the report is evidence, and the
+ * operator runs the rebuild. This script prints no command string.
  */
 
 import { join } from "node:path";
@@ -50,7 +51,7 @@ if (stale.length === 0) {
     const source = registry[pkg.slug]?.source;
     console.log("");
     console.log(`  ${pkg.slug}${source ? ` — source: ${source}` : " — no registry entry; supply an explicit path"}`);
-    console.log(`  Invoking: opencode run --agent build "Perform Build workflow on ${pkg.slug}. B1 intake: ${pkg.slug}=${source ?? "<path>"}. Follow Appendix V.1 happy path."`);
+    console.log(`  Build workflow: pending for ${pkg.slug}=${source ?? "<path>"} — run it from Appendix V.7, then re-run this reporter.`);
   }
 }
 

@@ -4228,7 +4228,7 @@ Appendix S.
 
 **REQ-462 — Evidence provenance.** Every evidence record SHALL cite the event-log ordinal that produced it, and the server SHALL return those ordinals for any evidence record or belief. *Acceptance criterion:* evidence admitted after a recorded observation lists that observation's ordinal. _Check:_ T552.
 
-**REQ-463 — Polarity-independent question identity.** A positive and a negative proposition SHALL contest one belief question when they share subject, predicate, and object, distinguished only by polarity; propositions differing in any of the three SHALL remain separate questions. *Acceptance criterion:* opposite statements about the same subject, predicate, and object produce one question carrying both supports. _Check:_ T553.
+**REQ-463 — Polarity-independent question identity.** A positive and a negative proposition SHALL contest one belief question when they share subject, predicate, and object, distinguished only by polarity; propositions differing in any of the three SHALL remain separate questions. *Acceptance criterion:* opposite statements about the same subject, predicate, and object produce one question carrying both supports. _Check:_ T793.
 
 **REQ-464 — Evidence admission states.** Each acquisition SHALL carry an admission status of usable, unresolved, or suppressed. Unresolved and suppressed evidence SHALL be preserved and retrievable and SHALL NOT contribute to a belief stance while in that status. *Acceptance criterion:* suppressed evidence creates no stance yet remains listable. _Check:_ T554.
 

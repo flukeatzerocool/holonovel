@@ -1524,6 +1524,29 @@ that carries it.
   state that REQ-092c forbids discarding; a missing sidecar records
   `reason: "no_audit_sidecar"`.
 
+## Single assembled spec copy, 2026-11-16
+
+- **One tracked copy.** The repository's `holonovel.md` is the only tracked
+  assembled spec; `holonovel/holonovel.md` (what the runtime reads for
+  `spec://build` and the spec hash, REQ-105) is generated and ignored. This
+  removes ~1.79 MB from every spec diff. Writers: `npm run assemble`,
+  `spec-propagate`, the package's `prepare` hook
+  (`holonovel/scripts/embed-spec.mjs`), and the publish deploy step. Guards:
+  `prepare-package` compares at pack time and fails on divergence, and
+  `check-spec-copy` (`spec-propagate --check`, full gate) compares in the tree.
+- **Trade: a git-URL install has no embedded spec.** The `prepare` hook exits 0
+  with a notice when no repository root exists, so installing this package
+  directly from git serves "Specification not embedded in this build." The
+  supported distribution is the packed artifact, where `prepare-package` verifies
+  the copy and `package.json`'s `files` list ships it over the `.gitignore`
+  entry. Accepted because a failing hook would break every install, and reading
+  a repo-root spec at runtime would violate REQ-052's containment.
+- **Deploy restores it.** A spec-only pull changes no lockfile and no source, so
+  neither `npm ci` (whose `prepare` hook emits the copy) nor the build runs; the
+  deploy step asserts the postcondition and emits it, failing the deploy rather
+  than serving a build with no embedded specification (REQ-418 keeps the HEAD
+  assertion).
+
 ## Distribution and state location standing facts, 2026-11-10
 
 - **Registry schema.** `holonovel/schemas/mcp-server.schema.json` is a

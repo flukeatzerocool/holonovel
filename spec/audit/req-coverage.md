@@ -429,7 +429,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-460 | Event provenance lookup | 5.24 Temporal Event Log and Branching | C | T550 | — |
 | REQ-461 | Evidence acquisition record | 5.25 Belief and Evidence | C | T551 | — |
 | REQ-462 | Evidence provenance | 5.25 Belief and Evidence | C | T552 | — |
-| REQ-463 | Polarity-independent question identity | 5.25 Belief and Evidence | C | T553 | — |
+| REQ-463 | Polarity-independent question identity | 5.25 Belief and Evidence | C | T793 | — |
 | REQ-464 | Evidence admission states | 5.25 Belief and Evidence | C | T554 | — |
 | REQ-465 | Belief stance materialization | 5.25 Belief and Evidence | C | T555, T629 | — |
 | REQ-466 | Independent corroboration | 5.25 Belief and Evidence | C | T556 | — |

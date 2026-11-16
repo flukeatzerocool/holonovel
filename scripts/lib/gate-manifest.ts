@@ -311,8 +311,14 @@ const RAW_GATES: Gate[] = [
   {
     name: "check-loop-artifacts",
     description: "Increment plan/tasks/AAR contract under docs/plans",
-    fast: npm("check-loop-artifacts"),
+    fast: npm("check-loop-artifacts", "--lenient"),
     full: npm("check-loop-artifacts"),
+  },
+  {
+    name: "check-spec-copy",
+    description: "The untracked package spec copy matches the assembled spec",
+    fast: null,
+    full: npm("check-spec-copy"),
   },
   // Full-tier only: builds scratch repositories, too slow for check:fast.
   {

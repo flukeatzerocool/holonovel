@@ -6,9 +6,16 @@
  * aar.md ending in a LOOP PAUSED / LOOP OPEN token. Without this the plan and
  * AAR are voluntary, and the loop cannot tell whether it completed. A missing
  * Done bar is a warning, not an error: the bar is a planning quality signal,
- * not a completion gate.
+ * not a completion gate. `--lenient` downgrades a missing tasks.md/aar.md to a
+ * warning so an in-flight increment does not redden the fast baseline; the full
+ * gate and session:close stay strict.
  *
- * Usage: npx tsx scripts/check-loop-artifacts.ts [--json]
+ * Usage: npx tsx scripts/check-loop-artifacts.ts [--json] [--lenient]
+ *
+ *   --lenient  Warn on a missing tasks.md/aar.md (in-flight increment); the fast
+ *              gate passes this, the full gate does not, and session:close is
+ *              always strict.
+ *
  * Exit codes: 0 = contract satisfied (warnings allowed), 1 = errors found,
  * 2 = fatal error.
  */
@@ -18,19 +25,21 @@ import { INCREMENTS_DIR, nameProblem, validateIncrements } from "./lib/loop-arti
 
 const ROOT = join(import.meta.dirname, "..");
 
-const USAGE = `Usage: npx tsx scripts/check-loop-artifacts.ts [--json]
+const USAGE = `Usage: npx tsx scripts/check-loop-artifacts.ts [--json] [--lenient]
 
-  --json  Emit findings as JSON.
-  --help  Show this message.
+  --json     Emit findings as JSON.
+  --lenient  Warn (not error) on a missing tasks.md or aar.md.
+  --help     Show this message.
 `;
 
 function main(): void {
   const argv = process.argv.slice(2);
   handleHelp(argv, USAGE);
-  rejectUnknown(argv, new Set(["--json", "--help", "-h"]), USAGE);
+  rejectUnknown(argv, new Set(["--json", "--lenient", "--help", "-h"]), USAGE);
   const json = parseFlag(argv, "--json");
+  const lenient = parseFlag(argv, "--lenient");
 
-  const findings = validateIncrements(ROOT);
+  const findings = validateIncrements(ROOT, { lenient });
   const errors = findings.filter((finding) => finding.level === "error");
   const warnings = findings.filter((finding) => finding.level === "warning");
 

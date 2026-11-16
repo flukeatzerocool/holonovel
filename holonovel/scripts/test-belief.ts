@@ -112,8 +112,8 @@ async function main() {
     await kill(p);
   });
 
-  // ── T553: polarity-independent question identity (REQ-463) ───────────
-  await test("T553/REQ-463: opposite polarities contest one question", async () => {
+  // ── T793: polarity-independent question identity (REQ-463) ───────────
+  await test("T793/REQ-463: opposite polarities contest one question", async () => {
     const p = await boot(); await newNovel(p, "bel3");
     await admit(p, { entity_id: "hero", subject: "the door", predicate: "is", object: "locked", polarity: "positive", weight: 0.7, source: "a" });
     await admit(p, { entity_id: "hero", subject: "the door", predicate: "is", object: "locked", polarity: "negative", weight: 0.7, source: "b" });

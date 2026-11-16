@@ -3,14 +3,14 @@
  * build-ruleset.ts — Ruleset-build entry point (REQ-395a). [entry point]
  *
  * Accepts one or more `slug=path` pairs (the B1 intake form), validates each
- * slug (§7.1a) and its source path, and prints the Build workflow invocation
- * (§6.1, §6.2) that a human or CI must run. Invoked with no arguments, it
+ * slug (§7.1a) and its source path, records the intake, and reports every intake
+ * whose package still needs the Build workflow (§6.1, §6.2) as evidence — with
+ * the source path and the runbook to follow. Invoked with no arguments, it
  * prints its usage and the install directory (REQ-395a).
  *
- * LIMITATION: This script prints an `opencode run` command but does NOT
- * invoke it. Opencode cannot recursively invoke itself — `opencode run`
- * from within an opencode session would deadlock. A human or CI with
- * opencode access must run the printed command manually.
+ * No agent subprocess is part of this contract: the report names what is pending
+ * and the operator (or CI) runs the workflow. A printed command string would be
+ * guidance the script cannot honour, so the script does not print one.
  */
 
 import { readdirSync, existsSync, statSync, writeFileSync, mkdirSync, appendFileSync, rmSync, readFileSync } from "node:fs";
@@ -280,14 +280,18 @@ if (emitterFailures > 0) {
 
 console.log("");
 if (pendingBuild.length > 0) {
-  console.log("Build workflow (§6.1, §6.2) must now be run by an opencode agent for: " + pendingBuild.join(", "));
-  console.log(`Invoking: opencode run --agent build "Perform Build workflow on ${pendingBuild.join(", ")}. B1 intake: ${pendingBuild.map((s) => { const i = intakes.find((x) => x.slug === s)!; return `${s}=${i.path}`; }).join(" ")}. Follow Appendix V (Workflow Runbooks) V.1 happy path."`);
+  console.log(`Pending Build workflow (§6.1, §6.2) for ${pendingBuild.length} intake(s):`);
+  for (const slug of pendingBuild) {
+    const intake = intakes.find((entry) => entry.slug === slug);
+    console.log(`  ${slug}=${intake?.path ?? "<path>"}`);
+  }
+  console.log(`  install directory: ${installDir}`);
+  console.log("Pending intakes are recorded; the operator runs the Build workflow for each (Appendix V.1 happy path).");
 } else {
   console.log("All intakes emitted through their committed emitter; no Build workflow step is pending.");
 }
 
-// The AI maintainer (opencode run) cannot be invoked from within opencode
-// (recursive invocation would deadlock). Intake is recorded in
-// .holonovel-state/build-intake.md (server-side decision log, not the repo);
-// a human or CI with opencode access must run the printed command.
+// The intake is recorded in .holonovel-state/build-intake.md (server-side
+// decision log, not the repo). The report above is the whole contract: this
+// script reports evidence and never invokes an agent.
 process.exit(0);

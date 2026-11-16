@@ -101,7 +101,16 @@ function buildFixture(base: string): { remote: string; work: string; deploy: str
     readFileSync(join(ROOT, "holonovel", "schemas", "mcp-server.schema.json")),
   );
   writeFileSync(join(work, "README.md"), "# fixture\n");
-  writeFileSync(join(work, ".gitignore"), ".holonovel-state/\n");
+  writeFileSync(join(work, ".gitignore"), ".holonovel-state/\nholonovel/holonovel.md\n");
+  // The embedded spec copy is generated, not tracked: the deploy step restores
+  // it after a spec-only pull, so the fixture carries the source spec and the
+  // emitter the step invokes.
+  writeFileSync(join(work, "holonovel.md"), "# fixture spec\n");
+  mkdirSync(join(work, "holonovel", "scripts"), { recursive: true });
+  writeFileSync(
+    join(work, "holonovel", "scripts", "embed-spec.mjs"),
+    readFileSync(join(ROOT, "holonovel", "scripts", "embed-spec.mjs")),
+  );
   git(work, ["config", "user.name", "Harness"]);
   git(work, ["config", "user.email", "harness@example.invalid"]);
   git(work, ["add", "-A"]);
@@ -294,6 +303,20 @@ function main(): void {
       "T491/REQ-418: a stub verification reports deploy=false",
       stubVerify.status === 0 && stubVerify.output.includes("deploy=false"),
       stubVerify.output.split("\n").slice(-3).join(" | "),
+    );
+
+    // A spec-only pull changes neither the lockfile nor the source, so neither
+    // `npm ci` (whose `prepare` hook emits the copy) nor the build runs. The
+    // deploy step must still restore the generated embedded spec (REQ-105).
+    writeFileSync(join(work, "holonovel.md"), "# fixture spec v2\n");
+    const specDeploy = runPipeline(work, ["--yes"], deploy);
+    const deployedCopy = join(deploy, "holonovel", "holonovel.md");
+    check(
+      "a spec-only deploy restores the embedded spec copy byte-identically",
+      specDeploy.status === 0 &&
+        existsSync(deployedCopy) &&
+        readFileSync(deployedCopy, "utf-8") === "# fixture spec v2\n",
+      specDeploy.output.split("\n").slice(-3).join(" | "),
     );
 
     const cleanCommit = runPipeline(work, ["--only", "commit"], deploy);

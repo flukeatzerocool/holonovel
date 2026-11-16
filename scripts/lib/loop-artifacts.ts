@@ -58,18 +58,22 @@ export function listIncrements(root: string): Increment[] {
 
 export function validateIncrements(
   root: string,
-  options: { requirePausedFor?: string } = {},
+  options: { requirePausedFor?: string; lenient?: boolean } = {},
 ): Finding[] {
   const findings: Finding[] = [];
+  // In-flight increments may legitimately lack tasks.md or aar.md; the fast gate
+  // warns so a freshly created directory never reddens the baseline, while the
+  // full gate and session:close (both strict) keep them as errors.
+  const inFlight = options.lenient ? "warning" : "error";
   for (const increment of listIncrements(root)) {
     if (!increment.hasPlan) {
       findings.push({ increment: increment.name, level: "error", message: "missing plan.md" });
     }
     if (!increment.hasTasks) {
-      findings.push({ increment: increment.name, level: "error", message: "missing tasks.md" });
+      findings.push({ increment: increment.name, level: inFlight, message: "missing tasks.md" });
     }
     if (!increment.hasAar) {
-      findings.push({ increment: increment.name, level: "error", message: "missing aar.md" });
+      findings.push({ increment: increment.name, level: inFlight, message: "missing aar.md" });
       continue;
     }
     if (!increment.loopToken) {

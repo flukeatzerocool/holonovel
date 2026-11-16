@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-11-16 — Roadmap drain: in-flight increments no longer redden the gate, one tracked spec copy
+
+Four open ROADMAP sections closed in one increment. Two had fired their trigger
+(a `spec/` edit and a `scripts/` edit); item 5 was closed early because its
+trigger was this increment's own directory.
+
+- `check-loop-artifacts --lenient` (fast mode only) warns on a missing
+  `tasks.md`/`aar.md`, so creating an increment directory no longer fails the
+  baseline. The full gate and `session:close` stay strict; `validateIncrements`
+  carries the flag. Eight self-tests cover both modes (ROADMAP item 5).
+- `build-ruleset` and `update-rulesets` report pending intakes and stale
+  packages as evidence with a runbook pointer; neither prints an
+  `opencode run` command any more. T500 also asserts the absence
+  (ROADMAP item 11).
+- REQ-463's duplicated `T553` row is renumbered to `T793` (the next free
+  identifier; Appendix F never reuses one), its `_Check:_` citation and the
+  belief harness title follow, and the review-register finding moved to
+  `Resolved` (ROADMAP item 8).
+- `holonovel/holonovel.md` is untracked and ignored: one tracked assembled spec,
+  1.79 MB less per spec diff. The copy is generated — by `npm run assemble`,
+  `spec-propagate`, the package's new `prepare` hook
+  (`holonovel/scripts/embed-spec.mjs`), and the publish deploy step, which now
+  restores it after a spec-only pull instead of serving a build with no embedded
+  specification. `prepare-package` compares instead of overwriting, and the new
+  full-only `check-spec-copy` gate (`spec-propagate --check`, pure helper in
+  `scripts/lib/spec-copy.ts`) catches drift in the tree. The pipeline harness
+  gained a spec-only deploy case (ROADMAP item 6).
+
 ## 2026-11-16 — Input contract: an absent parameter is a refusal, not a record named `undefined`
 
 An independent sweep of every tool action called with only `{action}` found 22

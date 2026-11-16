@@ -59,6 +59,7 @@
     "build": "tsc -p tsconfig.build.json",
     "clean": "node scripts/clean-dist.mjs",
     "prepare-package": "node scripts/prepare-package.mjs",
+    "prepare": "node scripts/embed-spec.mjs --quiet",
     "prepack": "npm run clean && npm run build && npm run prepare-package",
     "test:data-dir": "tsx scripts/test-data-dir.ts",
     "test:package-smoke": "tsx scripts/smoke-package.ts",

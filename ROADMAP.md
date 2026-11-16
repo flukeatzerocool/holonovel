@@ -62,24 +62,6 @@ closes when the re-measurement is recorded in the AAR of that session.
 **Trigger:** the corpus dry-run list is triaged to zero; closes when the check is
 error-mode in `validate`.
 
-## Loop artifact gate ordering (P2)
-
-- Make `validateIncrements` mode-aware: the fast gate warns on a missing `aar.md`
-  or `tasks.md` while an increment is in flight, and `session:close` keeps it an
-  error. Seventeen of the week's gate failures were this one self-inflicted red.
-
-**Trigger:** 2026-11-22 or the next missing-`aar.md` warning in `check:fast`;
-closes when creating an increment directory no longer reddens the baseline.
-
-## Single assembled spec copy (P2)
-
-- Untrack `holonovel/holonovel.md` (written by `assemble`), ignore it, and make
-  `prepare-package` fail on divergence instead of overwriting. One tracked copy
-  removes 1.79 MB from every spec diff.
-
-**Trigger:** the next `spec/` edit that regenerates the assembled spec; closes
-when `git ls-files holonovel/holonovel.md` is empty.
-
 ## Split `index.ts` (P2)
 
 - Add `--repath` to `refresh-predicates`, then extract leaf-first: tool registry,
@@ -88,17 +70,6 @@ when `git ls-files holonovel/holonovel.md` is empty.
 
 **Trigger:** the next increment that moves more than 50 anchors, or a week with
 more than 100 reads of one file.
-
-## Duplicate Appendix F test ID (T553) (P3)
-
-- `T553` is defined twice — `spec/appendices-reference.md:1822` (REQ-284f) and
-  `:1984` (REQ-463) — and both rows are exercised by different harness tests
-  (`holonovel/scripts/test-output-contracts.ts:2554`, `test-belief.ts:116`), so
-  the reader's `Map` silently keeps the last one.
-- Renumber one row, update its citation, and rename the matching harness test.
-
-**Trigger:** the next Appendix F edit that adds or renumbers a test ID; closes
-when `grep -c '^| T553 ' spec/appendices-reference.md` is 1.
 
 ## Bookkeeping derivation (P3)
 
@@ -120,19 +91,6 @@ when `grep -c '^| T553 ' spec/appendices-reference.md` is 1.
 **Trigger:** the next artifact-registry change (REQ-620/REQ-621), or a request to
 move a codex library between hosts; closes when `manage_artifact (action:
 install)` admits a `codex pack` and `spec_health` reports its count.
-
-## Ruleset-side `opencode run` printers (P2)
-
-- `scripts/build-ruleset.ts:284` and `scripts/update-rulesets.ts:53` still print
-  `opencode run --agent build` commands for the ruleset side, the same channel
-  the publication update retired (REQ-394a). Replace them with the
-  reconciliation-style remedy the spec update uses: report the pending intakes
-  as evidence and let the operator act, with no agent subprocess in the contract.
-- The printers sit behind no gate, so a publish never blocks on them; they are
-  wrong guidance, not a deadlock. Fix both sites in one increment.
-
-**Trigger:** the next edit to either script, or the next ruleset build that
-prints an invocation; closes when `grep -rn "opencode run" scripts/` is empty.
 
 ## Non-goals
 

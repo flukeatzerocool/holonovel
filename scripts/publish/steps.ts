@@ -697,6 +697,27 @@ export const STEPS: Step[] = [
           if (previous === "" || changed.includes(`${server}/src/`) || changed.includes(`${server}/tsconfig`)) {
             must(sh(ctx, "npm", ["run", "build", "--if-present"], serverDir) === 0, `${server}: build failed`);
           }
+          // The embedded spec copy is generated, not tracked (REQ-105): a
+          // spec-only pull changes no lockfile and no source, so neither `npm ci`
+          // (whose `prepare` hook would emit it) nor the build runs. Assert the
+          // postcondition and emit it when it is missing or stale.
+          const deployCopy = join(ctx.deployDir, server, "holonovel.md");
+          const deploySource = join(ctx.deployDir, "holonovel.md");
+          const copyCurrent = () => {
+            if (!existsSync(deployCopy) || !existsSync(deploySource)) return false;
+            try {
+              return readFileSync(deployCopy).equals(readFileSync(deploySource));
+            } catch {
+              return false; // an unreadable copy is repaired by the emitter below
+            }
+          };
+          if (!copyCurrent()) {
+            const emitted = sh(ctx, "node", ["scripts/embed-spec.mjs", "--quiet"], serverDir) === 0;
+            must(
+              emitted && copyCurrent(),
+              `deploy-failed: ${server}: embedded spec could not be restored from holonovel.md`,
+            );
+          }
         }
       }
       return "pass";

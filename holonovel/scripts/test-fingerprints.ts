@@ -397,13 +397,16 @@ async function main() {
   {
     const registry = { stale: { source: join(DATA_DIR, "src"), package_format: PACKAGE_FORMAT, built_at: "2026-08-30T00:00:00Z" } };
     writeFileSync(join(DATA_DIR, "ruleset-registry.json"), JSON.stringify(registry, null, 2) + "\n");
-    await test("T500/REQ-422: update-rulesets reports stale slug with source + Build invocation, omits current", async () => {
+    await test("T500/REQ-422: update-rulesets reports stale slug with source and Build workflow pointer, omits current", async () => {
       const r = runRootScript("update-rulesets.ts");
       if (r.status !== 0) throw new Error(`update-rulesets failed: ${r.stdout} ${r.stderr}`);
       assertContains(r.stdout, "stale");
       assertContains(r.stdout, "source:");
       assertContains(r.stdout, "Build workflow");
       assertContains(r.stdout, "Install directory");
+      // REQ-394a — the reporter names the pending rebuild; it prints no agent
+      // invocation for the operator to copy.
+      assertNotContains(r.stdout, "opencode run");
       // The current package must not appear in the stale rebuild list
       // (which prints "<slug> — source: ..."), even though it appears in the
       // per-package summary as "current: current".

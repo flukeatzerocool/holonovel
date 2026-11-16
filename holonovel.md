@@ -4797,7 +4797,7 @@ Appendix S.
 
 **REQ-462 — Evidence provenance.** Every evidence record SHALL cite the event-log ordinal that produced it, and the server SHALL return those ordinals for any evidence record or belief. *Acceptance criterion:* evidence admitted after a recorded observation lists that observation's ordinal. _Check:_ T552.
 
-**REQ-463 — Polarity-independent question identity.** A positive and a negative proposition SHALL contest one belief question when they share subject, predicate, and object, distinguished only by polarity; propositions differing in any of the three SHALL remain separate questions. *Acceptance criterion:* opposite statements about the same subject, predicate, and object produce one question carrying both supports. _Check:_ T553.
+**REQ-463 — Polarity-independent question identity.** A positive and a negative proposition SHALL contest one belief question when they share subject, predicate, and object, distinguished only by polarity; propositions differing in any of the three SHALL remain separate questions. *Acceptance criterion:* opposite statements about the same subject, predicate, and object produce one question carrying both supports. _Check:_ T793.
 
 **REQ-464 — Evidence admission states.** Each acquisition SHALL carry an admission status of usable, unresolved, or suppressed. Unresolved and suppressed evidence SHALL be preserved and retrievable and SHALL NOT contribute to a belief stance while in that status. *Acceptance criterion:* suppressed evidence creates no stance yet remains listable. _Check:_ T554.
 
@@ -11487,7 +11487,7 @@ diet.
 | T550 | Automated | Event provenance lookup: a request for entries through ordinal N returns the contributing entries and no later entry, and a record admitted with an explicit contributing ordinal cites that ordinal rather than the newest entry. | REQ-460 |
 | T551 | Automated | Evidence acquisition record: admitting evidence appends a record naming its subject, predicate, object, polarity, weight, and source. | REQ-461 |
 | T552 | Automated | Evidence provenance: evidence admitted after a recorded observation lists that observation's event-log ordinal. | REQ-462 |
-| T553 | Automated | Question identity: opposite polarities about the same subject, predicate, and object contest one question carrying both supports; a differing field yields a separate question. | REQ-463 |
+| T793 | Automated | Question identity: opposite polarities about the same subject, predicate, and object contest one question carrying both supports; a differing field yields a separate question. | REQ-463 |
 | T554 | Automated | Admission states: suppressed evidence creates no stance and remains listable; unresolved evidence is excluded from the stance. | REQ-464 |
 | T555 | Automated | Stance materialization: support at the acceptance threshold with the required margin is accepted; strong opposition yields an unresolved stance. | REQ-465 |
 | T556 | Automated | Independent corroboration: correlated evidence from one source does not compound while independent sources accumulate; a repeated reconciliation returns identical stances. | REQ-466 |

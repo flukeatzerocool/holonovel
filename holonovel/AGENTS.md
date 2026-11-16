@@ -180,17 +180,23 @@ npm install
 npm run start
 ```
 
+`npm install` runs the package's `prepare` hook (`scripts/embed-spec.mjs`), which
+emits the generated `holonovel/holonovel.md` from the repository's assembled
+`holonovel.md`. That copy is not tracked; `npm run assemble` writes it in the
+workspace and the deploy step restores it after a pull.
+
 ## Packaging
 
-`npm pack` / `npm publish` run `prepack` → `clean` → `build` → `prepare-package`,
-which stages the assembled `holonovel.md` (REQ-105) and verifies runtime
-artifacts before packing; `postpack` removes the staged copy. The tarball ships
-`dist/`, `src/`, `bin/`, the starter Novel, the spec copy,
-`tool-surface-registry.json`, and `tool-disambiguation.json`, and excludes
-build-only inputs (REQ-614). `test:package-smoke` packs the artifact, installs
-it in isolation, and drives an MCP handshake; it runs in CI and the publish
-`verify` job, not in `test:all` (it needs a registry install). Node 22+ is
-required.
+`npm pack` / `npm publish` run `prepack` (`clean` → `build` → `prepare-package`),
+then `prepare`, so the assembled `holonovel.md` (REQ-105) is compared by
+`prepare-package` and re-emitted byte-identically by `scripts/embed-spec.mjs`.
+There is no `postpack`. The tarball ships `dist/`, `src/`, `bin/`, the starter
+Novel, the spec copy, `tool-surface-registry.json`, and
+`tool-disambiguation.json`, and excludes build-only inputs (REQ-614); the spec
+copy ships because `package.json` lists it in `files`, which takes precedence
+over the `.gitignore` entry. `test:package-smoke` packs the artifact, installs it
+in isolation, and drives an MCP handshake; it runs in CI and the publish `verify`
+job, not in `test:all` (it needs a registry install). Node 22+ is required.
 
 ## State Model
 
@@ -219,7 +225,10 @@ This server ships in one repo but runs in two locations:
   `git pull --ff-only origin main`, which **discards any uncommitted working
   tree edits** and resets the tree to `origin/main`. Runtime data
   (`.holonovel-state/`, novels, rulesets, roster) is preserved by REQ-396,
-  but source edits are not.
+  but source edits are not. Because the generated `holonovel/holonovel.md` is
+  untracked, the deploy step restores it from the pulled repository root after a
+  spec-only pull; a deploy that cannot restore it fails instead of serving a
+  build with no embedded specification.
 
 **Standing rules:**
 
