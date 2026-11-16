@@ -57,6 +57,9 @@ the fallback once, not merely believed it would work. Status as of 2026-11-09:
   waiter have no recorded execution. The 2026-11-09 run recorded no failure and
   no recovery step, so it does not evidence either fallback. The next run that
   exercises one records the command and the outcome here.
+- **Container image (REQ-428):** build and start are exercised in CI only. The
+  maintainer's local environment has no reachable Docker daemon, so the local
+  rehearsal is recorded as an accepted risk, not as a verified step (2026-11-16).
 
 ## Engine history
 

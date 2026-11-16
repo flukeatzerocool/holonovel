@@ -62,6 +62,18 @@ input are rejected (REQ-052).
 - **No server-side LLM.** Holonovel never invokes an external model API; the
   user's MCP client supplies the model.
 
+## Dependencies and audit
+
+The server's runtime dependencies are `@modelcontextprotocol/sdk` and `zod`. CI
+audits them at `--audit-level=high`; two moderate advisories remain, both in
+`hono@4.13.14`, which arrives transitively through the SDK's HTTP server
+adapter. Holonovel instantiates no HTTP server — the transport is stdio only
+(REQ-030, REQ-051) — and the advisories concern `validator('form')` on
+multipart requests, a path this server never constructs. The disposition is
+recorded rather than upgraded in place because bumping `hono` directly would
+desynchronise the SDK's own pin; the next `@modelcontextprotocol/sdk` bump is
+the place to clear them.
+
 ## Reporting
 
 Security concerns are reported through the project's issue tracker. Because
