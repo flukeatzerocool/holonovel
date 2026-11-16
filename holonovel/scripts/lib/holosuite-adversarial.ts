@@ -13,12 +13,13 @@
 // REQ citations: none — informational evaluation-harness support (exercises the
 // REQ-001/REQ-002 response and error contracts).
 
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { bootServer } from "./mcp-client.js";
 import { classifyResult, fingerprintOf } from "./eval-oracle.js";
 import { persistedNovels } from "./eval-state.js";
+import { REQUIRED_PARAMS } from "../../src/core/param-contract.js";
 import { assertionRecorder, type AssertionContext } from "./eval-assertion.js";
 import { anchor } from "./eval-predicate.js";
 import type { TierResult } from "./eval-schema.js";
@@ -26,15 +27,15 @@ import type { TierResult } from "./eval-schema.js";
 // Real source anchors per finding class, so a finding cites the predicate it
 // rests on rather than a gate message.
 const P_ENVELOPE = anchor("holonovel/src/world/parser.ts", 38, "dispatchCommand");
-const P_VALIDATION = anchor("holonovel/src/index.ts", 6626, "create_room");
+const P_VALIDATION = anchor("holonovel/src/index.ts", 6640, "create_room");
 const P_PROTOCOL = anchor("holonovel/src/index.ts", 12, "CallToolRequestSchema");
-const P_DIAGNOSTICS = anchor("holonovel/src/index.ts", 12450, "verify");
+const P_DIAGNOSTICS = anchor("holonovel/src/index.ts", 12464, "verify");
 const P_READONLY = anchor("holonovel/src/core/server.ts", 30, "requireNotObserver");
-const P_ARTIFACT = anchor("holonovel/src/index.ts", 14219, "inboxSourcePath");
-const P_SHARE = anchor("holonovel/src/index.ts", 14192, "share");
-const P_RECAP = anchor("holonovel/src/index.ts", 12140, "recap");
+const P_ARTIFACT = anchor("holonovel/src/index.ts", 14233, "inboxSourcePath");
+const P_SHARE = anchor("holonovel/src/index.ts", 14206, "share");
+const P_RECAP = anchor("holonovel/src/index.ts", 12154, "recap");
 const P_PROVENANCE = anchor("holonovel/src/core/adventure-provenance.ts", 50, "verifyAdventureProvenance");
-const P_IMPORT_INTEGRITY = anchor("holonovel/src/index.ts", 13484, "strictMode");
+const P_IMPORT_INTEGRITY = anchor("holonovel/src/index.ts", 13498, "strictMode");
 const NOVEL_NAME = "Holosuite Adversarial";
 
 interface Probe {
@@ -78,6 +79,45 @@ function redactArgs(value: unknown): Record<string, unknown> {
     return v;
   };
   return walk(value) as Record<string, unknown>;
+}
+
+/** Every callable surface: each action value, or the tool itself when action-less. */
+function surfacesFrom(tools: Array<{ name: string; inputSchema?: unknown }>): Array<{ tool: string; action?: string; key: string }> {
+  const out: Array<{ tool: string; action?: string; key: string }> = [];
+  for (const tool of tools) {
+    const schema = tool.inputSchema as { properties?: Record<string, { enum?: unknown }> } | undefined;
+    const action = schema?.properties?.action;
+    const values = Array.isArray(action?.enum) ? (action!.enum as string[]) : [];
+    if (values.length > 0) {
+      for (const value of values) out.push({ tool: tool.name, action: value, key: `${tool.name}:${value}` });
+    } else {
+      out.push({ tool: tool.name, key: `${tool.name}:` });
+    }
+  }
+  return out;
+}
+
+/** Deep structural scan: any map key, key/name/id value equal to "undefined". */
+function hasUndefinedRecord(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(hasUndefinedRecord);
+  if (value && typeof value === "object") {
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k === "undefined") return true;
+      if ((k === "key" || k === "name" || k === "id" || k === "slug") && v === "undefined") return true;
+      if (hasUndefinedRecord(v)) return true;
+    }
+  }
+  return false;
+}
+
+/** Persisted Novels, including ones the sweep moved to the trash. */
+function persistedNovelFiles(dataDir: string): string[] {
+  const files: string[] = [];
+  for (const dir of [join(dataDir, "novels"), join(dataDir, ".trash")]) {
+    if (!existsSync(dir)) continue;
+    for (const name of readdirSync(dir)) if (name.endsWith(".json")) files.push(join(dir, name));
+  }
+  return files;
 }
 
 export async function runAdversarial(opts: { serverDir: string; dataDir?: string; seed?: number }): Promise<TierResult> {
@@ -166,6 +206,67 @@ export async function runAdversarial(opts: { serverDir: string; dataDir?: string
     const playerVerify = await client.call("manage_diagnostics", { action: "verify" });
     record("player_verify_denied", playerVerify.isError && /FORBIDDEN|Game Master only/.test(playerVerify.text), playerVerify.text.split("\n")[0] ?? "", step, ["REQ-603", "REQ-032"], P_DIAGNOSTICS);
     await client.call("set_badge", { badge: "game_master" });
+
+    // --- Generated sweep: every callable surface with minimal arguments ------
+    // The fixed PROBES above test wrong values; this sweep tests absent ones.
+    // A classified surface must refuse with [MISSING_PARAM] (or a legal -32602
+    // SDK schema refusal); every surface must answer with a recognized envelope;
+    // and the sweep must leave no record keyed "undefined" (F1/F4, T177).
+    const surfaces = surfacesFrom(await client.listTools());
+    // Lifecycle actions that legitimately tear down or archive the active
+    // Novel when called without arguments; including them would destroy the
+    // fixture mid-sweep. Their parameter contracts are covered by the table.
+    const LIFECYCLE_SKIP = new Set([
+      "manage_novel:end",
+      "manage_archive:archive",
+      "manage_archive:unarchive",
+      "manage_archive:clone",
+      "manage_archive:branch",
+      "manage_archive:import",
+    ]);
+    // Section-document surfaces: REQ-548a's machine-payload exemption covers
+    // JSON; `discover` returns a Markdown help document by contract.
+    const PREFIX_EXEMPT = new Set(["manage_context:discover"]);
+    const badSurfaces: string[] = [];
+    for (const surface of surfaces) {
+      if (LIFECYCLE_SKIP.has(surface.key)) continue;
+      step++;
+      const args = surface.action ? { action: surface.action } : {};
+      const res = await client.call(surface.tool, args);
+      const c = classifyResult(res.text, res.isError);
+      const payload = /^\s*[[{"]/.test(res.text);
+      const classified = Object.prototype.hasOwnProperty.call(REQUIRED_PARAMS, surface.key);
+      if (classified) {
+        const ok = /^\[ERROR\] \[MISSING_PARAM\]/m.test(res.text) || /MCP error -32602/.test(res.text);
+        record("missing_param_refused", ok, `${surface.key}: ${res.text.split("\n")[0]?.slice(0, 80) ?? ""}`, step, ["REQ-001", "REQ-002", "REQ-054"], P_VALIDATION);
+        if (!ok) badSurfaces.push(surface.key);
+      } else {
+        // A truncated response (REQ-004) replaces the body with the output://
+        // pointer, which is the server's own envelope for an oversized result.
+        const truncated = /^\s*… \[truncated/.test(res.text);
+        const ok = c.prefix !== "[?]" || payload || truncated || PREFIX_EXEMPT.has(surface.key) || /MCP error -32602/.test(res.text);
+        record("surface_answers", ok, `${surface.key}: ${c.prefix} ${JSON.stringify(res.text.slice(0, 60))}`, step, ["REQ-001"], P_VALIDATION);
+        if (!ok) badSurfaces.push(surface.key);
+      }
+    }
+
+    step++;
+    const undefinedFiles = persistedNovelFiles(dataDir).filter((file) => {
+      try {
+        return hasUndefinedRecord(JSON.parse(readFileSync(file, "utf-8")));
+      } catch {
+        return true; // An unreadable save is a finding, not a skipped check.
+      }
+    });
+    record("no_undefined_records", undefinedFiles.length === 0, `${surfaces.length} surfaces, ${undefinedFiles.length} undefined record(s)${undefinedFiles.length ? `: ${undefinedFiles.map((f) => f.split("/").pop()).join(", ")}` : ""}`, step, ["REQ-002", "REQ-054"], P_VALIDATION);
+
+    step++;
+    const listed = (await client.listResources()) as Array<{ name?: unknown }>;
+    const unnamed = listed.filter((resource) => typeof resource.name !== "string");
+    record("resources_are_named", unnamed.length === 0, `${listed.length} resources, ${unnamed.length} unnamed`, step, ["REQ-022"], P_VALIDATION);
+
+    step++;
+    record("every_surface_contracts", badSurfaces.length === 0, badSurfaces.length === 0 ? `${surfaces.length} surfaces conform` : badSurfaces.slice(0, 8).join(", "), step, ["REQ-001", "REQ-002"], P_VALIDATION);
 
     // --- Liveness: a well-formed call still succeeds after the battery ------
     step++;

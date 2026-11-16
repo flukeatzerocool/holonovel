@@ -1351,7 +1351,7 @@ async function main() {
       let last = "";
       for (const session of ["distant-2", "distant-3", "distant-4", "distant-5", "distant-6"]) {
         const p2 = await boot({ TTRPG_SESSION_ID: session, TTRPG_NOVEL: "npc-distant", TTRPG_BADGE: "game_master" });
-        await call(p2, "manage_note", { action: "set",  content: `session ${session}` });
+        await call(p2, "manage_note", { action: "set", key: `session-${session}`, content: `session ${session}` });
         last = await briefing(p2);
         await kill(p2);
       }

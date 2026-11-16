@@ -38,6 +38,7 @@ import {
   toolObserverVisible,
 } from "./core/badge-gate.js";
 import { AUDIT_APPEND_HEADROOM, AUDIT_CAP_EXEMPT_ACTIONS, appendsAuditEntry, capacityRefusal } from "./core/audit-gate.js";
+import { validateParams } from "./core/param-contract.js";
 import { StateManager, AUDIT_CAP_CORRECTIVE, Badge, NovelState, NovelEntity, NpcState, LoreEntry, Countdown, Relationship, WorldChange, DIFFICULTY_TRACKS, migrateNovelData, normalizeAutonomy, applyNovelState, exportNovelJSON, worldToJSON, importNovelJSON, FATE_REFRESH, IRONSWORN_MOMENTUM_DEFAULT, IRONSWORN_MOMENTUM_MIN, IRONSWORN_MOMENTUM_MAX, IRONSWORN_TRACK_BOXES, FORGED_STRESS_MAX, autoRecordDefaultFromEnv, synthesisStaleCutoff, isStaleItem, resolveDataDir, locateStateDir, reconcileUserData, NOVEL_FORMAT_VERSION, appendStoryMoment, autoMigrateEnabled } from "./core/state.js";
 import { personalityFieldsFor, hasPersonalityData, voiceExamplesFor, renderPersonalityBlock, renderVoiceExample, normalizeVoiceExamples, npcRole, avoidLine } from "./core/personality.js";
 import { renderRecapLonelog, renderCompressLonelog } from "./core/lonelog.js";
@@ -323,7 +324,7 @@ export function normalizeToolSchema(schema: any): any {
 server.registerTool = ((name: string, config: any, handler: any) => {
   const annotations = config.annotations ?? TOOL_ANNOTATIONS[name];
   if (!annotations) throw new Error(`Tool '${name}' has no REQ-450 mutation-class annotation; add it to TOOL_ANNOTATIONS.`);
-  const audited = withForbiddenAudit(normalizeRefusal(withCapacityAbort(ensureStructured(truncateHandler(name, handler)), name)), name) as any;
+  const audited = withForbiddenAudit(normalizeRefusal(withCapacityAbort(ensureStructured(truncateHandler(name, withSystemEnvelope(handler, name))), name)), name) as any;
   // REQ-336 — every completed tool call advances the session pacing counter,
   // mutating or not. A refusal envelope still completes; a thrown error does
   // not. A converted refusal keeps that parity: `isError` results are the
@@ -2055,6 +2056,15 @@ function guardToolCall(name: unknown, callArgs: Record<string, any>): GuardRefus
       );
     }
   }
+  // REQ-001/REQ-002 — an action whose own required parameters are absent is
+  // refused before any handler runs, so it can never store `undefined` or throw
+  // a raw TypeError. The parameter names are already public in the tool schema,
+  // so this refusal discloses nothing badge-scoped. Ordered before badge
+  // authorization per the approved plan.
+  const missingParam = validateParams(toolName, callArgs);
+  if (missingParam) {
+    return err(missingParam.category, missingParam.message, missingParam.correctiveAction);
+  }
   // REQ-032a/REQ-032c — badge authorization at dispatch. The handler-local
   // guards stay as the backstop; this gate refuses before any handler runs and
   // records the boundary entry itself, because `withForbiddenAudit` only sees
@@ -2137,7 +2147,11 @@ function installSurfaceGuards(): void {
   low.setRequestHandler(CallToolRequestSchema, async (req: any, extra: any) => {
     const refusal = guardToolCall(req?.params?.name, req?.params?.arguments ?? {});
     if (refusal) return refusal;
-    return original(req, extra);
+    try {
+      return await original(req, extra);
+    } catch (e) {
+      return systemError(req?.params?.name ?? "unknown", e);
+    }
   });
 }
 
@@ -15703,7 +15717,7 @@ server.registerResource("lore-single", new ResourceTemplate("lore://{key}", { li
   if (!novel) return { resources: [] };
   // REQ-083d — the resource list does not reveal unreadable keys.
   const badge = getBadge();
-  return { resources: [...novel.lore.entries()].filter(([, l]) => loreVisible(l, badge)).map(([k]) => ({ uri: `lore://${k}`, name: k })) };
+  return { resources: [...novel.lore.entries()].filter(([, l]) => loreVisible(l, badge)).map(([k]) => ({ uri: `lore://${k}`, name: String(k) })) };
 } }), { title: "Lore Entry" }, async (uri) => {
   const novel = state.activeNovel;
   const key = resourceKey(uri);
@@ -16051,7 +16065,7 @@ server.registerResource("notes-single", new ResourceTemplate("notes://{key}", { 
 
 // Server notes resource (REQ-285)
 server.registerResource("server-notes-single", new ResourceTemplate("server-notes://{key}", { list: () => {
-  return { resources: [...state.serverNotes.keys()].map(k => ({ uri: `server-notes://${k}`, name: k })) };
+  return { resources: [...state.serverNotes.keys()].map(k => ({ uri: `server-notes://${k}`, name: String(k) })) };
 } }), { title: "Server Note" }, async (uri) => {
   if (getBadge() !== "game_master" && getBadge() !== "none") {
     return { contents: [{ uri: uri.href, text: "[FORBIDDEN] Server notes are Game Master only.", mimeType: "text/plain" }] };
@@ -16600,7 +16614,7 @@ server.registerResource("ui-codex", new ResourceTemplate("ui://codex/{id}", { li
 server.registerResource("ui-lore", new ResourceTemplate("ui://lore/{key}", { list: () => {
   const novel = state.activeNovel;
   if (!novel) return { resources: [] };
-  return { resources: [...novel.lore.keys()].map(k => ({ uri: `ui://lore/${k}`, name: k })) };
+  return { resources: [...novel.lore.keys()].map(k => ({ uri: `ui://lore/${k}`, name: String(k) })) };
 } }), { title: "Lore Entry (UI)" }, async (uri) => {
   const novel = state.activeNovel;
   const key = resourceKey(uri);
@@ -18828,10 +18842,10 @@ export function createEngine(): Engine {
         }
         try {
           return await tool.handler(args, { badge: getBadge() });
-        } catch (e: any) {
-          // The MCP SDK turns a thrown tool error into an error result; the
-          // façade mirrors that shape so callers see one envelope contract.
-          return { content: [{ type: "text", text: String(e?.message ?? e) }], isError: true };
+        } catch (e) {
+          // The MCP seam and the façade return one envelope contract; the
+          // detail goes to stderr, never into the result (D1).
+          return systemError(name, e);
         }
       },
     },
@@ -19103,4 +19117,40 @@ if (process.env.HOLONOVEL_NO_AUTOSTART !== "1") {
     console.error("Fatal error:", e);
     process.exit(1);
   });
+}
+
+// ── Dispatch error envelope (REQ-001/REQ-002, D1) ─────────────────────
+// Declared at the end of the module so the two helpers do not shift the line
+// numbers the Holosuite anchor literals record. Function declarations hoist, so
+// the registration wrapper above and the MCP seam can call them.
+
+// An unexpected handler throw becomes the `[SYSTEM]` envelope. The exception
+// detail goes to stderr and never into the tool result, so a caller sees one
+// contract and no internal text.
+function systemError(toolName: string, e: unknown) {
+  const detail = e instanceof Error ? (e.stack ?? e.message) : String(e);
+  try {
+    console.error(`[holonovel] tool '${toolName}' threw: ${detail}`);
+  } catch {
+    // stderr is closed or unwritable; the envelope below still reports the failure.
+  }
+  return err("SYSTEM", `Internal error while running '${toolName}'. The failure was recorded to stderr.`);
+}
+
+// A handler that throws an unexpected error returns the `[SYSTEM]` envelope
+// instead of leaking the exception text. A thrown McpError is a deliberate
+// protocol contract (e.g. -32602) and passes through unchanged.
+function withSystemEnvelope(handler: any, name: string) {
+  return async (...handlerArgs: any[]) => {
+    try {
+      return await handler(...handlerArgs);
+    } catch (e) {
+      if (e instanceof McpError) throw e;
+      // A thrown refusal envelope (`[FORBIDDEN] …`) is a deliberate contract
+      // answer; `normalizeRefusal` owns its conversion and must see it.
+      const message = e instanceof Error ? e.message : String(e);
+      if (/\[[A-Z][A-Z_]+\]/.test(message)) throw e;
+      return systemError(name, e);
+    }
+  };
 }
