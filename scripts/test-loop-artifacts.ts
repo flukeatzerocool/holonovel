@@ -18,6 +18,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { validateIncrements } from "./lib/loop-artifacts.js";
+import {
+  artifactOverage,
+  countLines,
+  incrementDate,
+  parseBaseline,
+  type IncrementSize,
+} from "./lib/loop-bounds.js";
 
 let failures = 0;
 const roots: string[] = [];
@@ -140,6 +147,59 @@ try {
     const findings = validateIncrements(root, { lenient: true, requirePausedFor: "2026-01-01-a" });
     expect(findings.length === 1 && OPEN_MESSAGE.test(findings[0].message), "OPEN must still error at close in lenient mode");
   });
+  // ── Artifact bound (ROADMAP item 6) ──────────────────────────────────
+  const baseline = { since: "2026-11-16", exempt: ["2026-11-16-exempt"] };
+  const size = (name: string, planLines: number, aarLines: number): IncrementSize => ({ name, planLines, aarLines });
+
+  check("countLines excludes a trailing newline", () => {
+    expect(countLines("a\nb\n") === 2, `got ${countLines("a\nb\n")}`);
+    expect(countLines("a") === 1, "a single line without newline is one line");
+    expect(countLines("") === 0, "empty text has no lines");
+  });
+
+  check("an absent baseline is a first-run state, not a failure", () => {
+    expect(parseBaseline(null).status === "absent", "null text must be absent");
+  });
+
+  check("an unparseable baseline is malformed", () => {
+    expect(parseBaseline("{not json").status === "malformed", "invalid JSON must be malformed");
+    expect(parseBaseline('{"exempt":[]}').status === "malformed", "a missing since must be malformed");
+    expect(parseBaseline('{"since":"2026-11-16"}').status === "malformed", "a missing exempt array must be malformed");
+  });
+
+  check("a well-formed baseline parses", () => {
+    const parsed = parseBaseline(JSON.stringify(baseline));
+    expect(parsed.status === "ok", `expected ok, got ${JSON.stringify(parsed)}`);
+    expect(parsed.status === "ok" && parsed.baseline.since === "2026-11-16", "since is read");
+  });
+
+  check("an increment exactly at both limits is inside the bound", () => {
+    expect(artifactOverage([size("2026-11-16-a", 150, 120)], baseline).length === 0, "150/120 must pass");
+  });
+
+  check("an oversized plan past the since date is reported", () => {
+    const overages = artifactOverage([size("2026-11-16-a", 151, 10)], baseline);
+    expect(overages.length === 1 && overages[0].field === "plan", JSON.stringify(overages));
+  });
+
+  check("an oversized AAR past the since date is reported", () => {
+    const overages = artifactOverage([size("2026-11-16-a", 10, 121)], baseline);
+    expect(overages.length === 1 && overages[0].field === "aar", JSON.stringify(overages));
+  });
+
+  check("an increment dated before the since date is out of scope", () => {
+    expect(artifactOverage([size("2026-11-15-a", 999, 999)], baseline).length === 0, "pre-since must be ignored");
+  });
+
+  check("an exempt increment is ignored", () => {
+    expect(artifactOverage([size("2026-11-16-exempt", 999, 999)], baseline).length === 0, "exempt must be ignored");
+  });
+
+  check("an increment with no date prefix is out of scope", () => {
+    expect(artifactOverage([size("scratch", 999, 999)], baseline).length === 0, "undated must be ignored");
+    expect(incrementDate("scratch") === "", "no date prefix reads as empty");
+  });
+
 } catch (error) {
   console.error(`test-loop-artifacts: fatal: ${(error as Error).message}`);
   process.exit(2);

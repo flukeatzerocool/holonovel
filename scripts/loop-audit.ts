@@ -20,11 +20,21 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join } from "node:path";
 import { handleHelp, parseFlag, rejectUnknown } from "./lib/args.js";
 import { readHookEvents } from "./lib/hook-events.js";
+import {
+  AAR_LIMIT,
+  PLAN_LIMIT,
+  artifactOverage,
+  countLines,
+  parseBaseline,
+  type IncrementSize,
+  type Overage,
+} from "./lib/loop-bounds.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const REPORT_PATH = join(ROOT, "spec", "audit", "loop-audit.md");
 const PLANS_DIR = join(ROOT, "docs", "plans");
 const TIMING_PATH = join(ROOT, ".holonovel-state", "gate-timing.json");
+const BOUNDS_BASELINE = join(ROOT, "spec", "audit", "loop-artifact-baseline.json");
 
 const USAGE = `Usage: npx tsx scripts/loop-audit.ts [--write] [--check] [--json]
 
@@ -84,6 +94,8 @@ interface Metrics {
   increments: number;
   incrementsMissingAar: number;
   incrementsMissingLoopToken: number;
+  baselineStatus: "ok" | "absent" | "malformed";
+  artifactOversize: Overage[];
   gateRows: Record<string, GateRow>;
   hookSkips: number;
   hookRuns: number;
@@ -161,13 +173,23 @@ function readPushes(commitsDescending: Commit[]): Push[] {
   return pushes;
 }
 
-function readIncrements(): { increments: number; missingAar: number; missingLoop: number } {
-  if (!existsSync(PLANS_DIR)) return { increments: 0, missingAar: 0, missingLoop: 0 };
+function readIncrements(): {
+  increments: number;
+  missingAar: number;
+  missingLoop: number;
+  sizes: IncrementSize[];
+} {
+  if (!existsSync(PLANS_DIR)) return { increments: 0, missingAar: 0, missingLoop: 0, sizes: [] };
   const dirs = readdirSync(PLANS_DIR, { withFileTypes: true }).filter((entry) => entry.isDirectory());
   let missingAar = 0;
   let missingLoop = 0;
+  const sizes: IncrementSize[] = [];
   for (const dir of dirs) {
+    const planPath = join(PLANS_DIR, dir.name, "plan.md");
     const aarPath = join(PLANS_DIR, dir.name, "aar.md");
+    const planLines = existsSync(planPath) ? countLines(readFileSync(planPath, "utf-8")) : 0;
+    const aarLines = existsSync(aarPath) ? countLines(readFileSync(aarPath, "utf-8")) : 0;
+    sizes.push({ name: dir.name, planLines, aarLines });
     if (!existsSync(aarPath)) {
       missingAar++;
       continue;
@@ -175,7 +197,7 @@ function readIncrements(): { increments: number; missingAar: number; missingLoop
     const aar = readFileSync(aarPath, "utf-8");
     if (!/LOOP (PAUSED|OPEN)/.test(aar)) missingLoop++;
   }
-  return { increments: dirs.length, missingAar, missingLoop };
+  return { increments: dirs.length, missingAar, missingLoop, sizes };
 }
 
 function readGateRows(): Record<string, GateRow> {
@@ -268,6 +290,10 @@ function computeMetrics(): Metrics {
 
   const increments = readIncrements();
   const hookEvents = readHookEvents();
+  const baselineText = existsSync(BOUNDS_BASELINE) ? readFileSync(BOUNDS_BASELINE, "utf-8") : null;
+  const baselineRead = parseBaseline(baselineText);
+  const artifactOversize =
+    baselineRead.status === "ok" ? artifactOverage(increments.sizes, baselineRead.baseline) : [];
 
   return {
     head,
@@ -289,6 +315,8 @@ function computeMetrics(): Metrics {
     increments: increments.increments,
     incrementsMissingAar: increments.missingAar,
     incrementsMissingLoopToken: increments.missingLoop,
+    baselineStatus: baselineRead.status,
+    artifactOversize,
     gateRows: readGateRows(),
     hookSkips: hookEvents.filter((e) => e.action === "skipped").length,
     hookRuns: hookEvents.filter((e) => e.action === "ran").length,
@@ -349,6 +377,22 @@ function renderMarkdown(metrics: Metrics): string {
     }
   }
   lines.push("");
+  lines.push("## Artifact bounds");
+  lines.push("");
+  lines.push(
+    `Baseline: ${metrics.baselineStatus} · plan ≤${PLAN_LIMIT} · AAR ≤${AAR_LIMIT}; increments dated before the baseline's \`since\` are out of scope.`,
+  );
+  lines.push("");
+  if (metrics.artifactOversize.length === 0) {
+    lines.push("No increment exceeds the bound.");
+  } else {
+    lines.push("| Increment | Field | Lines | Bound |");
+    lines.push("|---|---|---|---|");
+    for (const overage of metrics.artifactOversize) {
+      lines.push(`| ${overage.increment} | ${overage.field} | ${overage.lines} | ${overage.limit} |`);
+    }
+  }
+  lines.push("");
   lines.push("## Hook events");
   lines.push("");
   lines.push(`Ran: ${metrics.hookRuns} · Skipped: ${metrics.hookSkips}`);
@@ -369,6 +413,14 @@ function checkThresholds(metrics: Metrics): string[] {
   }
   if (metrics.recentRepeats > MAX_REPEATED_SUBJECTS) {
     problems.push(`${metrics.recentRepeats} repeated subjects in the last 14 days exceeds ${MAX_REPEATED_SUBJECTS}`);
+  }
+  if (metrics.baselineStatus === "malformed") {
+    problems.push("spec/audit/loop-artifact-baseline.json is malformed — the artifact bound is disabled");
+  }
+  for (const overage of metrics.artifactOversize) {
+    problems.push(
+      `${overage.increment}: ${overage.field}.md is ${overage.lines} lines (bound ${overage.limit})`,
+    );
   }
   return problems;
 }

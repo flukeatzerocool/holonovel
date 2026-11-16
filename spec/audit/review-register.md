@@ -3069,8 +3069,9 @@ predicate the admission rule needed.
 ### 2026-11-15 roadmap-residuals session
 
 Closes three of the four ROADMAP sections open at `e8c79d1`
-(`docs/plans/2026-11-15-roadmap-residuals/`); the 2026-11-28 fix-up
-re-measurement is date-gated and stays scheduled.
+(`docs/plans/2026-11-15-roadmap-residuals/`). The 2026-11-28 fix-up
+re-measurement ran early on 2026-11-16 (52 commits, 19 pairs, 7 sharing) and
+retired with the `Loop-gate fix-up rate re-measurement` section.
 
 - **F-P2-4 — the harness comment named a zero-padded test ID. Resolved
   (2026-11-15).** Predicate: `holonovel/scripts/test-narrative.ts:1205` read
@@ -3086,12 +3087,15 @@ re-measurement is date-gated and stays scheduled.
 
 ### 2026-11-15 REQ evidence linkage (P1)
 
-The report-only `checkReqEvidenceLinkage` pass reports 122 citations whose
-Appendix F row kind does not admit them: 99 `Automated` IDs that no harness test
-names, and 23 `Manual` IDs that `DECISIONS.md` does not name. 99 of the 122
-belong to REQs already whitelisted in `INTENDED_GAP_REQS`; that list is a
-source-citation disposition, not an evidence one, so nothing is suppressed here
-and triage splits them. The duplicated `T553` identifier this pass also surfaced
+Chunk 1 of 3 landed 2026-11-16 (`docs/plans/2026-11-16-roadmap-drain-2`): the 23
+`Manual` rows are documented in `holonovel/DECISIONS.md` § "Manual verification
+procedures — 2026-11-16" (14 T-IDs), so the pass now reports **99** findings,
+all `Automated`; the regenerated corpus is
+`docs/plans/2026-11-15-req-evidence-linkage/corpus.md`. The remaining work is
+the 99 `Automated` IDs that no harness test names, 99 of which belong to REQs
+already whitelisted in `INTENDED_GAP_REQS`; that list is a source-citation
+disposition, not an evidence one, so nothing is suppressed and triage splits
+them across chunks 2–3. The duplicated `T553` identifier this pass also surfaced
 is resolved below (2026-11-16).
 
 ## Resolved — 2026-11-16 T553 duplicate identifier

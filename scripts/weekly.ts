@@ -35,7 +35,7 @@ interface Sweep {
 const SWEEPS: Sweep[] = [
   { name: "full gate", command: ["npm", "run", "check"] },
   { name: "pipeline harness", command: ["npm", "run", "test:pipeline"] },
-  { name: "loop audit", command: ["npm", "run", "loop-audit", "--", "--write"] },
+  { name: "loop audit", command: ["npm", "run", "loop-audit", "--", "--write", "--check"] },
   { name: "gate cost", command: ["npm", "run", "gate-cost"] },
   { name: "registers", command: ["npm", "run", "check-registers:strict"] },
   { name: "markers", command: ["npm", "run", "check-markers"] },

@@ -3104,3 +3104,85 @@ not the rows.
   Markdown paths (lowest precedence); `TTRPG_ADVENTURE_DIR` remains the scanned
   directory. Both are declared in §7.6.
 
+
+## Manual verification procedures — 2026-11-16
+
+The Manual rows of Appendix F that §5 cites but no section here named. The
+linkage audit (`scripts/lib/req-checks.ts:700-706`) treats a Manual row as
+evidence only when this file names it; `docs/plans/2026-11-16-roadmap-drain-2`
+made these entries. Each name is the anchor; the Appendix F row carries the full
+procedure, so these entries state the actor, the precondition, and the record
+the operator keeps.
+
+- **`T3` — tool documentation completeness.** Actor: the builder at a release
+  cut, on the full default surface. Precondition: the registry and
+  `tools/list` payload are current. Procedure: the row's checks — registry
+  versus manifest, the justification list, REQ-015 annotations, every tool's
+  REQ-024 title, name uniqueness, and G0b schema validity. Record:
+  `spec_health` output and the release note's tool-surface paragraph.
+- **`T5` — entity lifecycle.** Actor: the builder on a ruleset that defines
+  entities. Precondition: a seeded Novel. Procedure: create, mutate each field,
+  and delete through the ruleset's own tools. Record: the lifecycle walkthrough
+  transcript attached to the release note.
+- **`T18` — anti-badge sub-workflows.** Actor: the builder before a release.
+  Precondition: the §8 badge matrix is current. Procedure: walk each
+  sub-workflow as its badge and confirm the refusal boundary holds. Record: the
+  §8 verification table in the release note.
+- **`T28` — badge stories.** Actor: the builder at a release cut.
+  Precondition: the story set parses against the live registry. Procedure: run
+  the MUST-covering story set, assert forbidding stories refuse, and confirm
+  grounding at the Discovery checkpoint. Record: the story-run summary in the
+  release note.
+- **`T33` — combat resolution.** Actor: the builder on a ruleset with an attack
+  procedure. Precondition: a live ruleset index. Procedure: attack with a named
+  weapon and spell through the ruleset-specific and canonical lookup tools;
+  compare dice, damage type, and properties; assert a miss or save applies the
+  ruleset outcome with no HP change. Waived when no attack procedure exists.
+  Record: the sampled exchange in the release note.
+- **`T38` — advancement workflow.** Actor: the builder on a ruleset with
+  progression. Precondition: a character with a pending advancement.
+  Procedure: derive the tool name from the ruleset term, raise `[NEED_INPUT]`
+  for open choices, and apply the progression server-side. Waived when no
+  advancement procedure exists. Record: the advancement transcript.
+- **`T49` — connection introduction.** Actor: the builder on a running server.
+  Precondition: at least one indexed sourcebook, or the ruleset-free notice.
+  Procedure: invoke the `intro` prompt and assert the ≤300-word length, the
+  publisher tagline or server-name opening, the live sourcebook listing, and
+  the four next actions; confirm `manage_context (action: discover)` and
+  `badge_briefing` both point at it. Record: the captured prompt output.
+- **`T51` — badge behavioral boundaries.** Actor: the builder with both badge
+  scopes available. Precondition: a running server. Procedure: sample a Player
+  session and a Game-Master session and confirm the server describes but never
+  prescribes, and negotiates environmental details on request. Record: both
+  sample sets in the release note.
+- **`T74` — Novel setup prompt.** Actor: the builder on a fresh Novel.
+  Precondition: an empty Novel or a loaded adventure. Procedure: invoke
+  `novel_setup` and assert the four sequential steps, the `[✓]`/`[→]`/`[ ]`
+  markers, plain-English descriptions, the loaded-adventure and session-zero
+  state, and the `novel` token in `badge_briefing`. Record: the rendered prompt
+  capture.
+- **`T86` — confidence-floor acknowledgment.** Actor: the builder on a
+  low-confidence build. Precondition: a build assessed below its tier floor.
+  Procedure: confirm the approval field carries the adjusted threshold and
+  justification, that the build halts for it, and that approval resumes it.
+  Record: the approval note in the release record.
+- **`T89` — assumption audit trail.** Actor: the builder at a spec revision.
+  Precondition: `assumption_audit` reachable. Procedure: run the prompt and
+  confirm at least one challenged assumption per category, and a diff-only
+  audit for a revision. Record: the audit transcript with the release note.
+- **`T93` — source conversion.** Actor: the builder when conversion is
+  selected. Precondition: a converted source set. Procedure: confirm the
+  converter and version, the per-content-type fidelity rate at or above 90%,
+  the artifact dispositions, `spec_health`'s `conversionFidelity` section,
+  REQ-011 capping, and the H.19 sampled-table match. Waived when conversion is
+  not selected. Record: the conversion summary in the release note.
+- **`T183` — structural integrity gate.** Actor: the builder with a ruleset
+  fixture. Precondition: an indexable directory. Procedure: feed a duplicate
+  heading and assert G0a fails, feed a missing separator and assert it passes
+  with a logged finding, and confirm the evidence record lists each item's
+  pass/fail. Record: the G0a output pair.
+- **`T223` — anti-slop guidance.** Actor: the builder with both badges.
+  Precondition: the `guidance://` resources are served. Procedure: confirm the
+  `[anti-slop]` items and forbidden/corrected pairs per badge, the Player and
+  GM scoping, the Appendix J coverage, and the `[supplementary]` URLs. Record:
+  the two resource captures.

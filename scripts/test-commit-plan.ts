@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleHelp, rejectUnknown } from "./lib/args.js";
 import { isSpecIncrement, normalizeSubject, planCommits } from "./lib/commit-plan.js";
+import { parseChangelogEntry, prependChangelogEntry, renderChangelogEntry } from "./lib/changelog-entry.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const HOOK = join(ROOT, ".githooks", "commit-msg");
@@ -108,6 +109,53 @@ function main(): void {
 
   check(normalizeSubject("  Title.  ") === "Title", "subjects are trimmed and lose a trailing period");
   check(normalizeSubject("x".repeat(200)).length === 120, "subjects are capped at 120 characters");
+
+  // ── AAR-derived CHANGELOG entry (ROADMAP item 6) ─────────────────────
+  const aarBody = (block: string): string => `# AAR\n\n## 1. Header\n\n${block}\n\nLOOP PAUSED\n`;
+  const goodBlock = [
+    "## Changelog entry",
+    "",
+    "**Title:** Derived bookkeeping entry",
+    "",
+    "**Summary:** One paragraph that says what the increment did.",
+    "",
+    "- first bullet",
+    "- second bullet",
+  ].join("\n");
+
+  const parsed = parseChangelogEntry(aarBody(goodBlock));
+  check(parsed.status === "ok", "a well-formed block parses");
+  check(
+    parsed.status === "ok" && parsed.entry.title === "Derived bookkeeping entry",
+    "the title is read from '**Title:**'",
+  );
+  check(
+    parsed.status === "ok" && parsed.entry.bullets.length === 2,
+    "the bullets are read",
+  );
+  check(parseChangelogEntry(aarBody("# AAR\n\nno block\n")).status === "absent", "no block is absent");
+  check(parseChangelogEntry(aarBody(goodBlock.replace("**Title:** Derived bookkeeping entry\n", ""))).status === "malformed", "a missing title is malformed");
+  check(parseChangelogEntry(aarBody(goodBlock.replace("One paragraph that says what the increment did.", ""))).status === "malformed", "an empty summary is malformed");
+  check(parseChangelogEntry(aarBody(goodBlock.replace("- first bullet\n- second bullet", ""))).status === "malformed", "no bullets is malformed");
+  check(parseChangelogEntry(aarBody(goodBlock.replace("Derived bookkeeping entry", "2026-11-16 — Derived"))).status === "malformed", "a date-prefixed title is malformed");
+  check(parseChangelogEntry(aarBody(goodBlock.replace("Derived bookkeeping entry", "x".repeat(101)))).status === "malformed", "an over-long title is malformed");
+
+  const rendered = parsed.status === "ok" ? renderChangelogEntry("2026-11-16", parsed.entry) : "";
+  check(
+    rendered ===
+      "## 2026-11-16 — Derived bookkeeping entry\n\nOne paragraph that says what the increment did.\n\n- first bullet\n- second bullet\n",
+    "the entry renders the exact heading, summary, and bullets",
+  );
+  const prepended = prependChangelogEntry("# Changelog\n\n## 2026-11-15 — Older\n\n- old\n", rendered);
+  check(
+    prepended.startsWith("# Changelog\n\n## 2026-11-16 — Derived bookkeeping entry"),
+    "the entry is prepended under the '# Changelog' title",
+  );
+  check(prependChangelogEntry(prepended, rendered) === prepended, "a second prepend is a no-op");
+  check(
+    parsed.status === "ok" && hookAccepts(`2026-11-16 — ${parsed.entry.title}`),
+    "the derived subject passes commit-msg",
+  );
 
   for (const entry of [...single.entries, ...split.entries]) {
     check(hookAccepts(entry.subject), `commit-msg accepts: ${entry.subject}`);

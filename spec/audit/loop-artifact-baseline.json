@@ -1,0 +1,10 @@
+{
+  "note": "Artifact bound (ROADMAP item 6, 2026-11-16): a plan is limited to 150 lines and an AAR to 120, counted by `scripts/lib/loop-bounds.ts` with a single trailing newline excluded. Only increments dated on or after `since` are in scope; the `exempt` list names the 2026-11-16 increments that predate the gate. Measure with `npm run loop-audit -- --check`; the bound applies to new work, so the historical corpus is not rewritten.",
+  "since": "2026-11-16",
+  "exempt": [
+    "2026-11-16-publication-reconciliation",
+    "2026-11-16-release-hardening",
+    "2026-11-16-roadmap-drain",
+    "2026-11-16-torre-readiness"
+  ]
+}

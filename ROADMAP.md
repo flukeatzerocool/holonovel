@@ -33,27 +33,16 @@ and its `DISPUTED` adjudications are recorded.
 **Trigger:** the next Holosuite lens change; closes when the derived sample is
 large enough to report a catch rate with a useful confidence interval.
 
-## Loop-gate fix-up rate re-measurement (P2)
-
-- Two weeks after the AAR close gate ships (2026-11-28), re-measure the fix-up
-  rate: pair consecutive commits within 15 minutes and count pairs sharing a
-  touched path. Baseline 2026-11-08→14: 26 pairs, 15 sharing. Target: ≤7 of
-  the next 26.
-  Command: `git log --since=<anchor> --format='%H|%ci|%s' --name-only`.
-  If unchanged, the gate did not fix the ordering — reopen the diagnosis.
-
-**Trigger:** the date 2026-11-28, or 26 new commits, whichever comes first;
-closes when the re-measurement is recorded in the AAR of that session.
-
 ## REQ evidence linkage (P1)
 
 - The report-only `checkReqEvidenceLinkage` pass shipped (2026-11-15); triage its
-  122 findings to zero, then promote the check to error. A REQ whose `_Check:_`
-  cites a T-ID must land on an Automated Appendix F row a harness names, or a
-  Manual row whose procedure `DECISIONS.md` documents. Appendix F has no `Gate`
-  kind.
-- T22, T35, and T103 all have asserting harnesses; the defect class is the 122
-  unlinked citations, 99 of them in REQs already whitelisted as builder-side.
+  99 remaining findings to zero, then promote the check to error. A REQ whose
+  `_Check:_` cites a T-ID must land on an Automated Appendix F row a harness
+  names, or a Manual row whose procedure `DECISIONS.md` documents. Appendix F has
+  no `Gate` kind. The 23 Manual rows were documented 2026-11-16 (chunk 1 of 3).
+- T22, T35, and T103 all have asserting harnesses; the remaining defect class is
+  the 99 unlinked Automated citations, 99 of them in REQs already whitelisted as
+  builder-side.
 - The companion class is evidence *granularity*: `check:conformance --
   --dedicated` reports 126 bucket-C REQs whose only evidence is shared with
   another REQ (bucket-C cited only in comments: 42, advisory). A REQ is not
@@ -70,15 +59,6 @@ error-mode in `validate`.
 
 **Trigger:** the next increment that moves more than 50 anchors, or a week with
 more than 100 reads of one file.
-
-## Bookkeeping derivation (P3)
-
-- Derive the CHANGELOG block from the AAR in `session:close`; keep ROADMAP
-  retirement manual.
-- Bound the artifact: plan ≤ 150 lines, AAR ≤ 120, measured by `loop-audit`.
-
-**Trigger:** the next close that edits three bookkeeping surfaces; closes when
-`session:close` writes the CHANGELOG block without a manual rewrite.
 
 ## Codex pack as an artifact kind (P3)
 

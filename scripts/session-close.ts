@@ -19,10 +19,16 @@
  * failure; 2 = fatal error.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { handleHelp, parseFlag, parseValueFlag, rejectUnknown } from "./lib/args.js";
+import {
+  prependChangelogEntry,
+  parseChangelogEntry,
+  renderChangelogEntry,
+  type ChangelogEntry,
+} from "./lib/changelog-entry.js";
 import { isSpecIncrement, planCommits, type CommitPlan } from "./lib/commit-plan.js";
 import { writeGateRun } from "./lib/gate-run-manifest.js";
 import { INCREMENTS_DIR, listIncrements, validateIncrements } from "./lib/loop-artifacts.js";
@@ -239,27 +245,67 @@ function main(): void {
     process.exit(1);
   }
 
+  const increments = listIncrements(ROOT);
+  // Two increments can share a session date. Deriving from the alphabetically
+  // last one would pick another session's AAR, so the date ambiguity is refused
+  // rather than guessed.
+  const sameDate = increments.filter((item) => item.name.startsWith(date));
+  if (!increment && sameDate.length > 1) {
+    console.error(
+      `session-close: ${sameDate.length} increments are dated ${date}; pass --increment to say which one closes. ` +
+        `Candidates: ${sameDate.map((item) => item.name).join(", ")}`,
+    );
+    process.exit(1);
+  }
+  const target = increment
+    ? increments.find((item) => item.name === increment)
+    : (sameDate.at(-1) ?? increments.at(-1));
+  const aarPath = target ? join(INCREMENTS_DIR, target.name, "aar.md") : null;
+  const block =
+    aarPath && existsSync(aarPath)
+      ? parseChangelogEntry(readFileSync(aarPath, "utf-8"))
+      : ({ status: "absent" } as const);
+
   if (!existsSync(CHANGELOG)) {
     console.error("session-close: CHANGELOG.md not found");
     process.exit(2);
   }
-  const entry = topEntry(readFileSync(CHANGELOG, "utf-8"));
-  if (!entry) {
+  const changelogText = readFileSync(CHANGELOG, "utf-8");
+  const heading = topEntry(changelogText);
+  let entry: Entry;
+  let derivedEntry: ChangelogEntry | null = null;
+  if (block.status === "ok") {
+    // The AAR block owns this session's entry. A byte-identical heading means a
+    // previous close already wrote it; a different same-date heading is another
+    // session on the same day (the CHANGELOG may hold several).
+    entry = {
+      date,
+      title: block.entry.title,
+      body: `${block.entry.summary}\n\n${block.entry.bullets.map((bullet) => `- ${bullet}`).join("\n")}`,
+    };
+    const rendered = renderChangelogEntry(date, block.entry);
+    const alreadyWritten = changelogText.split("\n").some((line) => line.trim() === rendered.split("\n")[0]!.trim());
+    if (!alreadyWritten) derivedEntry = block.entry;
+  } else if (block.status === "malformed") {
+    console.error(
+      `session-close: ${aarPath} has a malformed '## Changelog entry' block — ${block.reason}`,
+    );
+    process.exit(1);
+  } else if (!heading) {
     console.error("session-close: no '## <YYYY-MM-DD> — <title>' heading in CHANGELOG.md");
     process.exit(1);
-  }
-  if (entry.date !== date) {
+  } else if (heading.date !== date) {
     console.error(
-      `session-close: top CHANGELOG heading is ${entry.date}, expected ${date}. ` +
+      `session-close: top CHANGELOG heading is ${heading.date}, expected ${date}. ` +
         "Write the entry for this session first, or pass --date to match it.",
     );
     process.exit(1);
+  } else {
+    console.error(
+      `session-close: WARNING — ${aarPath} has no '## Changelog entry' block; keeping the hand-written entry.`,
+    );
+    entry = heading;
   }
-
-  const increments = listIncrements(ROOT);
-  const target = increment
-    ? increments.find((item) => item.name === increment)
-    : increments.at(-1);
   const findings = validateIncrements(ROOT, { requirePausedFor: target?.name });
   const scoped = increment
     ? findings.filter((finding) => finding.increment === increment)
@@ -297,6 +343,9 @@ function main(): void {
   const mode = forceSingle ? "single" : forceSplit ? "split" : preview.mode;
 
   if (dryRun) {
+    if (derivedEntry) {
+      console.log(`session-close (dry run): would write\n\n${renderChangelogEntry(date, derivedEntry)}`);
+    }
     console.log(`session-close (dry run): mode=${mode}`);
     console.log(`\n${message}`);
     if (mode === "split") {
@@ -333,6 +382,22 @@ function main(): void {
     process.exit(1);
   }
 
+  // The entry is written only after the gates pass, and before `workingPaths()`
+  // runs, so a split's docs commit carries it and a failed close leaves no
+  // uncommitted CHANGELOG edit behind.
+  let commitMode = mode;
+  if (derivedEntry) {
+    const rendered = renderChangelogEntry(date, derivedEntry);
+    writeFileSync(CHANGELOG, prependChangelogEntry(readFileSync(CHANGELOG, "utf-8"), rendered));
+    const written = planCommits(workingPaths(), entry.date, entry.title);
+    if (forceSplit && written.mode === "single") {
+      console.error("session-close: a spec increment stays one commit; --split is refused");
+      process.exit(1);
+    }
+    commitMode = forceSingle ? "single" : forceSplit ? "split" : written.mode;
+    console.log(`session-close: wrote the CHANGELOG entry derived from ${aarPath}`);
+  }
+
   execFileSync("git", ["add", "-A"], { cwd: ROOT, stdio: "inherit" });
   const guards = collectStagedGuards(ROOT);
   if (guards.problems.length > 0) {
@@ -350,7 +415,7 @@ function main(): void {
   // skips work that already ran on this exact tree.
   writeGateRun("fast", startedAt, finishedAt, "pass");
 
-  if (mode === "single") {
+  if (commitMode === "single") {
     const commit = spawnSync("git", ["commit", "-F", "-"], {
       cwd: ROOT,
       input: message,

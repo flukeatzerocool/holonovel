@@ -45,13 +45,38 @@ refuses to commit an increment that fails it.
    they are small and gate-visible; otherwise they are scheduled (step 5).
    Batching remediation at the end of a build is the anti-pattern.
 7. **Close.** In order:
-   a. Write the `CHANGELOG.md` entry for this session (the plan's changelog
-      step), dated to the session.
+   a. Author the `## Changelog entry` block in `aar.md` (see "The Changelog
+      entry" below); `npm run session:close` renders it into `CHANGELOG.md`
+      under the session date. A hand-written entry still works — an existing
+      dated heading wins — but then the block must match its title or the
+      close refuses.
    b. Run `after-action-report` and write `aar.md`.
    c. Apply any fix it surfaces; re-run the AAR if a finding changed the work.
    d. Run `npm run session:close`. It derives the commit subject from the
       CHANGELOG heading, requires the increment's `aar.md` to end
       `LOOP PAUSED`, runs the fast gates, and commits.
+
+## The Changelog entry
+
+`session:close` writes the dated `CHANGELOG.md` block from `aar.md`, so the AAR
+and the release note cannot drift. Put one `## Changelog entry` section at the
+end of the AAR:
+
+```
+## Changelog entry
+
+**Title:** One line, no date prefix, 100 characters or fewer.
+
+**Summary:** One paragraph.
+
+- one bullet
+- up to eight bullets
+```
+
+An existing `## <date> — <title>` heading in `CHANGELOG.md` wins and must match
+the block's title; a missing block warns and keeps the hand-written entry; a
+malformed block (no title, empty summary, no bullets, or more than eight) makes
+the close exit 1.
 
 ## AAR terminal tokens
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-16 — Roadmap drain 2: the close writes its own changelog, artifacts get a bound
+
+Two ROADMAP items retired and the first chunk of the P1 evidence work landed. `session:close` now derives the dated CHANGELOG block from the increment's AAR, `loop-audit` measures a plan/AAR line bound and `--check` enforces it, and the 23 undocumented Manual Appendix F citations are recorded in `DECISIONS.md`, cutting the evidence-linkage list from 122 to 99.
+
+- `session:close` renders the CHANGELOG entry from a `## Changelog entry` block in
+- `scripts/lib/loop-bounds.ts` and `loop-audit` measure plan ≤150 / AAR ≤120 lines
+- The fix-up rate was re-measured early: 52 commits, 19 pairs ≤15 minutes, 7
+- The 14 T-IDs behind the 23 `manual-undocumented` citations are documented in
+
 ## 2026-11-16 — Roadmap drain: in-flight increments no longer redden the gate, one tracked spec copy
 
 Four open ROADMAP sections closed in one increment. Two had fired their trigger
