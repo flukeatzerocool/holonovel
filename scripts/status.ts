@@ -17,6 +17,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { handleHelp, rejectUnknown } from "./lib/args.js";
+import { describePublishRun, type PublishRecord } from "./lib/publish-state.js";
 
 const USAGE = `Usage: npx tsx scripts/status.ts
 
@@ -64,11 +65,15 @@ function main(): void {
     const line = git(["log", "--reverse", "--format=%ct", "@{u}..HEAD"]).split("\n")[0];
     return line ? humanAge(Number(line)) : "none";
   });
-  const lastPublish = safe("last publish", () => {
+  const lastPublish = safe("last pipeline run", () => {
     const path = join(ROOT, ".holonovel-state", "publish-run.json");
-    if (!existsSync(path)) return "never recorded";
-    const record = JSON.parse(readFileSync(path, "utf8")) as { started?: string };
-    return record.started ?? "never recorded";
+    if (!existsSync(path)) return describePublishRun(null);
+    try {
+      return describePublishRun(JSON.parse(readFileSync(path, "utf8")) as PublishRecord);
+    } catch {
+      // A malformed record is reported as absent rather than crashing status.
+      return "unreadable record";
+    }
   });
   const version = safe("package version", () => {
     const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
@@ -89,7 +94,7 @@ function main(): void {
   console.log(`  upstream:          ${upstream}`);
   console.log(`  unpushed commits:  ${unpushed}`);
   console.log(`  oldest unpushed:   ${oldest}`);
-  console.log(`  last publish:      ${lastPublish}`);
+  console.log(`  last pipeline run: ${lastPublish}`);
   console.log(`  version:           ${version} (latest tag ${latestTag})`);
   console.log(`  open roadmap:      ${roadmapItems} item(s)`);
 

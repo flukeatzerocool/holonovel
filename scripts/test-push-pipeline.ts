@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { handleHelp, rejectUnknown } from "./lib/args.js";
 import { readServers } from "./lib/servers.js";
 import { deniedPaths, leftovers, scanAddedLines } from "./lib/publish-guards.js";
+import { describePublishRun } from "./lib/publish-state.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const TSX = join(ROOT, "node_modules", ".bin", "tsx");
@@ -334,8 +335,21 @@ function main(): void {
     }
   }
 
+  checkPublishStateRendering();
   console.log(`\n${results.length - failures} passed, ${failures} failed`);
   process.exit(failures > 0 ? 1 : 0);
+}
+
+// REQ-418 — the status line must never present a dry run as a publish. These
+// are pure-function checks, so they do not need the scratch repository.
+function checkPublishStateRendering(): void {
+  const dry = describePublishRun({ dry_run: true, stopped_at: "record", started: "2026-11-16T00:00:00Z" });
+  check("status renders a dry run as a dry run", dry.startsWith("dry run, stopped at record"), dry);
+  const live = describePublishRun({ dry_run: false, stopped_at: "deploy" });
+  check("status calls a live run a pipeline run", live.startsWith("pipeline run, stopped at deploy"), live);
+  check("status never calls a record a publish", !`${dry}${live}`.includes("publish"));
+  check("status reports an absent record as absent", describePublishRun(null) === "never recorded");
+  check("status falls back to the last recorded step", describePublishRun({ steps: [{ id: "gates" }] }) === "pipeline run, stopped at gates");
 }
 
 try {

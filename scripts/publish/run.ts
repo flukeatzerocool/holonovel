@@ -47,6 +47,10 @@ interface RunRecord {
   schema_version: 1;
   started: string;
   head: string;
+  /** True when the run was started with --dry-run; omitted on older records. */
+  dry_run?: boolean;
+  /** The furthest step this record reached; omitted on older records. */
+  stopped_at?: string;
   steps: Recorded[];
 }
 
@@ -73,6 +77,9 @@ function readRun(): RunRecord | null {
 }
 
 function writeRun(record: RunRecord): void {
+  // The furthest step is the record's own fact; a consumer never has to infer
+  // "dry run" from an absence of later steps.
+  record.stopped_at = record.steps.at(-1)?.id ?? "start";
   mkdirSync(join(ROOT, ".holonovel-state"), { recursive: true });
   writeFileSync(RUN_PATH, `${JSON.stringify(record, null, 2)}\n`);
 }
@@ -133,6 +140,7 @@ function main(): void {
     schema_version: 1,
     started: new Date().toISOString(),
     head,
+    dry_run: flags.dryRun,
     steps: previous?.head === head ? previous.steps : [],
   };
 
