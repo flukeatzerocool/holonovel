@@ -2,8 +2,9 @@
 
 **Date:** 2026-11-16 · **Kind:** planned · **Depth:** standard
 **Increment:** `docs/plans/2026-11-16-release-hardening`
-**Revision:** 5 — revision 4 plus the P2 generated consequences (G7 attestation and
-the build-phase-map content hash) and the T177 amendment outcome.
+**Revision:** 6 — revision 5 plus the P3/P4 disposition: T1 rescoped to the
+roadmap (a parameter change cannot reach ~30 non-tautological mutants), T2 is an
+operator step by construction, and P4 awaits the operator's publish order.
 **Source:** the 2026-11-16 production-readiness assessment (independent MCP
 probes against HEAD `64e810f` and the published 2026.11.8). Findings F1–F11 map
 to recommendations R1–R10.
@@ -191,6 +192,27 @@ until the measurement exists.
   prompt (prefix `OK`, each match carrying name and location), and no REQ
   requires the error category. T177 now asserts the `[MISSING_PARAM]` half and
   records the prompt as the ambiguity contract.
+
+## P3/P4 disposition (revision 6)
+
+Execution stopped at the P3 boundary rather than padding two steps to look done.
+
+- **P3-T1 — not executed; rescoped to the roadmap.** The tier's evidence is one
+  synthetic three-turn transcript and its eight scored mutants are the lens set
+  itself. Reaching ~30 means either seeding the same lenses repeatedly —
+  tautological, and exactly what `ORACLE_DERIVED`/CR-32 already excludes — or
+  writing new lenses with their own evidence fixtures. That is a design
+  increment, not a parameter change, so the plan's "S" estimate was wrong. The
+  tier keeps its current method audit; new-lens design is a separate item.
+- **P3-T2 — not executable here by construction.** §10 binds the *operator*: a
+  different model, a clean checkout with the verification evidence withheld,
+  and the operator's adjudication of `DISPUTED` items. Running it in this
+  session's context would not be independent. It is the first post-publish step.
+- **P4 — not executed.** Publication requires the operator's explicit order
+  (build-review §4); the maintainer has not given it.
+
+None of the three is a failed check; each is a boundary the increment cannot
+cross on its own.
 
 ## Blast radius
 

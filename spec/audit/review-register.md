@@ -3659,3 +3659,36 @@ secret store and the registered names, with no new persisted state.
   changes were committed; push and deploy verification remain pending operator
   authorization. Evidence: `spec-update-record --check` still reports the
   unpublished delta.
+
+## Resolved — 2026-11-16 release hardening
+
+### 2026-11-16 input contract and release-state honesty
+
+Closed by `docs/plans/2026-11-16-release-hardening/` (P1 and P2 executed).
+
+- **F1 — 22 actions accepted an absent required parameter and wrote a record
+  keyed `undefined`. Resolved.** `REQUIRED_PARAMS` (`holonovel/src/core/param-contract.ts`)
+  with the guard in `guardToolCall`; the sweep reports 0 silent accepts on this
+  tree and 35 failures on the published 2026.11.8 build.
+- **F2 — three actions returned raw exception text. Resolved.** `withSystemEnvelope`
+  at registration plus the MCP seam returns `[ERROR] [SYSTEM]` with the detail on
+  stderr only.
+- **F3 — three resource projections could emit a nameless entry. Resolved.**
+  `String(k)` at `lore://`, `server-notes://`, and `ui://lore/`.
+- **F4 — `[MISSING_PARAM]` was specified and never emitted. Resolved.** The
+  category is emitted with the parameter name and its expected format.
+- **F5 — T177 asserted the opposite of its row. Resolved.** It now asserts
+  `[MISSING_PARAM]`; the `[AMBIGUOUS]` half is amended to the REQ-196e prompt.
+- **F6 — `status` presented a dry run as a publish. Resolved.** `dry_run` /
+  `stopped_at` on the record, rendered by `describePublishRun`.
+- **F7 — two moderate `hono` advisories had no disposition. Resolved** by
+  recording non-reachability in `SECURITY.md`; the next SDK bump clears them.
+- **F8 — a register section pointed at rows that were gone. Resolved.** The
+  section records the loss and points at the roadmap item.
+- **F11 — container image unverified locally. Accepted risk**, recorded in
+  `docs/publish-pipeline.md`.
+- **F12 — the plan over-scoped P3-T1. Recorded**; rescoped to F9.
+- **F9 — the mutation sample (8) is too small. Scheduled-roadmap.** New lens
+  design, not a parameter change.
+- **F10 — §10 independent verification never run. Scheduled-roadmap.** Operator
+  step; first post-publish action.

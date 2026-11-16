@@ -68,22 +68,28 @@ P2-T5; (4) P2-T6.
 
 ## P3 — Verification depth (R6, R8)
 
-- [ ] P3-T1 `holonovel/scripts/lib/holosuite-mutation.ts`: 8 → ~30 mutants
-      across persistence, badge gating, dispatch; record the catch rate.
+- [ ] P3-T1 `holonovel/scripts/lib/holosuite-mutation.ts`: grow the derived
+      sample (the "~30" estimate was superseded by plan revision 6); record the
+      catch rate.
+      **Not executed — rescoped (plan revision 6): the tier's evidence is one
+      synthetic transcript, so 30 non-tautological mutants need new lens design.**
 - [ ] P3-T2 §10 independent verification; write
       `independent-verification.md`; disposition every finding into the
-      registers.
+      registers. **Not executed — operator step by construction (different
+      model, clean checkout).**
 
 ## P4 — Publish
 
-- [ ] P4-T1 `./scripts/push-pipeline.sh`.
+- [ ] P4-T1 `./scripts/push-pipeline.sh`. **Not executed — awaits the
+      operator's explicit order.**
 - [ ] P4-T2 Verify the tag equals the published CalVer version, npm `latest`,
       deploy clone, wiki.
 - [ ] P4-T3 Re-record the external TDQS score.
 
 ## Close
 
-- [ ] C1 Review-register rows for F1–F11 with terminal dispositions.
-- [ ] C2 Replace the provisional AAR; run `after-action-report`; end with
-      `LOOP PAUSED` or `LOOP OPEN`.
-- [ ] C3 `npm run session:close` per phase.
+- [x] C1 Review-register rows for F1–F12 with terminal dispositions.
+- [x] C2 Replace the provisional AAR; run `after-action-report`; end with
+      `LOOP OPEN` (F9/F10 residual).
+- [ ] C3 `npm run session:close` per phase. **P1 and P2 committed by concern;
+      the closing commit lands with this file.**

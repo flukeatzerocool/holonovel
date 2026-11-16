@@ -71,7 +71,7 @@ refused surfaces.
 
 `independent-review passed.` — reads 3/4.
 
-Plan sha256: c7d08c8eec2ddf20e3d855df7aca3e3bac3f68aba48ffb1c6687eae500aeafd6
+Plan sha256: e9d8cb5763c688097f7407a94feb586cbbbc9f2f50f96bc6cd6339c4e50639c3
 
 ## Pass 4 — P2 delta (revision 5)
 
@@ -84,3 +84,14 @@ paths correctly characterised and in the blast radius; the amendment is the
 plan's authorised branch; no new plan needed. Nit: "All three" counts four paths.
 
 `independent-review passed.` — reads 4/5.
+
+## Pass 5 — P3/P4 disposition (revision 6)
+
+Reviewed the stopping point: P3-T1 rescoped with the reason (one synthetic
+transcript; new lenses, not repeated seeds), P3-T2 operator-bound by
+construction, P4 awaiting the explicit publish order. Verdict: recorded, not a
+silent cut; the AAR carries the gate table, F1–F12 dispositions, and LOOP OPEN
+(correct — the done bar's publish criterion is unmet and F9/F10 remain); no
+undispositioned residual float. Nits applied (gate-table count, tasks row).
+
+`independent-review passed.` — reads 5/6.

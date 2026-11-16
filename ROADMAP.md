@@ -12,6 +12,26 @@
   this rule; `## Non-goals` is exempt.
 -->
 
+## Independent verification (§10) (P1)
+
+- The spec binds the operator: a different model re-executes the verification
+  workflows from a cold checkout with DECISIONS.md item (6) withheld. The
+  2026-11-16 release-hardening increment left it unrun because this session's
+  context is not independent.
+
+**Trigger:** the first publish after 2026-11-16; closes when the verifier report
+and its `DISPUTED` adjudications are recorded.
+
+## Mutation-sample depth (P2)
+
+- `test:holosuite-mutation` scores 8 transcript-derived mutants against one
+  synthetic three-turn transcript. Reaching a meaningful sample needs new lenses
+  with their own evidence fixtures, not repeated seeds (the tautology
+  `ORACLE_DERIVED`/CR-32 already excludes).
+
+**Trigger:** the next Holosuite lens change; closes when the derived sample is
+large enough to report a catch rate with a useful confidence interval.
+
 ## Loop-gate fix-up rate re-measurement (P2)
 
 - Two weeks after the AAR close gate ships (2026-11-28), re-measure the fix-up
