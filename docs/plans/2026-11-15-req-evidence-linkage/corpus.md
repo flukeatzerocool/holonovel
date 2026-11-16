@@ -86,16 +86,8 @@
 | REQ-376b | T431 | Automated | automated-unexercised |
 | REQ-377d | T432 | Automated | automated-unexercised |
 | REQ-378b | T433 | Automated | automated-unexercised |
-| REQ-395b | T464 | Automated | automated-unexercised |
-| REQ-396 | T465 | Automated | automated-unexercised |
-| REQ-398 | T467 | Automated | automated-unexercised |
-| REQ-398 | T491 | Automated | automated-unexercised |
 | REQ-416 | T489 | Automated | automated-unexercised |
-| REQ-418 | T491 | Automated | automated-unexercised |
-| REQ-419 | T492 | Automated | automated-unexercised |
 | REQ-451 | T541 | Automated | automated-unexercised |
 | REQ-451a | T541 | Automated | automated-unexercised |
 | REQ-452 | T542 | Automated | automated-unexercised |
-| REQ-453 | T543 | Automated | automated-unexercised |
-| REQ-454 | T544 | Automated | automated-unexercised |
 | REQ-569 | T682 | Automated | automated-unexercised |

@@ -43,6 +43,7 @@ import {
   CHECK_MARKERS,
   extractCheckCitations,
   checkReqEvidenceLinkage,
+  labelsFromContent,
   unresolvedPatternRuleTokens,
   extractSection,
 } from "./lib/req-checks.js";
@@ -982,11 +983,11 @@ function checkSection52CoverageMap(text: string, reqIndex: Map<string, string>):
   const coverageStart = text.indexOf("#### §5.2 REQ coverage map");
   if (coverageStart === -1) { issues.push("ERROR: §5.2 REQ coverage map not found"); return issues; }
   const coverageEnd = text.indexOf("### 5.3", coverageStart);
-  if (coverageEnd === -1) { issues.push("ERROR: §5.2 coverage map table terminator (§5.3) not found"); return issues; }
+  if (coverageEnd === -1) { issues.push("ERROR: T543 — §5.2 coverage map table terminator (§5.3) not found"); return issues; }
   const mapSection = text.slice(coverageStart, coverageEnd);
   const mapReqs = new Set<string>();
   for (const match of mapSection.matchAll(/\| REQ-(\d{3}[a-z0-9]*)\s*\|/g)) mapReqs.add("REQ-" + match[1]);
-  if (mapReqs.size === 0) { issues.push("ERROR: §5.2 REQ coverage map contains no REQ entries"); return issues; }
+  if (mapReqs.size === 0) { issues.push("ERROR: T543 — §5.2 REQ coverage map contains no REQ entries"); return issues; }
 
   const sectionMapStart = text.indexOf("| §       | Title");
   if (sectionMapStart === -1) { issues.push("ERROR: §5 section map not found"); return issues; }
@@ -1437,6 +1438,9 @@ const IMPL_SCRIPTS_DIR = path.resolve(__dirname, "..", "holonovel", "scripts");
 // Walked once at module load; every audit below shares these file lists.
 const IMPL_SRC_FILES = walkTsFilesRaw(IMPL_SRC_DIR);
 const IMPL_SCRIPTS_FILES = walkTsFilesRaw(IMPL_SCRIPTS_DIR);
+// Root spec tooling asserts through `check(...)` and issue-list checks that
+// return `string[]`; both shapes are admitted by labelsFromContent.
+const ROOT_SCRIPT_FILES = walkTsFilesRaw(__dirname);
 
 function gatherSourceCites(): Set<string> {
   const cites = new Set<string>();
@@ -1459,6 +1463,13 @@ function gatherExercisedIds(): Set<string> {
     for (const m of content.matchAll(/\btest\s*\(\s*["'`]([^"'`]+)["'`]/g)) {
       for (const id of m[1].matchAll(/\b([TIS]\d+[a-z0-9]*)\b/g)) ids.add(id[1]);
     }
+  }
+  // Builder-side REQs are evidenced by root spec tooling, whose assertions use
+  // the label and issue-list shapes; the server package keeps the test-name scan.
+  for (const f of ROOT_SCRIPT_FILES) {
+    let content = "";
+    try { content = fs.readFileSync(f, "utf-8"); } catch { continue; }
+    for (const id of labelsFromContent(content)) ids.add(id);
   }
   return ids;
 }
@@ -1886,7 +1897,7 @@ function checkIntendedGapDispositions(sourceCites: Set<string>): string[] {
     const cited = [...sourceCites].some((c) => baseReq(c) === id);
     if (!cited) continue;
     if (!(id in INTENDED_GAP_CITED_DISPOSITIONS)) {
-      issues.push(`ERROR: REQ-454 — whitelisted REQ ${id} is cited in server source but has no disposition; remove it from INTENDED_GAP_REQS or add a disposition`);
+      issues.push(`ERROR: T544/REQ-454 — whitelisted REQ ${id} is cited in server source but has no disposition; remove it from INTENDED_GAP_REQS or add a disposition`);
     }
   }
   return issues;

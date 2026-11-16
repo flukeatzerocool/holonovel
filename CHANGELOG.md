@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-16 — Linkage predicate admits gate labels; 8 citations close (chunk 2 of 3)
+
+The REQ evidence-linkage check now sees the assertion shapes the root gates actually emit, so a builder-side REQ can be evidenced by the check that enforces it. Eight citations closed and the corpus fell from 99 to 91; the remaining 30 gate-side citations are reclassified as builder drills, unasserted rows, or stale script paths, and the 61 script-less citations stay with chunk 3.
+
+- `scripts/lib/req-checks.ts`: pure `labelsFromContent` with a single lexer that is
+- `scripts/validate.ts`: imports the reader and walks root `scripts/**/*.ts`; the server
+- Named the two rows whose asserting check exists: `T543` (§5.2 coverage map) and `T544`
+- `scripts/test-req-checks.ts`: seven cases pin the admitted and rejected shapes, including
+- Corpus regenerated to 91; coverage register regenerated via `validate -- --write-register`.
+- ROADMAP item 3 and the review register record the 8 closures, the class split, and the
+
 ## 2026-11-16 — Roadmap drain 2: the close writes its own changelog, artifacts get a bound
 
 Two ROADMAP items retired and the first chunk of the P1 evidence work landed. `session:close` now derives the dated CHANGELOG block from the increment's AAR, `loop-audit` measures a plan/AAR line bound and `--check` enforces it, and the 23 undocumented Manual Appendix F citations are recorded in `DECISIONS.md`, cutting the evidence-linkage list from 122 to 99.

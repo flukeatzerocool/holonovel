@@ -40,9 +40,13 @@ large enough to report a catch rate with a useful confidence interval.
   `_Check:_` cites a T-ID must land on an Automated Appendix F row a harness
   names, or a Manual row whose procedure `DECISIONS.md` documents. Appendix F has
   no `Gate` kind. The 23 Manual rows were documented 2026-11-16 (chunk 1 of 3).
-- T22, T35, and T103 all have asserting harnesses; the remaining defect class is
-  the 99 unlinked Automated citations, 99 of them in REQs already whitelisted as
-  builder-side.
+- T22, T35, and T103 all have asserting harnesses. Chunk 2 of 3 landed 2026-11-16:
+  **91 findings remain** (was 99). The predicate now admits the label shapes the
+  gates emit; 8 closed (6 already-labelled, 2 named on their asserting check). Of
+  the 38 gate-side citations, 16 rows are builder drills, 11 have no admitted
+  assertion, and 3 name paths that do not exist; 61 citations over 49 REQs have no
+  script citation at all. Chunk 3 decides whether a declared gate kind is admitted
+  or each REQ gets a T-named assertion.
 - The companion class is evidence *granularity*: `check:conformance --
   --dedicated` reports 126 bucket-C REQs whose only evidence is shared with
   another REQ (bucket-C cited only in comments: 42, advisory). A REQ is not

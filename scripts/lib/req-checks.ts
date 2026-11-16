@@ -679,6 +679,196 @@ export function extractCheckCitations(
   return out;
 }
 
+// ─── Evidence-label extraction (linkage + coverage) ─────────────────────
+// A T-ID is evidence only in an emitting position: a `test(...)` name, either
+// argument of `check(...)`, or a literal that is a `.push(`/`console.*` argument
+// or `return`ed from a `function check*(…): string[]`. Comments and literals
+// elsewhere — data arrays, unused consts, regex sources — are not evidence.
+const STRING_LIT_RE = /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`/g;
+const EVIDENCE_ID_RE = /\b([TIS]\d+[a-z0-9]*)\b/g;
+
+// One lexer pass yields two aligned views: `code` keeps string bodies with
+// comments blanked, `masked` blanks both so a fixture containing code text is
+// not read as a call site. Template interpolations (`` `a${x}` ``) are lexed as
+// code, so nested literals cannot invert the state.
+// A `/` opens a regex after an operator or keyword, not after a value.
+function isRegexStart(emitted: string[]): boolean {
+  for (let i = emitted.length - 1; i >= 0; i--) {
+    const c = emitted[i]!;
+    if (c === " " || c === "\n" || c === "\t") continue;
+    if ("(,=:[!&|?{};+-*%<>~^".includes(c)) return true;
+    if (/[A-Za-z]/.test(c)) {
+      const word = emitted.join("").slice(-12).trimEnd();
+      return /(?:^|[^A-Za-z])(return|typeof|case|in|of|new|delete|void)$/.test(word);
+    }
+    return false;
+  }
+  return false;
+}
+
+function lexMask(text: string): { code: string; masked: string } {
+  const code: string[] = [];
+  const masked: string[] = [];
+  const stack: Array<"code" | "sq" | "dq" | "tpl"> = ["code"];
+  const interpDepth: number[] = [];
+  const put = (c: string, m: string): void => { code.push(c); masked.push(m); };
+  let i = 0;
+  while (i < text.length) {
+    const mode = stack[stack.length - 1]!;
+    const ch = text[i]!;
+    const next = text[i + 1];
+    if (mode === "sq" || mode === "dq") {
+      if (ch === "\\") { put(ch + (next ?? ""), "  "); i += 2; continue; }
+      if ((mode === "sq" && ch === "'") || (mode === "dq" && ch === '"')) { put(ch, ch); stack.pop(); i++; continue; }
+      put(ch, " "); i++; continue;
+    }
+    if (mode === "tpl") {
+      if (ch === "\\") { put(ch + (next ?? ""), "  "); i += 2; continue; }
+      if (ch === "`") { put(ch, ch); stack.pop(); i++; continue; }
+      if (ch === "$" && next === "{") { put("${", "  "); stack.push("code"); interpDepth.push(0); i += 2; continue; }
+      put(ch, " "); i++; continue;
+    }
+    if (ch === "/" && next === "/") {
+      while (i < text.length && text[i] !== "\n") { put(" ", " "); i++; }
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      put("  ", "  "); i += 2;
+      while (i < text.length && !(text[i] === "*" && text[i + 1] === "/")) { put(text[i] === "\n" ? "\n" : " ", " "); i++; }
+      put("  ", "  "); i += 2; continue;
+    }
+    // A regex literal can contain quote characters; without this skip the
+    // quote state desyncs and the rest of the file reads as one string.
+    if (ch === "/" && isRegexStart(code)) {
+      put(ch, ch); i++;
+      let inClass = false;
+      while (i < text.length) {
+        const rc = text[i]!;
+        if (rc === "\\") { put(rc + (text[i + 1] ?? ""), "  "); i += 2; continue; }
+        if (rc === "[") inClass = true;
+        else if (rc === "]") inClass = false;
+        else if (rc === "/" && !inClass) { put(rc, rc); i++; break; }
+        put(rc, " "); i++;
+      }
+      while (i < text.length && /[a-z]/i.test(text[i]!)) { put(text[i]!, " "); i++; }
+      continue;
+    }
+    if (ch === "'") { put(ch, ch); stack.push("sq"); i++; continue; }
+    if (ch === '"') { put(ch, ch); stack.push("dq"); i++; continue; }
+    if (ch === "`") { put(ch, ch); stack.push("tpl"); i++; continue; }
+    if (interpDepth.length > 0) {
+      const top = interpDepth.length - 1;
+      if (ch === "{") interpDepth[top] = interpDepth[top]! + 1;
+      else if (ch === "}") {
+        if (interpDepth[top] === 0) { put(ch, " "); interpDepth.pop(); stack.pop(); i++; continue; }
+        interpDepth[top] = interpDepth[top]! - 1;
+      }
+    }
+    put(ch, ch); i++;
+  }
+  return { code: code.join(""), masked: masked.join("") };
+}
+
+// Index of the `)` balancing the `(` at `open`, skipping string bodies.
+function closingParen(code: string, open: number): number {
+  let depth = 0;
+  let quote = "";
+  for (let i = open; i < code.length; i++) {
+    const ch = code[i]!;
+    if (quote) {
+      if (ch === "\\") { i++; continue; }
+      if (ch === quote) quote = "";
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") { quote = ch; continue; }
+    if (ch === "(") depth++;
+    else if (ch === ")") { depth--; if (depth === 0) return i; }
+  }
+  return -1;
+}
+
+function literalsIn(segment: string): string[] {
+  const ids: string[] = [];
+  for (const m of segment.matchAll(STRING_LIT_RE)) {
+    for (const id of m[0].matchAll(EVIDENCE_ID_RE)) ids.push(id[1]!);
+  }
+  return ids;
+}
+
+// [start, end) ranges of a call's argument list, found on the masked text.
+function callRanges(masked: string, callRe: RegExp): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  for (const m of masked.matchAll(callRe)) {
+    const open = masked.indexOf("(", m.index! + m[0].length - 1);
+    if (open === -1) continue;
+    const close = closingParen(masked, open);
+    if (close === -1) continue;
+    out.push([open + 1, close]);
+  }
+  return out;
+}
+
+// [start, end) ranges of `function check*(…): string[]` bodies.
+function checkFunctionRanges(masked: string): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  for (const m of masked.matchAll(/function\s+check\w*\s*\([^)]*\)\s*:\s*string\[\]\s*\{/g)) {
+    let depth = 0;
+    for (let i = m.index! + m[0].length - 1; i < masked.length; i++) {
+      const ch = masked[i]!;
+      if (ch === "{") depth++;
+      else if (ch === "}") { depth--; if (depth === 0) { out.push([m.index! + m[0].length, i]); break; } }
+    }
+  }
+  return out;
+}
+
+// Cut a range at its first top-level comma (the first argument only).
+function firstArgumentEnd(masked: string, start: number, end: number): number {
+  let depth = 0;
+  for (let i = start; i < end; i++) {
+    const ch = masked[i]!;
+    if (ch === "(" || ch === "[" || ch === "{") depth++;
+    else if (ch === ")" || ch === "]" || ch === "}") depth--;
+    else if (ch === "," && depth === 0) return i;
+  }
+  return end;
+}
+
+// `return` statement ranges inside a check body, cut at the terminating
+// semicolon, so a multi-statement body does not leak into the next statement.
+function returnRanges(masked: string, start: number, end: number): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  for (const m of masked.slice(start, end).matchAll(/\breturn\b/g)) {
+    const from = start + m.index!;
+    let depth = 0;
+    for (let i = from; i < end; i++) {
+      const ch = masked[i]!;
+      if (ch === "(" || ch === "[" || ch === "{") depth++;
+      else if (ch === ")" || ch === "]" || ch === "}") depth--;
+      else if (ch === ";" && depth === 0) { out.push([from, i]); break; }
+    }
+  }
+  return out;
+}
+
+export function labelsFromContent(text: string): string[] {
+  const { code, masked } = lexMask(text);
+  const take = (start: number, end: number): string[] => literalsIn(code.slice(start, end));
+  const ids: string[] = [];
+  for (const [start, end] of callRanges(masked, /\btest\s*\(/g)) {
+    ids.push(...take(start, firstArgumentEnd(masked, start, end)));
+  }
+  for (const [start, end] of callRanges(masked, /\bcheck\s*\(/g)) ids.push(...take(start, end));
+  const pushes = callRanges(masked, /\.push\s*\(/g);
+  const reports = callRanges(masked, /\bconsole\s*\.\s*\w+\s*\(/g);
+  for (const [start, end] of checkFunctionRanges(masked)) {
+    for (const [s, e] of pushes) if (s > start && e < end) ids.push(...take(s, e));
+    for (const [s, e] of reports) if (s > start && e < end) ids.push(...take(s, e));
+    for (const [s, e] of returnRanges(masked, start, end)) ids.push(...take(s, e));
+  }
+  return [...new Set(ids)].sort();
+}
+
 export function checkReqEvidenceLinkage(input: {
   citations: ReadonlyMap<string, string[]>;
   rows: ReadonlyMap<string, { kind: string }>;

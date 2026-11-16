@@ -6,7 +6,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ | Title | Section | Bucket | Exercised tests | §5.12 disposition |
 |-----|-------|---------|--------|-----------------|-------------------|
 | REQ-001 | Response contract (4 sub-parts) | 5.1 Output and Error Contracts | C | T90, T91, T261 | — |
-| REQ-002 | Error taxonomy (6 sub-parts) | 5.1 Output and Error Contracts | C | T39a, T177, S22, T179 | — |
+| REQ-002 | Error taxonomy (6 sub-parts) | 5.1 Output and Error Contracts | C | T18, T39a, T177, S22, T179 | — |
 | REQ-003 | Roll transparency (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T39a, T47, T210, T131 | — |
 | REQ-004 | Truncation (1 sub-part) | 5.1 Output and Error Contracts | C | T13 | — |
 | REQ-010 | Traceability | 5.2 Extraction and Confidence | E | T15 | — |
@@ -26,7 +26,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-025 | spec_health (Part a) (4 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T15, T480, T93, T195, T204, T171, T488 | — |
 | REQ-030 | Single-user connection | 5.5 Badges and Access | C | T785, S6, S17 | — |
 | REQ-031 | Badge activation (Part a) (2 sub-parts) | 5.5 Badges and Access | C | T9, T150, S6, S22 | — |
-| REQ-032 | Server-side gating (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T26, T44, T50, T53, T57, T59, T62, T63, T64, T65, T66, T67, T68, T70, T71, T75, T76, T79, T80, T81, T82, T90, T91, T100, T101, T104, T109, T110, T112, T118, T119, T127, T128, T129, T133, T134, T135, T139, T142, T148, T151, T221, T261, T284, T285, T286, T326, S6, T16, T349 | — |
+| REQ-032 | Server-side gating (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T9, T13, T15, T18, T26, T44, T50, T53, T57, T59, T62, T63, T64, T65, T66, T67, T68, T70, T71, T75, T76, T79, T80, T81, T82, T90, T91, T100, T101, T104, T109, T110, T112, T118, T119, T127, T128, T129, T133, T134, T135, T139, T142, T148, T151, T221, T261, T284, T285, T286, T326, S6, T16, T349 | — |
 | REQ-040 | Audit log (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T8, T70, T100, T203, T147, T786 | — |
 | REQ-041 | Snapshots and undo (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T10, T76, T79, T90, T91, T103, T121, T138, T261, S22 | — |
 | REQ-042 | Workflow decisions (Part a) (6 sub-parts) | 5.4 Decision workflows | C | T32, T138, T157, T261 | — |
@@ -360,11 +360,11 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-391 | Scoped tool listing (Part a) (3 sub-parts) | 5.17 Ruleset Packages | C | T456, T457, T458 | — |
 | REQ-392 | Tool-description budget | 5.17 Ruleset Packages | C | T479, T459 | — |
 | REQ-393 | Update preservation | 5.17 Ruleset Packages | C | T460, T498 | — |
-| REQ-394 | Spec publication integrity (1 sub-part) | 5.17 Ruleset Packages | E | T462, T84e | — |
-| REQ-395 | Ruleset-build entry point (Part a) (3 sub-parts) | 5.18 Workflow Entry Points | E | T463, T650, T689 | — |
-| REQ-396 | Deploy preservation | 5.18 Workflow Entry Points | E | — | — |
+| REQ-394 | Spec publication integrity (1 sub-part) | 5.17 Ruleset Packages | E | T462, T492, T84e | — |
+| REQ-395 | Ruleset-build entry point (Part a) (3 sub-parts) | 5.18 Workflow Entry Points | E | T463, T650, T464, T689 | — |
+| REQ-396 | Deploy preservation | 5.18 Workflow Entry Points | E | T465 | — |
 | REQ-397 | Untracked state location | 5.18 Workflow Entry Points | C | T466 | — |
-| REQ-398 | Deploy-model scope | 5.18 Workflow Entry Points | E | T462 | — |
+| REQ-398 | Deploy-model scope | 5.18 Workflow Entry Points | E | T462, T467, T491 | — |
 | REQ-399 | Character-creation package data (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T468 | — |
 | REQ-400 | State-Persistence Directive | 5.19 State Persistence Guardrails | C | T469 | — |
 | REQ-401 | State ledger briefing token | 5.19 State Persistence Guardrails | C | T470 | — |
@@ -384,8 +384,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-415 | Summary-first tool catalog | 5.3 Tools, Resources, and Lookups | C | T488 | — |
 | REQ-416 | Config default inheritance | 5.7 Determinism, Safety, and Performance | E | — | — |
 | REQ-417 | Non-blocking startup probes | 5.7 Determinism, Safety, and Performance | C | T490 | — |
-| REQ-418 | Deployment verification | 5.18 Workflow Entry Points | E | — | — |
-| REQ-419 | Editorial delta classification | 5.17 Ruleset Packages | E | — | — |
+| REQ-418 | Deployment verification | 5.18 Workflow Entry Points | E | T491 | — |
+| REQ-419 | Editorial delta classification | 5.17 Ruleset Packages | E | T492 | — |
 | REQ-420 | Ruleset package-format fingerprint | 5.18 Workflow Entry Points | C | T498, T503 | — |
 | REQ-421 | Ruleset source registry | 5.18 Workflow Entry Points | E | T499 | — |
 | REQ-422 | Ruleset update entry point | 5.18 Workflow Entry Points | E | T500 | — |
@@ -419,8 +419,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-450 | TDQS-conformant tool definitions | 5.3 Tools, Resources, and Lookups | C | T536 | — |
 | REQ-451 | Vendor manifest verification (1 sub-part) | 11.4 Ruleset Wisdom (vendor content) | E | — | — |
 | REQ-452 | Conversion evidence verification | 5.2 Extraction and Confidence | E | — | — |
-| REQ-453 | Extraction evidence-map parity | 5.2 Extraction and Confidence | E | — | — |
-| REQ-454 | Intended-gap whitelist discipline | 5.2 Extraction and Confidence | E | — | — |
+| REQ-453 | Extraction evidence-map parity | 5.2 Extraction and Confidence | E | T543 | — |
+| REQ-454 | Intended-gap whitelist discipline | 5.2 Extraction and Confidence | E | T544 | — |
 | REQ-455 | Event log append | 5.24 Temporal Event Log and Branching | C | T545 | — |
 | REQ-456 | Non-semantic record | 5.24 Temporal Event Log and Branching | C | T546 | — |
 | REQ-457 | Alternative events | 5.24 Temporal Event Log and Branching | C | T547 | — |

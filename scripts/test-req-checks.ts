@@ -4,7 +4,7 @@
 // Exercises checkEmptyReqBodies / checkTruncatedReqBodies against synthetic
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
-import { checkNewBucketB, CHECK_MARKERS, extractCheckCitations, checkReqEvidenceLinkage } from "./lib/req-checks.js";
+import { checkNewBucketB, CHECK_MARKERS, extractCheckCitations, checkReqEvidenceLinkage, labelsFromContent } from "./lib/req-checks.js";
 import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount, checkHarnessTitleIds, checkHarnessCommentIds, unresolvedPatternRuleTokens } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings, findDuplicateReqIds, extractReqBodiesWithSentences } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
@@ -773,6 +773,46 @@ test("a null decisionsText skips the Manual rule", () => {
     decisionsText: null,
   });
   if (findings.length !== 0) throw new Error(`null must skip, not re-label: ${JSON.stringify(findings)}`);
+});
+
+test("labels: a test name is evidence", () => {
+  const got = labelsFromContent('test("T901: widget renders", () => {});');
+  if (!got.includes("T901")) throw new Error(`test name not admitted: ${JSON.stringify(got)}`);
+});
+
+test("labels: either check argument is evidence", () => {
+  const condFirst = labelsFromContent('check(true, "T902: thing holds");');
+  const labelFirst = labelsFromContent('check("T903: other thing", condition);');
+  if (!condFirst.includes("T902")) throw new Error(`cond-first label missed: ${JSON.stringify(condFirst)}`);
+  if (!labelFirst.includes("T903")) throw new Error(`label-first missed: ${JSON.stringify(labelFirst)}`);
+});
+
+test("labels: a pushed issue inside a check function is evidence", () => {
+  const src = "function checkThing(text: string): string[] {\n  issues.push(`T904: missing thing`);\n  return issues;\n}";
+  const got = labelsFromContent(src);
+  if (!got.includes("T904")) throw new Error(`push label missed: ${JSON.stringify(got)}`);
+});
+
+test("labels: a comment is not evidence", () => {
+  const got = labelsFromContent("// T905: explained in prose\nconst x = 1;");
+  if (got.includes("T905")) throw new Error(`comment counted: ${JSON.stringify(got)}`);
+});
+
+test("labels: a data array and an unused literal are not evidence", () => {
+  const got = labelsFromContent('const RETIRED = ["T906"];\nconst NAME = "T907";');
+  if (got.includes("T906") || got.includes("T907")) throw new Error(`non-emitting literal counted: ${JSON.stringify(got)}`);
+});
+
+test("labels: a label naming another T-ID does not evidence the cited one", () => {
+  const got = labelsFromContent('check(true, "T908: unrelated assertion");');
+  if (got.includes("T909")) throw new Error("an absent ID cannot be derived from a sibling label");
+  if (!got.includes("T908")) throw new Error(`the emitted label must be returned: ${JSON.stringify(got)}`);
+});
+
+test("labels: a regex literal containing quotes does not desync the scan", () => {
+  const src = 'const RE = /["\'`]/;\ncheck(true, "T910: after the regex");';
+  const got = labelsFromContent(src);
+  if (!got.includes("T910")) throw new Error(`label after a regex literal missed: ${JSON.stringify(got)}`);
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

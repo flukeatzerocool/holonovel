@@ -3087,6 +3087,27 @@ retired with the `Loop-gate fix-up rate re-measurement` section.
 
 ### 2026-11-15 REQ evidence linkage (P1)
 
+Chunk 2 of 3 landed 2026-11-16 (`docs/plans/2026-11-16-roadmap-drain-3`): the
+linkage predicate now admits the label shapes the root gates actually emit — a
+`test(...)` name, either argument of `check(...)`, and a string in an emitting
+position (a `.push(`/`console.*` argument or a `return` inside a
+`function check*(…): string[]`), in `scripts/lib/req-checks.ts`. Comments, data
+arrays, unused literals, regex sources, and code text inside a fixture literal are
+excluded. **91 findings remain (was 99).** Eight closed: six on labels that already
+existed (`T464`, `T465`, `T467`, `T491` twice, `T492`) and two named on the checks
+that assert them (`T543` §5.2 coverage map, `T544` whitelist discipline in
+`checkIntendedGapDispositions`). The other 30 gate-side citations are **not**
+evidence-bearing: 16 rows describe builder drills recorded in `DECISIONS.md`, 11
+have no admitted assertion (the gate uses `fail()` or no test names the row), and 3
+name paths that do not exist — `T541` says `scripts/check-vendor-manifest.ts` (the
+file is `holonovel/scripts/check-vendor-manifest.ts`) and `T542` names
+`scripts/check-conversion-evidence.ts`, which does not exist. The residue is
+unchanged at **61 citations over 49 REQs** that no script cites at all. Chunk 3
+opens on the kind question: admit a declared gate kind, or give each REQ a T-named
+assertion.
+
+The 2026-11-16 chunk 1 note follows.
+
 Chunk 1 of 3 landed 2026-11-16 (`docs/plans/2026-11-16-roadmap-drain-2`): the 23
 `Manual` rows are documented in `holonovel/DECISIONS.md` § "Manual verification
 procedures — 2026-11-16" (14 T-IDs), so the pass now reports **99** findings,
