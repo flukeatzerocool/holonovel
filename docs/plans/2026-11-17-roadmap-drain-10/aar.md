@@ -62,10 +62,12 @@ nearest preceding `"seed": N`. `checkVersionCoordination` adds the CalVer gramma
    the untouched tree at the pre-existing `T493` currency line; the plan had assumed a green
    baseline. The delta amendment replaces "exit 0" with "FAIL set unchanged", which is stricter
    for this increment. Recorded in `plan.md` and re-stamped.
-4. **The pre-existing `T493` failure was fixed in-session as its own commit**, after the increment
-   commit: the root CalVer was one day behind the `2026-11-17` CHANGELOG heading, so CI's
-   version-currency step would fail on push. `npm run version-bump` advanced the five surfaces
-   together (REQ-107a). It is a baseline fix, not part of this increment.
+4. **The pre-existing `T493` failure was fixed in-session as its own commit**, and it landed
+   **before** the increment commit so the baseline was green first: the root CalVer was one day
+   behind the `2026-11-17` CHANGELOG heading, so CI's version-currency step would fail on push.
+   `npm run version-bump` advanced the five surfaces together (REQ-107a) and the README
+   `@spec:date` marker was refreshed; commit `f0913a5`, increment commit `01e0d04`. It is a
+   baseline fix, not part of this increment.
 
 ## Findings and dispositions
 
