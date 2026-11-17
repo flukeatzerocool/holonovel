@@ -318,6 +318,16 @@ function main(): void {
   check(rendered.includes("| REQ | Disposition | Evidence |") && rendered.includes("| REQ-032c | implemented |") && rendered.includes("| REQ-075j | waived |"), "rendered delta carries the disposition table");
   check(rendered.includes("changed: source, surfaces") && rendered.includes("unchanged: config, lockfile, extraction"), "rendered delta lists changed and unchanged components");
   check(rendered.includes("reused: config, lockfile, extraction"), "rendered delta lists the reused components");
+  // REQ-313a — the five component hashes beside the build fingerprint.
+  check(rendered.includes("| Component | Prior | Current |"), "rendered delta carries the component-hash table");
+  check(rendered.includes(`| extraction | \`${componentHash.slice(0, 16)}…\` | \`${componentHash.slice(0, 16)}…\` |`), "the table clips each hash to a readable prefix");
+  const sentinelRendered = renderFingerprintDelta({ ...deltaRecord, current: { ...deltaRecord.current, extraction: "sentinel" } });
+  check(sentinelRendered.includes("| extraction |") && sentinelRendered.includes("| sentinel |"), "a sentinel is rendered verbatim, not clipped");
+  const coldRendered = renderFingerprintDelta({ ...deltaRecord, prior: null });
+  check(coldRendered.includes("| source | none |"), "a cold seed renders an empty prior column");
+  // REQ-314b — the advice line is optional, so an older record still renders.
+  check(!rendered.includes("Scoping advice"), "a record without advice renders no advice line");
+  check(renderFingerprintDelta({ ...deltaRecord, advice: "typecheck then Pattern Buffer" }).includes("- **Scoping advice:** typecheck then Pattern Buffer"), "a record with advice renders the advice line");
   check(!hasFingerprintDelta("- **Verification:** done"), "an entry without the bullet fails the delta predicate");
   check(isLegacyDeltaExempt("f4bc3d04d34a9629b7d13d5e56194a044e5eb51ccb8c6ec66a3cb612f0697e69"), "the pre-rule publication is grandfathered");
   check(!isLegacyDeltaExempt("d".repeat(64)), "an unrelated hash is not grandfathered");

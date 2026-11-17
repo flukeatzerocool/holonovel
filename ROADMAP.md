@@ -35,16 +35,18 @@ large enough to report a catch rate with a useful confidence interval.
 
 ## REQ evidence linkage (P1)
 
-- 80 findings remain (2026-11-16 chunk 4 closed five: `REQ-107a`/`T493`, `REQ-569`/`T682`,
-  `REQ-451`+`REQ-451a`/`T541`, `REQ-452`/`T542`). The residue is 65 class-(b) rows with no
-  asserting site and 15 class-(c) builder-drill rows, triaged row by row in
-  `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md`.
-- `T497`'s eight rows (`REQ-313`/`REQ-314`) are the largest single block: the candidate tests
-  assert package-update planning and the fingerprint-delta renderer, not the sentinel,
-  source-only-reuse, and four-of-five clauses, so chunk 5 authors that assertion rather than
-  relabelling them.
+- 72 findings remain (2026-11-16 chunk 5 closed all eight `T497` rows — `REQ-313a`, `REQ-313b`,
+  `REQ-313c`, `REQ-313d`, `REQ-314a`, `REQ-314b`, `REQ-314c`, `REQ-314d`). The residue is 57
+  class-(b) rows with no asserting site and 15 class-(c) builder drills; the chunk-4 triage lives
+  in `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md` and the chunk-5 closure in
+  `docs/plans/2026-11-16-roadmap-drain-6/dispositions.md`.
 - Class (b) is real, not bookkeeping: `T420`/`T425`/`T439` require "≥1 archetype per group" and no
   check asserts non-emptiness (`scripts/validate.ts:1097`).
+- Chunk 5 changed three implementations rather than labelling them: the Spec Update record now
+  renders the five component hashes (`scripts/lib/spec-update.ts`), `surfaces` hashes the sorted
+  registered names from `holonovel/tool-definitions.json` (REQ-313b), and `scopingAdvice` states
+  the per-component action (REQ-314b). The block closed as a unit because the linkage predicate is
+  T-ID-scoped (`scripts/lib/req-checks.ts:881-887`).
 
 **Trigger:** every remaining row dispositioned and class (a) at zero; closes when the check is
 error-mode in `validate`.

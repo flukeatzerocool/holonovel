@@ -42,7 +42,7 @@ export async function runConformance(opts: { serverDir: string; artifactPath?: s
   const assert = assertionRecorder(ctx, "conformance");
 
   if (!existsSync(artifactPath)) {
-    assert("artifact_missing", false, `committed tool-definitions.json not found at ${artifactPath}`, 0, ["REQ-450"], anchor("holonovel/scripts/generate-tool-definitions.ts", 149, "buildRecord"));
+    assert("artifact_missing", false, `committed tool-definitions.json not found at ${artifactPath}`, 0, ["REQ-450"], anchor("holonovel/scripts/generate-tool-definitions.ts", 154, "buildRecord"));
     return { tier: "conformance", passed: ctx.passed, failed: ctx.failed, findings: ctx.findings, events: ctx.events };
   }
   const artifact = JSON.parse(readFileSync(artifactPath, "utf-8")) as { tools?: ArtifactTool[] };

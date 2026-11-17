@@ -82,6 +82,11 @@ interface Artifact {
   };
   tools: ToolRecord[];
   hidden_aliases: HiddenAlias[];
+  // REQ-313b — the sorted registered surface names the implementation
+  // fingerprint's `surfaces` component hashes (tool names, resource URIs,
+  // prompt names). Names only: descriptions and schemas already move the
+  // `source` component, so including them here would double-count wording.
+  surface_names: { tools: string[]; resources: string[]; prompts: string[] };
 }
 
 // ── MCP client (boot + tools/list) ─────────────────────────────────────
@@ -201,10 +206,10 @@ function surfaceFootprint(tools: any[], registry: SurfaceRegistryLike): Artifact
   }
   return { estimator: "utf8-bytes-div-4-ceil", profiles: { full, standard, small: { ...small, groups } } };
 }
-function buildArtifact(tools: any[], registry: SurfaceRegistryLike, hiddenAliases: HiddenAlias[] = []): Artifact {
+function buildArtifact(tools: any[], registry: SurfaceRegistryLike, hiddenAliases: HiddenAlias[] = [], surfaceNames: Artifact["surface_names"] = { tools: [], resources: [], prompts: [] }): Artifact {
   const records = tools.map(buildRecord).sort((a, b) => a.name.localeCompare(b.name));
   return {
-    schema_version: 3,
+    schema_version: 4,
     tool_count: records.length,
     tools_list_bytes: Buffer.byteLength(JSON.stringify(tools), "utf-8"),
     surface_footprint: surfaceFootprint(tools, registry),
@@ -218,6 +223,7 @@ function buildArtifact(tools: any[], registry: SurfaceRegistryLike, hiddenAliase
         ...(alias.action_enum ? { action_enum: [...alias.action_enum].sort() } : {}),
       }))
       .sort((a, b) => a.name.localeCompare(b.name)),
+    surface_names: surfaceNames,
   };
 }
 
@@ -265,8 +271,12 @@ async function main(): Promise<void> {
   const proc = await boot();
   let result: any;
   let health: any;
+  let resourcesResult: any;
+  let promptsResult: any;
   try {
     result = await send(proc, { method: "tools/list", params: { _meta: { profile: "full" } } });
+    resourcesResult = await send(proc, { method: "resources/list", params: {} });
+    promptsResult = await send(proc, { method: "prompts/list", params: {} });
     health = await send(proc, {
       method: "tools/call",
       params: { name: "manage_diagnostics", arguments: { action: "health" } },
@@ -289,7 +299,11 @@ async function main(): Promise<void> {
     console.error(`FATAL: unreadable registry: ${REGISTRY_PATH}`);
     process.exit(2);
   }
-  const rendered = serialize(buildArtifact(tools, registry, hiddenAliases));
+  const rendered = serialize(buildArtifact(tools, registry, hiddenAliases, {
+    tools: tools.map((tool: any) => String(tool.name)).sort(),
+    resources: ((resourcesResult?.result?.resources ?? []) as any[]).map((r: any) => String(r.uri)).sort(),
+    prompts: ((promptsResult?.result?.prompts ?? []) as any[]).map((p: any) => String(p.name)).sort(),
+  }));
 
   if (toStdout) { process.stdout.write(rendered); process.exit(0); }
 

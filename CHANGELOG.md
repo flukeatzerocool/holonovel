@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-16 — Linkage chunk 5: the T497 block closes as a unit, residue 80 → 72
+
+All eight `T497` rows under `REQ-313`/`REQ-314` closed with authored assertions after three implementations landed: the Spec Update record renders the five component hashes, the surfaces fingerprint hashes registered names rather than source bytes, and the delta record carries a per-component scoping advice. The block closed atomically because the linkage check keys on the T-ID, so a per-REQ deferral was not representable.
+
+- `renderFingerprintDelta` renders the five-row `Component | Prior | Current` table, with `sentinel` verbatim and `none` for a cold seed, so `REQ-313a`'s build record now names what it claimed to record
+- `REQ-313b`: `hashSurfaces` hashes the sorted tool names, resource URIs, and prompt names from `tool-definitions.json`'s new `surface_names` block (37 tools / 47 resources / 6 prompts), emitted by the generator's existing MCP list calls; the previous definition hashed `index.ts`/`state.ts` bytes
+- `REQ-314b`: `scopingAdvice` states the per-component action — reinstall+typecheck, re-index and reuse prior extraction, or Pattern Buffer for changed surfaces — in the delta record instead of one generic line
+- Nine harness cases cover the eight rows over a ruleset-free synthetic tree: five hashes, sentinel, startup absence, scoped reuse, four advice branches, cold seed, four-of-five full, and baseline refresh
+- `REQ-394a` fixtures re-baselined from `partial` to `scoped`: with surfaces no longer tracking source bytes, a `src/state.ts` edit advances one component
+- REQ evidence-linkage residue 80 → 72 (57 class-(b) + 15 class-(c)); corpus and coverage register regenerated, `ROADMAP.md` item 3 restated, the chunk-4 deferral paragraph superseded in the review register
+
 ## 2026-11-16 — Linkage chunk 4: five rows closed, T497 deferred rather than mislabelled
 
 The REQ evidence-linkage check fell from 85 to 80 findings. Five citations now land on assertions that exist, and the eight `T497` rows were deferred with a measured reason rather than labelled onto tests that assert something else.

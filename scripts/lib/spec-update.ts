@@ -72,12 +72,19 @@ export interface FingerprintDelta {
   // (nothing to disposition) or when the record is incomplete and publication
   // was blocked; `deferred` marks the dated-deferral channel.
   dispositions: ReqDisposition[];
+  // REQ-314b — the per-component reconciliation advice recorded beside the
+  // scoping decision. Optional so a record written before the field existed
+  // still renders.
+  advice?: string;
   reused: string[];
   current: Fingerprints;
   prior: Fingerprints | null;
 }
 
 const DELTA_BULLET = /^\s*-\s+\*\*Fingerprint delta:\*\*/m;
+
+// The five implementation components, in their canonical order (REQ-313b).
+export const COMPONENT_NAMES = ["source", "config", "lockfile", "extraction", "surfaces"] as const;
 
 export function hasFingerprintDelta(entry: string): boolean {
   return DELTA_BULLET.test(entry);
@@ -114,7 +121,22 @@ function evidenceKind(record: FingerprintDelta): string {
 export function renderFingerprintDelta(record: FingerprintDelta): string {
   const prior = record.prior_spec_hash ? record.prior_spec_hash.slice(0, 8) : "none";
   const bullet = `- **Fingerprint delta:** ${record.scoping} — changed: ${componentList(record.changed)}; unchanged: ${componentList(record.unchanged)}; reused: ${componentList(record.reused)}; evidence: ${evidenceKind(record)}. Prior spec ${prior} → current ${record.spec_hash.slice(0, 8)}.`;
-  if (record.dispositions.length === 0) return bullet;
-  const rows = record.dispositions.map((row) => `| ${row.req} | ${row.disposition} | ${row.evidence} |`);
-  return [bullet, "", "| REQ | Disposition | Evidence |", "|---|---|---|", ...rows].join("\n");
+  const blocks = [bullet];
+  // REQ-314b — the per-component reconciliation advice, when the record carries it.
+  if (record.advice) blocks.push(`- **Scoping advice:** ${record.advice}`);
+  if (record.dispositions.length > 0) {
+    const rows = record.dispositions.map((row) => `| ${row.req} | ${row.disposition} | ${row.evidence} |`);
+    blocks.push(["", "| REQ | Disposition | Evidence |", "|---|---|---|", ...rows].join("\n").trimStart());
+  }
+  // REQ-313a — the five component hashes beside the build fingerprint. A
+  // sentinel or absence marker is rendered verbatim: clipping it would hide
+  // the very state REQ-313c/REQ-313d require the record to name.
+  const cell = (value: string | undefined): string => {
+    if (!value) return "none";
+    if (value === "sentinel" || value === "absent" || value === "unknown") return value;
+    return `\`${value.slice(0, 16)}…\``;
+  };
+  const hashRows = COMPONENT_NAMES.map((name) => `| ${name} | ${cell(record.prior?.[name])} | ${cell(record.current?.[name])} |`);
+  blocks.push(["", "| Component | Prior | Current |", "|---|---|---|", ...hashRows].join("\n").trimStart());
+  return blocks.join("\n\n");
 }

@@ -279,8 +279,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-310 | Campaign Memory (Part a) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T355, T358 | — |
 | REQ-311 | NPC memory model (Part a) (7 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T356 | — |
 | REQ-312 | Pre-narration validation gate (Part d1) (6 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T357, T641 | — |
-| REQ-313 | Server implementation fingerprinting (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
-| REQ-314 | Fingerprint-driven partial rebuild (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | — | — |
+| REQ-313 | Server implementation fingerprinting (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T497 | — |
+| REQ-314 | Fingerprint-driven partial rebuild (Part a) (4 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | E | T497 | — |
 | REQ-315 | Full-text ruleset indexing (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-316 | Device kind (Part a) (2 sub-parts) | 5.10 World-Model Layer | C | T361 | — |
 | REQ-317 | Vehicle kind (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T362 | — |

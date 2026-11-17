@@ -49,13 +49,20 @@ function hashGenerated(serverDir: string): string {
 }
 
 function hashSurfaces(serverDir: string): string {
-  const index = join(serverDir, "src", "index.ts");
-  const state = join(serverDir, "src", "state.ts");
-  const h = createHash("sha256");
-  if (existsSync(index)) h.update(readFileSync(index));
-  const statePath = existsSync(state) ? state : join(serverDir, "src", "core", "state.ts");
-  if (existsSync(statePath)) h.update(readFileSync(statePath));
-  return h.digest("hex");
+  // REQ-313b — the surfaces component hashes the sorted, concatenated list of
+  // registered tool names, resource URIs, and prompt names, read from the
+  // generated artifact (surface_names), never from source-file bytes.
+  const artifact = join(serverDir, "tool-definitions.json");
+  if (!existsSync(artifact)) return "absent";
+  try {
+    const parsed = JSON.parse(readFileSync(artifact, "utf-8"));
+    const names = parsed?.surface_names;
+    if (!names || ![names.tools, names.resources, names.prompts].every(Array.isArray)) return "absent";
+    const joined = [names.tools, names.resources, names.prompts]
+      .map((list: unknown[]) => list.map(String).sort().join("\n"))
+      .join("\n");
+    return sha256(joined);
+  } catch { /* unreadable artifact: report it, never a stale hash */ return "unknown"; }
 }
 
 export function computeFingerprints(serverDir: string): Fingerprints {

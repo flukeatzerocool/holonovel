@@ -16,11 +16,12 @@
 // `.holonovel-state/pipeline-fingerprints.json`; no tracked file is mutated.
 
 import { spawnSync, execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync, rmSync, mkdtempSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync, mkdtempSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
+import { renderFingerprintDelta, type FingerprintDelta } from "../../scripts/lib/spec-update.js";
 installHarnessGuard();
 
 const ROOT = join(import.meta.dirname!, "..", "..");
@@ -68,6 +69,12 @@ writeFileSync(join(DELTA_SERVER, "package-lock.json"), "{}\n");
 writeFileSync(join(DELTA_SERVER, "src", "index.ts"), "export const version = 1;\n");
 writeFileSync(join(DELTA_SERVER, "src", "state.ts"), "export const state = {};\n");
 writeFileSync(join(DELTA_SERVER, "src", "generated", "fp.ts"), "export const fp = 1;\n");
+// REQ-313b — the surfaces component reads the generated surface names, so the
+// fixture must carry them or the component reports "absent".
+writeFileSync(
+  join(DELTA_SERVER, "tool-definitions.json"),
+  JSON.stringify({ schema_version: 4, surface_names: { tools: ["manage_world", "manage_novel"], resources: ["world://kinds"], prompts: ["intro"] } }) + "\n"
+);
 
 function runDelta(args: string[], env: Record<string, string> = {}): { stdout: string; stderr: string; status: number } {
   const r = spawnSync("npx", ["tsx", join(ROOT, "scripts", "update-server.ts"), ...args, "--server-dir", DELTA_SERVER], {
@@ -403,7 +410,7 @@ for (const [f, o] of Object.entries(files)) writeFileSync(join(out, f), JSON.str
         const r = runDelta(args, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
         if (r.status !== 1) throw new Error(`expected exit 1, got ${r.status}: ${r.stdout} ${r.stderr}`);
         assertContains(r.stderr, "UPDATE REQUIRED");
-        assertContains(r.stderr, "scoping: partial");
+        assertContains(r.stderr, "scoping: scoped");
         assertContains(r.stderr, "Update-deferred");
         if (storedSpecHash() !== currentHash) throw new Error("stored baseline advanced despite the block");
         const again = runDelta(args, { HOLONOVEL_DECISIONS_DIR: deltaDecisionsDir });
@@ -446,7 +453,9 @@ for (const [f, o] of Object.entries(files)) writeFileSync(join(out, f), JSON.str
         const byReq = new Map(rows.map((row) => [row.req, row.disposition]));
         if (byReq.get("REQ-099a") !== "implemented") throw new Error(`REQ-099a should derive implemented, got ${byReq.get("REQ-099a")}`);
         if (byReq.get("REQ-101") !== "deferred") throw new Error(`REQ-101 should take the operator row, got ${byReq.get("REQ-101")}`);
-        if (record.scoping !== "partial") throw new Error(`unexpected scoping ${record.scoping}`);
+        // REQ-313b: the surfaces component hashes registered names, not source
+        // bytes, so the fixture's src/state.ts mutation moves one component.
+        if (record.scoping !== "scoped") throw new Error(`unexpected scoping ${record.scoping}`);
       });
 
       test("T18b/REQ-394a: a removed REQ is dispositioned waived, not dropped", () => {
@@ -470,7 +479,8 @@ for (const [f, o] of Object.entries(files)) writeFileSync(join(out, f), JSON.str
         const record = JSON.parse(readFileSync(join(DELTA_STATE_DIR, "fingerprint-deltas.json"), "utf-8")).fixture;
         if (record.deferred !== true) throw new Error("delta record did not mark the reconciliation deferred");
         if (!Array.isArray(record.dispositions) || record.dispositions.length !== 0) throw new Error("a deferral should carry no derived rows");
-        if (record.scoping !== "partial") throw new Error(`unexpected scoping ${record.scoping}`);
+        // REQ-313b: surfaces no longer tracks source bytes (see above).
+        if (record.scoping !== "scoped") throw new Error(`unexpected scoping ${record.scoping}`);
         for (const key of ["source", "config", "lockfile", "extraction", "surfaces"]) {
           // config concatenates two file hashes, so it is 128 hex chars; the
           // other four are single 64-char SHA-256 digests.
@@ -494,7 +504,164 @@ for (const [f, o] of Object.entries(files)) writeFileSync(join(out, f), JSON.str
         const record = JSON.parse(readFileSync(join(DELTA_STATE_DIR, "fingerprint-deltas.json"), "utf-8")).fixture;
         if (record.changed_count !== 0 || record.scoping !== "none") throw new Error(`expected a none delta, got ${record.scoping}/${record.changed_count}`);
         if (record.unchanged?.length !== 5) throw new Error("none delta did not list all five unchanged components");
+        if (record.advice !== "none") throw new Error(`a zero-change record must carry the "none" advice, got ${record.advice}`);
       });
+
+      // ── REQ-313/REQ-314 (T497) — fingerprint component coverage ──────────
+      // A ruleset-free synthetic server: no src/generated, so the extraction
+      // component records the sentinel (REQ-313c/REQ-313d).
+      const FP_SERVER = mkdtempSync(join(tmpdir(), "update-fp-server-"));
+      const FP_STATE_DIR = mkdtempSync(join(tmpdir(), "update-fp-state-"));
+      try {
+        const writeServer = (): void => {
+          mkdirSync(join(FP_SERVER, "src"), { recursive: true });
+          writeFileSync(join(FP_SERVER, "package.json"), JSON.stringify({ name: "fixture", version: "0.0.0" }) + "\n");
+          writeFileSync(join(FP_SERVER, "tsconfig.json"), "{}\n");
+          writeFileSync(join(FP_SERVER, "package-lock.json"), "{}\n");
+          writeFileSync(join(FP_SERVER, "src", "index.ts"), "export const version = 1;\n");
+          writeFileSync(join(FP_SERVER, "src", "state.ts"), "export const state = {};\n");
+        };
+        const writeSurfaces = (tools: string[]): void => {
+          writeFileSync(
+            join(FP_SERVER, "tool-definitions.json"),
+            JSON.stringify({ schema_version: 4, surface_names: { tools, resources: ["world://kinds"], prompts: ["intro"] } }) + "\n"
+          );
+        };
+        const runFp = (hash: string, extra: string[] = []) => {
+          const r = spawnSync("npx", ["tsx", join(ROOT, "scripts", "update-server.ts"), "--server", "fixture", "--server-dir", FP_SERVER, "--spec-hash", hash, ...extra], {
+            cwd: ROOT, encoding: "utf-8", timeout: 60000,
+            env: { ...process.env, HOLONOVEL_STATE_DIR: FP_STATE_DIR },
+          });
+          return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", status: r.status ?? -1 };
+        };
+        const readFp = (): FingerprintDelta =>
+          JSON.parse(readFileSync(join(FP_STATE_DIR, "fingerprint-deltas.json"), "utf-8")).fixture;
+        const SCOPED = ["--scope-by-fingerprint", "--delta-class", "patch"];
+        const fp1 = "1".repeat(64);
+        const fp2 = "2".repeat(64);
+        const fp3 = "3".repeat(64);
+        const fp4 = "4".repeat(64);
+        const fp5 = "5".repeat(64);
+        const fp7 = "7".repeat(64);
+
+        writeServer();
+        writeSurfaces(["manage_world", "manage_novel"]);
+        const seedRun = runFp(fp1);
+        if (seedRun.status !== 0) throw new Error(`cold seed failed: ${seedRun.stdout} ${seedRun.stderr}`);
+        const seedRecord = readFp();
+
+        test("T497/REQ-313a: the record renders the five component hashes beside the build fingerprint", () => {
+          const rendered = renderFingerprintDelta(seedRecord);
+          if (!rendered.includes("| Component | Prior | Current |")) throw new Error("rendered entry carries no component-hash table");
+          for (const component of ["source", "config", "lockfile", "extraction", "surfaces"]) {
+            if (!rendered.includes(`| ${component} |`)) throw new Error(`rendered entry omits the ${component} row`);
+          }
+          if (!/\| source \| none \| `[0-9a-f]{16}…` \|/.test(rendered)) {
+            throw new Error(`a cold seed must render an empty prior column, got: ${rendered.slice(0, 400)}`);
+          }
+        });
+
+        test("T497/REQ-313c+REQ-313d: a ruleset-free build records the extraction sentinel", () => {
+          if (seedRecord.current.extraction !== "sentinel") {
+            throw new Error(`expected the sentinel, got ${seedRecord.current.extraction}`);
+          }
+          const rendered = renderFingerprintDelta(seedRecord);
+          if (!/\| extraction \| none \| sentinel \|/.test(rendered)) {
+            throw new Error(`the rendered record does not name the sentinel: ${rendered.slice(0, 400)}`);
+          }
+        });
+
+        test("T497/REQ-313c: the implementation fingerprints never gate startup", () => {
+          const srcDir = join(ROOT, "holonovel", "src");
+          const offenders: string[] = [];
+          for (const entry of readdirSync(srcDir, { recursive: true, withFileTypes: true })) {
+            if (!entry.isFile() || !entry.name.endsWith(".ts")) continue;
+            const path = join((entry as any).parentPath ?? (entry as any).path, entry.name);
+            const text = readFileSync(path, "utf-8");
+            if (/pipeline-fingerprints|FINGERPRINT_FILE/.test(text)) offenders.push(path);
+          }
+          if (offenders.length > 0) throw new Error(`startup reads the fingerprint baseline: ${offenders.join(", ")}`);
+        });
+
+        test("T497/REQ-314a: a source-only change scopes to source and reuses the remaining components", () => {
+          writeFileSync(join(FP_SERVER, "src", "index.ts"), "export const version = 2;\n");
+          const r = runFp(fp2, SCOPED);
+          if (r.status !== 0) throw new Error(`source-only update failed: ${r.stdout} ${r.stderr}`);
+          const record = readFp();
+          if (record.changed.join(",") !== "source") throw new Error(`expected only source to change, got ${record.changed.join(",")}`);
+          if (record.scoping !== "scoped") throw new Error(`expected the scoped decision, got ${record.scoping}`);
+          if (record.reused.join(",") !== "config,lockfile,extraction,surfaces") {
+            throw new Error(`unchanged components were not reused: ${record.reused.join(",")}`);
+          }
+          assertContains(record.advice ?? "", "typecheck");
+        });
+
+        test("T497/REQ-314b: configuration and lockfile changes require reinstall and typecheck only", () => {
+          writeFileSync(join(FP_SERVER, "tsconfig.json"), '{"compilerOptions":{}}\n');
+          writeFileSync(join(FP_SERVER, "package-lock.json"), '{"lockfileVersion":3}\n');
+          const r = runFp(fp3, SCOPED);
+          if (r.status !== 0) throw new Error(`config update failed: ${r.stdout} ${r.stderr}`);
+          const advice = readFp().advice ?? "";
+          assertContains(advice, "dependency reinstall and typecheck only");
+          const occurrences = advice.split("dependency reinstall and typecheck only").length - 1;
+          if (occurrences !== 1) throw new Error(`config+lockfile advice must be stated once, got ${occurrences}: ${advice}`);
+          if (/Pattern Buffer/.test(advice)) throw new Error(`config-only advice must not demand Pattern Buffer work: ${advice}`);
+        });
+
+        test("T497/REQ-314b: an extraction change requires re-indexing only, reusing prior extraction", () => {
+          // A non-.ts file under src/generated moves the extraction component
+          // alone: the source component hashes src/**/*.ts only (REQ-313b).
+          mkdirSync(join(FP_SERVER, "src", "generated"), { recursive: true });
+          writeFileSync(join(FP_SERVER, "src", "generated", "extraction.json"), '{"index":1}\n');
+          const r = runFp(fp4, SCOPED);
+          if (r.status !== 0) throw new Error(`extraction update failed: ${r.stdout} ${r.stderr}`);
+          const record = readFp();
+          if (record.changed.join(",") !== "extraction") throw new Error(`expected only extraction to change, got ${record.changed.join(",")}`);
+          const advice = record.advice ?? "";
+          assertContains(advice, "re-index generation data only");
+          assertContains(advice, "reusing prior extraction");
+          if (/Pattern Buffer|typecheck/i.test(advice)) throw new Error(`extraction-only advice over-scopes: ${advice}`);
+        });
+
+        test("T497/REQ-314b: a registered-surface change requires Pattern Buffer work for the changed names", () => {
+          writeSurfaces(["manage_world", "manage_novel", "manage_codex"]);
+          const r = runFp(fp5, SCOPED);
+          if (r.status !== 0) throw new Error(`surface update failed: ${r.stdout} ${r.stderr}`);
+          const record = readFp();
+          if (record.changed.join(",") !== "surfaces") throw new Error(`expected only surfaces to change, got ${record.changed.join(",")}`);
+          assertContains(record.advice ?? "", "Pattern Buffer sub-workflows for the changed tools, resources, or prompts");
+        });
+
+        test("T497/REQ-313c: every component hash is updated when a build advances the baseline", () => {
+          writeFileSync(join(FP_SERVER, "src", "state.ts"), "export const state = { advanced: true };\n");
+          const r = runFp(fp5);
+          if (r.status !== 0) throw new Error(`baseline refresh failed: ${r.stdout} ${r.stderr}`);
+          assertContains(r.stdout, "baseline refreshed");
+          const storedText = readFileSync(join(FP_STATE_DIR, "pipeline-fingerprints.json"), "utf-8");
+          const stored = JSON.parse(storedText).fixture.fingerprints;
+          if (!/^[0-9a-f]{64}$/.test(stored.source)) throw new Error("the refreshed baseline did not store the advanced source hash");
+          if (stored.extraction === "sentinel") throw new Error("the refreshed baseline kept the sentinel after generated data appeared");
+        });
+
+        test("T497/REQ-314c+REQ-314d: a cold checkout seeds, and four of five changes force a full rebuild", () => {
+          if (seedRecord.scoping !== "seed" || seedRecord.prior !== null) {
+            throw new Error(`a cold checkout must seed with no prior, got ${seedRecord.scoping}/${JSON.stringify(seedRecord.prior)}`);
+          }
+          writeFileSync(join(FP_SERVER, "src", "index.ts"), "export const version = 3;\n");
+          writeFileSync(join(FP_SERVER, "tsconfig.json"), '{"compilerOptions":{"strict":true}}\n');
+          writeFileSync(join(FP_SERVER, "package-lock.json"), '{"lockfileVersion":2}\n');
+          writeSurfaces(["manage_world"]);
+          const r = runFp(fp7, SCOPED);
+          if (r.status !== 0) throw new Error(`four-of-five update failed: ${r.stdout} ${r.stderr}`);
+          const record = readFp();
+          if (record.changed_count !== 4) throw new Error(`expected four changed components, got ${record.changed_count} (${record.changed.join(",")})`);
+          if (record.scoping !== "full") throw new Error(`four of five must run the full workflow, got ${record.scoping}`);
+          assertContains(r.stdout, "full reconciliation scope");
+        });
+      } finally {
+        rmSync(FP_SERVER, { recursive: true, force: true });
+        rmSync(FP_STATE_DIR, { recursive: true, force: true });
+      }
     } finally {
       rmSync(deltaDecisionsDir, { recursive: true, force: true });
       rmSync(DELTA_SERVER, { recursive: true, force: true });

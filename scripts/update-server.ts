@@ -144,6 +144,23 @@ function scopingFor(changedCount: number, hasPrior: boolean): DeltaRecord["scopi
   return "none";
 }
 
+// REQ-314b — the reconciliation action each changed component requires. The
+// fixed component order keeps the advice stable across runs; config and
+// lockfile share one rule, stated once.
+function scopingAdvice(changed: string[]): string {
+  const set = new Set(changed);
+  const parts: string[] = [];
+  const push = (text: string): void => { if (!parts.includes(text)) parts.push(text); };
+  for (const component of ["source", "config", "lockfile", "extraction", "surfaces"]) {
+    if (!set.has(component)) continue;
+    if (component === "source") push("typecheck then Pattern Buffer sub-workflows for the changed surfaces");
+    else if (component === "config" || component === "lockfile") push("dependency reinstall and typecheck only");
+    else if (component === "extraction") push("re-index generation data only, reusing prior extraction output");
+    else push("Pattern Buffer sub-workflows for the changed tools, resources, or prompts");
+  }
+  return parts.length > 0 ? parts.join("; ") : "none";
+}
+
 function writeDeltaRecord(record: DeltaRecord): void {
   let records: Record<string, DeltaRecord> = {};
   if (existsSync(DELTA_RECORD_FILE)) {
@@ -419,6 +436,7 @@ if ((scopeByFingerprint || checkOnly) && previous) {
       scoping: "none",
       deferred,
       dispositions: [],
+      advice: scopingAdvice([]),
       reused: delta.unchanged,
       current: currentFingerprints,
       prior: previous.fingerprints,
@@ -491,6 +509,7 @@ if ((scopeByFingerprint || checkOnly) && previous) {
           scoping,
           deferred: false,
           dispositions,
+          advice: scopingAdvice(delta.changed),
           reused: delta.unchanged,
           current: currentFingerprints,
           prior: previous.fingerprints,
@@ -511,9 +530,9 @@ if ((scopeByFingerprint || checkOnly) && previous) {
   if (scoping === "full") {
     console.log(`>2 components changed — full reconciliation scope.`);
   } else if (scoping === "scoped") {
-    console.log(`Only ${delta.changed[0]} changed — scoped reconciliation (typecheck + affected Pattern Buffer sub-workflows).`);
+    console.log(`Only ${delta.changed[0]} changed — scoped reconciliation: ${scopingAdvice(delta.changed)}.`);
   } else {
-    console.log(`${delta.changedCount} components changed — partial reconciliation.`);
+    console.log(`${delta.changedCount} components changed — partial reconciliation: ${scopingAdvice(delta.changed)}.`);
   }
 
   writeDeltaRecord({
@@ -525,6 +544,7 @@ if ((scopeByFingerprint || checkOnly) && previous) {
     scoping,
     deferred,
     dispositions,
+    advice: scopingAdvice(delta.changed),
     reused: delta.unchanged,
     current: currentFingerprints,
     prior: previous.fingerprints,
@@ -563,6 +583,7 @@ writeDeltaRecord({
   scoping: "seed",
   deferred: false,
   dispositions: [],
+  advice: scopingAdvice(seed.changed),
   reused: seed.unchanged,
   current: currentFingerprints,
   prior: null,

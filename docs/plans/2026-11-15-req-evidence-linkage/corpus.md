@@ -54,14 +54,6 @@
 | REQ-301 | T345 | Automated | automated-unexercised |
 | REQ-302b | T346 | Automated | automated-unexercised |
 | REQ-303 | T347 | Automated | automated-unexercised |
-| REQ-313a | T497 | Automated | automated-unexercised |
-| REQ-313b | T497 | Automated | automated-unexercised |
-| REQ-313c | T497 | Automated | automated-unexercised |
-| REQ-313d | T497 | Automated | automated-unexercised |
-| REQ-314a | T497 | Automated | automated-unexercised |
-| REQ-314b | T497 | Automated | automated-unexercised |
-| REQ-314c | T497 | Automated | automated-unexercised |
-| REQ-314d | T497 | Automated | automated-unexercised |
 | REQ-315b | T360 | Automated | automated-unexercised |
 | REQ-327c | T371 | Automated | automated-unexercised |
 | REQ-354 | T405 | Automated | automated-unexercised |

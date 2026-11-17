@@ -3157,12 +3157,38 @@ not relabelling: the visibility-only baseline clause had no assertion, and
 `surface-replay.ts`'s `?? visibility_rate` fallback accepted such a baseline as
 recall evidence; the fallback is removed and the clause now emits a named defect.
 
-The eight `T497` rows under REQ-313/REQ-314 are deliberately **deferred**: their
-only candidate sites assert `T689` package-update planning and the
-fingerprint-delta renderer, not the sentinel, source-only-reuse and four-of-five
-clauses, so labelling them would have manufactured nominal evidence that the
-existing ratchets cannot detect. Chunk 5 authors that assertion. Residue: **80
-rows = 65 class-(b) with no asserting site + 15 class-(c) builder drills.**
+The eight `T497` rows under REQ-313/REQ-314 were **superseded on 2026-11-16**: chunk 5 closed them
+all, so the "deliberately deferred" disposition and the residue stated here (**80 rows = 65 (b) +
+15 (c)**) no longer hold. The block closed as a unit because the linkage predicate is T-ID-scoped;
+the current residue is 72. See the chunk-5 subsection below.
+
+
+### 2026-11-16 — REQ evidence linkage chunk 5 (the T497 block, eight rows)
+
+Chunk 5 (`docs/plans/2026-11-16-roadmap-drain-6`) closed all eight `T497` rows — `REQ-313a`,
+`REQ-313b`, `REQ-313c`, `REQ-313d`, `REQ-314a`, `REQ-314b`, `REQ-314c`, `REQ-314d` — taking the
+residue from 80 to **72** (57 class-(b) + 15 class-(c)). The block had to close as a unit: the
+linkage predicate reports a row when its T-ID is absent from the exercised set
+(`scripts/lib/req-checks.ts:881-887`), so one exercised `T497` clears every REQ citing it and a
+per-REQ deferral is unrepresentable.
+
+Three clauses required implementation, not relabelling. `REQ-313a`: `renderFingerprintDelta`
+(`scripts/lib/spec-update.ts`) now renders the five-row `Component | Prior | Current` table the
+record's hand-written precedent uses (`holonovel/DECISIONS.md:1733-1739`), with `sentinel`
+verbatim and `none` for a cold seed. `REQ-313b`: `hashSurfaces` (`scripts/lib/fingerprints.ts`)
+now hashes the sorted registered tool names, resource URIs, and prompt names read from
+`tool-definitions.json`'s new `surface_names` block, emitted by the generator's existing
+`tools/list`, `resources/list`, and `prompts/list` calls — the previous definition hashed
+`index.ts`/`state.ts` bytes, which moved on any comment and never on a prompt rename.
+`REQ-314b`: `scopingAdvice` (`scripts/update-server.ts`) states the per-component action
+(reinstall+typecheck, re-index, Pattern Buffer for changed surfaces) in the delta record rather
+than one generic line. `REQ-313c`'s "never gate startup" clause is asserted as a static absence
+over `holonovel/src`.
+
+Recorded deviation: the surfaces redefinition moved two pre-existing `REQ-394a` fixtures from
+`partial` to `scoped`, because a `src/state.ts` edit no longer touches `surfaces`; their
+expectations were updated with the reason inline. All eight rows carry an asserting site in
+`docs/plans/2026-11-16-roadmap-drain-6/dispositions.md`.
 
 
 ## Resolved — 2026-11-16 T553 duplicate identifier
