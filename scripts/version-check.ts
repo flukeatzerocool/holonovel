@@ -8,12 +8,32 @@
  * sync, 1 = a mismatch or stale version.
  */
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { parseValueFlag, handleHelp, rejectUnknown } from "./lib/args.js";
 import { validateManifest, unsupportedKeywords } from "./lib/server-manifest.js";
+
+const USAGE =
+  "version-check.ts — verify version references are in sync.\n" +
+  "Usage: npx tsx scripts/version-check.ts [--root <dir>]\n" +
+  "  --root <dir>  read package.json and CHANGELOG.md from <dir> (default: the repo root).\n" +
+  "                Every other referenced file is still read from the repo.\n";
 
 const root = join(import.meta.dirname, "..");
 
-const rootPkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
+const argv = process.argv.slice(2);
+handleHelp(argv, USAGE);
+rejectUnknown(argv, new Set(["--root", "--help", "-h"]), USAGE);
+// The root override exists so a harness can exercise the currency branch against a
+// scratch package.json/CHANGELOG.md pair; it must not move the version-reference
+// checks, which read the repo's own files.
+const rootArg = parseValueFlag(argv, "--root");
+if (argv.includes("--root") && rootArg === null) {
+  console.error("--root requires a directory");
+  process.exit(1);
+}
+const versionRoot = rootArg ? resolve(rootArg) : root;
+
+const rootPkg = JSON.parse(readFileSync(join(versionRoot, "package.json"), "utf-8"));
 const rootVersion = rootPkg.version;
 
 function readJson(path: string): Record<string, unknown> {
@@ -124,17 +144,33 @@ if (manifestValidation.ok) {
 
 // ── REQ-107a: version currency vs CHANGELOG ──
 
-const changelog = readFileSync(join(root, "CHANGELOG.md"), "utf-8");
-const dated = [...changelog.matchAll(/^##\s+(\d{4})-(\d{2})-(\d{2})\b/gm)]
-  .map(m => `${m[1]}.${m[2]}.${m[3]}`)
-  .sort()
-  .pop();
-if (dated && rootVersion < dated) {
-  console.error(`  FAIL  version currency: root version ${rootVersion} predates the latest substantive CHANGELOG entry (${dated}).`);
-  console.error(`        REQ-107a requires the CalVer to match the last substantive change date; bump to ${dated} first.`);
+// T493 — both clauses of the row: a version older than the latest dated entry is
+// an issue, and an equal-or-newer version is not. Declared with an explicit
+// `string[]` return so the evidence scan reads the label (req-checks:812-823).
+function checkVersionCurrency(rootVersion: string, changelog: string): string[] {
+  const issues: string[] = [];
+  const dated = [...changelog.matchAll(/^##\s+(\d{4})-(\d{2})-(\d{2})\b/gm)]
+    .map(m => `${m[1]}.${m[2]}.${m[3]}`)
+    .sort()
+    .pop();
+  if (dated && rootVersion < dated) {
+    issues.push(`T493 — version currency: root version ${rootVersion} predates the latest substantive CHANGELOG entry (${dated}).`);
+    issues.push(`REQ-107a requires the CalVer to match the last substantive change date; bump to ${dated} first.`);
+  }
+  return issues;
+}
+
+const changelog = readFileSync(join(versionRoot, "CHANGELOG.md"), "utf-8");
+const currencyIssues = checkVersionCurrency(rootVersion, changelog);
+if (currencyIssues.length > 0) {
+  for (const issue of currencyIssues) console.error(`  FAIL  ${issue}`);
   ok = false;
-} else if (dated) {
-  console.log(`  OK   version currency: ${rootVersion} >= latest CHANGELOG entry ${dated}`);
+} else {
+  const latest = [...changelog.matchAll(/^##\s+(\d{4})-(\d{2})-(\d{2})\b/gm)]
+    .map(m => `${m[1]}.${m[2]}.${m[3]}`)
+    .sort()
+    .pop();
+  if (latest) console.log(`  OK   version currency: ${rootVersion} >= latest CHANGELOG entry ${latest}`);
 }
 
 if (!ok) {

@@ -35,21 +35,19 @@ large enough to report a catch rate with a useful confidence interval.
 
 ## REQ evidence linkage (P1)
 
-- The report holds **85 findings** (2026-11-16 chunk 3 closed six — `T17`, `T88`, `T421`,
-  `T434`, `T435`, `T540` — and fixed the two citation paths, `T541`/`T542`). Each remaining
-  row needs a per-row assertion read before it can be labelled or flipped; that read is
-  chunk 4's whole scope, not a sweep.
-- Residue by owner: gate-side builder rows confirmed against their check function
-  (`checkPatternBufferCoverageMap`, `checkSection52CoverageMap`, `checkAppendixFAssertions`,
-  `checkPhaseMapHash`, `checkConfigSurfaceParity`, `compare-spec-code`) and server-runtime
-  rows whose harness assertion must be located or authored. `REQ-107a` (`T493`) and
-  `REQ-569` (`T682`) are **not** label-closeable — their reports sit in top-level script
-  sections the label scan does not read.
-- Class (b) is real, not a bookkeeping artefact: `T420`/`T425`/`T439` require "≥1 archetype
-  per group" and no check asserts non-emptiness (`scripts/validate.ts:1097`).
+- 80 findings remain (2026-11-16 chunk 4 closed five: `REQ-107a`/`T493`, `REQ-569`/`T682`,
+  `REQ-451`+`REQ-451a`/`T541`, `REQ-452`/`T542`). The residue is 65 class-(b) rows with no
+  asserting site and 15 class-(c) builder-drill rows, triaged row by row in
+  `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md`.
+- `T497`'s eight rows (`REQ-313`/`REQ-314`) are the largest single block: the candidate tests
+  assert package-update planning and the fingerprint-delta renderer, not the sentinel,
+  source-only-reuse, and four-of-five clauses, so chunk 5 authors that assertion rather than
+  relabelling them.
+- Class (b) is real, not bookkeeping: `T420`/`T425`/`T439` require "≥1 archetype per group" and no
+  check asserts non-emptiness (`scripts/validate.ts:1097`).
 
-**Trigger:** every remaining row dispositioned and class (a) at zero; closes when the check
-is error-mode in `validate`.
+**Trigger:** every remaining row dispositioned and class (a) at zero; closes when the check is
+error-mode in `validate`.
 
 ## Split `index.ts` (P2)
 

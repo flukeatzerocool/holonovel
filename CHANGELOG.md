@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-16 — Linkage chunk 4: five rows closed, T497 deferred rather than mislabelled
+
+The REQ evidence-linkage check fell from 85 to 80 findings. Five citations now land on assertions that exist, and the eight `T497` rows were deferred with a measured reason rather than labelled onto tests that assert something else.
+
+- `T493` and `T682` closed by moving each report into a declared `function check*(): string[]`; `version-check.ts` gains `--root <dir>` scoped to the root `package.json` and `CHANGELOG.md`, so the stale direction is exercisable
+- `T682` recorded as authoring, not relabelling: the visibility-only baseline clause had no assertion, and the `?? visibility_rate` fallback that accepted such a baseline as recall evidence is removed
+- `T541` and `T542` closed by authoring the missing harness assertions over a mirrored `narrative_world_model/` tree and a temp `DECISIONS.md`; `check-vendor-manifest.ts` gains `--root <dir>` with all three path constants moved below argument parsing
+- `T497`'s eight rows deferred: the candidate tests assert `T689` package-update planning and the fingerprint-delta renderer, not the sentinel/source-only/four-of-five clauses; chunk 5 authors that assertion
+- `dispositions.md` triages all 85 rows (65 class-(b) + 15 class-(c) in the residue); corpus and coverage register regenerated, `ROADMAP.md` item 3 restated at 80
+
 ## 2026-11-16 — Linkage chunk 3: six citations closed, the remainder split
 
 The REQ evidence-linkage check fell from 91 to 85 findings. Six rows were closed by naming the check that already asserts them, the two bogus citation paths were fixed, and the remaining residue was measured row by row and split on `ROADMAP.md` instead of being swept.

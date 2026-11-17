@@ -439,6 +439,28 @@ function main(): void {
   const matrixAt = spec.indexOf("## Fixture Coverage Matrix");
   check(matrixAt > spec.indexOf("## Appendix A:") && matrixAt < spec.indexOf("## Appendix B:"), "assemble: the fixture matrix sits between Appendix A and Appendix B");
 
+  // T493/REQ-107a — version currency, both directions. The check runs against a
+  // two-file scratch root because the real tree is never stale; `--root` rebinds
+  // only package.json and CHANGELOG.md, so no other file needs a fixture.
+  const rootVersion = JSON.parse(readFileSync(join(root, "package.json"), "utf-8")).version as string;
+  const currencyDir = mkdtempSync(join(tmpdir(), "version-currency-"));
+  try {
+    writeFileSync(join(currencyDir, "package.json"), JSON.stringify({ version: rootVersion }));
+    writeFileSync(join(currencyDir, "CHANGELOG.md"), "## 2099-01-01 — future entry\n");
+    const stale = runCode(["scripts/version-check.ts", "--root", currencyDir]);
+    check(stale.code === 1, "version-check: a version older than the latest dated entry fails");
+    check(stale.out.includes("predates the latest substantive CHANGELOG entry"), "version-check: the stale failure names the currency predicate, not an unreadable file");
+    writeFileSync(join(currencyDir, "CHANGELOG.md"), "## 2000-01-01 — old entry\n");
+    const current = runCode(["scripts/version-check.ts", "--root", currencyDir]);
+    check(current.code === 0, "version-check: a version at or past the latest dated entry passes");
+    const noValue = runCode(["scripts/version-check.ts", "--root"]);
+    check(noValue.code === 1 && noValue.out.includes("requires a directory"), "version-check: --root without a value is refused");
+    const unknown = runCode(["scripts/version-check.ts", "--nonsense"]);
+    check(unknown.code === 1 && unknown.out.includes("unknown flag"), "version-check: an unknown flag is refused");
+  } finally {
+    rmSync(currencyDir, { recursive: true, force: true });
+  }
+
   console.log(`\nspec-tooling self-tests: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 }

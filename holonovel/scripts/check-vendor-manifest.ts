@@ -24,21 +24,28 @@
 
 import { readFileSync, existsSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { parseFlag, parseValueFlag, handleHelp, rejectUnknown } from "../../scripts/lib/args.js";
 
-const ROOT = join(import.meta.dirname, "..");
+const USAGE =
+  "check-vendor-manifest.ts — verify narrative_world_model/MANIFEST.md hashes and provenance.\n" +
+  "Usage: npx tsx scripts/check-vendor-manifest.ts [--strict] [--root <dir>]\n" +
+  "  --strict      exit 1 on any hash mismatch, missing source file, or missing/malformed Source URL\n" +
+  "  --root <dir>  read <dir>/narrative_world_model (default: holonovel/)\n";
+
+const REPO_ROOT = join(import.meta.dirname, "..");
+const argv = process.argv.slice(2);
+handleHelp(argv, USAGE);
+rejectUnknown(argv, new Set(["--strict", "--root", "--help", "-h"]), USAGE);
+const strict = parseFlag(argv, "--strict");
+const rootArg = parseValueFlag(argv, "--root");
+if (argv.includes("--root") && rootArg === null) {
+  console.error("--root requires a directory");
+  process.exit(1);
+}
+const ROOT = rootArg ? resolve(rootArg) : REPO_ROOT;
 const NARRATIVE_DIR = join(ROOT, "narrative_world_model", "narrative");
 const MANIFEST_PATH = join(ROOT, "narrative_world_model", "MANIFEST.md");
-
-const strict = process.argv.includes("--strict");
-if (process.argv.includes("--help") || process.argv.includes("-h")) {
-  console.log(
-    "check-vendor-manifest.ts — verify narrative_world_model/MANIFEST.md hashes and provenance.\n" +
-      "Usage: npx tsx scripts/check-vendor-manifest.ts [--strict]\n" +
-      "  --strict  exit 1 on any hash mismatch, missing source file, or missing/malformed Source URL"
-  );
-  process.exit(0);
-}
 
 function sha256(data: string): string {
   return createHash("sha256").update(data).digest("hex");

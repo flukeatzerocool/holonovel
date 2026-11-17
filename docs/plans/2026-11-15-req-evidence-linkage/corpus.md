@@ -11,7 +11,6 @@
 | REQ-088h2 | T73 | Automated | automated-unexercised |
 | REQ-100b | T87 | Automated | automated-unexercised |
 | REQ-100d | T87 | Automated | automated-unexercised |
-| REQ-107a | T493 | Automated | automated-unexercised |
 | REQ-107b | T106 | Automated | automated-unexercised |
 | REQ-108b | T107 | Automated | automated-unexercised |
 | REQ-108c | T538 | Automated | automated-unexercised |
@@ -81,7 +80,3 @@
 | REQ-377d | T432 | Automated | automated-unexercised |
 | REQ-378b | T433 | Automated | automated-unexercised |
 | REQ-416 | T489 | Automated | automated-unexercised |
-| REQ-451 | T541 | Automated | automated-unexercised |
-| REQ-451a | T541 | Automated | automated-unexercised |
-| REQ-452 | T542 | Automated | automated-unexercised |
-| REQ-569 | T682 | Automated | automated-unexercised |

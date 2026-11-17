@@ -87,7 +87,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-104 | Character creation workflow (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T32, T468, T103, T141 | — |
 | REQ-105 | Spec resource | 5.3 Tools, Resources, and Lookups | C | T104 | — |
 | REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | C | T105 | — |
-| REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | — | — |
+| REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T493 | — |
 | REQ-108 | Pattern Buffer traceability (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
 | REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T109, T110, T201, T140, T149, T359 | — |
 | REQ-110 | Tool surface consolidation | 5.3 Tools, Resources, and Lookups | E | — | — |
@@ -417,8 +417,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-448 | Security-event audit completeness | 5.7 Determinism, Safety, and Performance | C | T534, S6 | — |
 | REQ-449 | Excessive-agency mutation ceiling | 5.7 Determinism, Safety, and Performance | C | T535, S22 | — |
 | REQ-450 | TDQS-conformant tool definitions | 5.3 Tools, Resources, and Lookups | C | T536 | — |
-| REQ-451 | Vendor manifest verification (1 sub-part) | 11.4 Ruleset Wisdom (vendor content) | E | — | — |
-| REQ-452 | Conversion evidence verification | 5.2 Extraction and Confidence | E | — | — |
+| REQ-451 | Vendor manifest verification (1 sub-part) | 11.4 Ruleset Wisdom (vendor content) | E | T541 | — |
+| REQ-452 | Conversion evidence verification | 5.2 Extraction and Confidence | E | T542 | — |
 | REQ-453 | Extraction evidence-map parity | 5.2 Extraction and Confidence | E | T543 | — |
 | REQ-454 | Intended-gap whitelist discipline | 5.2 Extraction and Confidence | E | T544 | — |
 | REQ-455 | Event log append | 5.24 Temporal Event Log and Branching | C | T545 | — |
@@ -524,7 +524,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-566 | Starter freshness and provenance | 5.9 Novel Persistence and Transport | C | T659 | — |
 | REQ-567 | Tool surface declaration | 5.3 Tools, Resources, and Lookups | C | T660 | — |
 | REQ-568 | Surface conformance report | 5.3 Tools, Resources, and Lookups | C | T661, T678 | — |
-| REQ-569 | Surface baseline evaluation | 5.3 Tools, Resources, and Lookups | C | T662 | — |
+| REQ-569 | Surface baseline evaluation | 5.3 Tools, Resources, and Lookups | C | T662, T682 | — |
 | REQ-570 | Projected catalog | 5.3 Tools, Resources, and Lookups | C | T663, T676, T677 | — |
 | REQ-571 | Catalog budgets | 5.3 Tools, Resources, and Lookups | C | T664, T678 | — |
 | REQ-572 | Group directory | 5.3 Tools, Resources, and Lookups | C | T665 | — |

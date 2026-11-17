@@ -3144,6 +3144,27 @@ sized that "M" and one session cannot finish it. The split is recorded on
 returns unchanged as chunk 4. No row was reclassified to shorten the list.
 
 
+### 2026-11-16 — REQ evidence linkage chunk 4 (five rows closed, 80 remain)
+
+Chunk 4 (`docs/plans/2026-11-16-roadmap-drain-5`) closed five of the 85 rows and
+triaged all of them in `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md`.
+Closed: `REQ-107a`/`T493` and `REQ-569`/`T682` by moving each report into a
+declared `function check*(…): string[]` (`scripts/version-check.ts:157`,
+`scripts/surface-replay.ts:302`), and `REQ-451`+`REQ-451a`/`T541`,
+`REQ-452`/`T542` by authoring the missing harness assertions
+(`holonovel/scripts/test-ruleset-gates.ts:401`, `:442`). T682 was **authoring**,
+not relabelling: the visibility-only baseline clause had no assertion, and
+`surface-replay.ts`'s `?? visibility_rate` fallback accepted such a baseline as
+recall evidence; the fallback is removed and the clause now emits a named defect.
+
+The eight `T497` rows under REQ-313/REQ-314 are deliberately **deferred**: their
+only candidate sites assert `T689` package-update planning and the
+fingerprint-delta renderer, not the sentinel, source-only-reuse and four-of-five
+clauses, so labelling them would have manufactured nominal evidence that the
+existing ratchets cannot detect. Chunk 5 authors that assertion. Residue: **80
+rows = 65 class-(b) with no asserting site + 15 class-(c) builder drills.**
+
+
 ## Resolved — 2026-11-16 T553 duplicate identifier
 
 `T553` was defined twice — `spec/appendices-reference.md:1824` (REQ-284f) and

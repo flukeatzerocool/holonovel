@@ -12,7 +12,7 @@
  * Exit codes: 0 = pass, 1 = one or more assertions failed.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync, cpSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync, cpSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { emitPackage } from "../../scripts/lib/ruleset-package.mjs";
@@ -392,6 +392,75 @@ test("REQ-432: APPENDIX_U_LICENSES matches Appendix U's license column", () => {
   const extra = [...APPENDIX_U_LICENSES].filter((l) => !declared.has(l));
   assert(missing.length === 0, `license constant omits Appendix U rows: ${missing.join(", ")}`);
   assert(extra.length === 0, `license constant carries values no Appendix U row authorizes: ${extra.join(", ")}`);
+});
+
+// T541/REQ-451 — the vendor manifest gate hashes every row and fails a tampered
+// or unprovenanced copy. The fixture mirrors the whole narrative tree because the
+// checker resolves each row against `narrative_world_model/narrative/`; a
+// manifest-only copy would fail for missing files rather than for a bad hash.
+test("T541/REQ-451: vendor manifest verification passes a clean copy and fails tampered or unprovenanced rows", () => {
+  const VENDOR_GATE = join(REPO_ROOT, "holonovel", "scripts", "check-vendor-manifest.ts");
+  const runVendor = (root: string) => {
+    const r = spawnSync("npx", ["tsx", VENDOR_GATE, "--strict", "--root", root], { encoding: "utf-8" });
+    return { code: r.status ?? -1, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
+  };
+  const mirror = (name: string) => {
+    const dir = join(TMP, name);
+    cpSync(join(REPO_ROOT, "holonovel", "narrative_world_model"), join(dir, "narrative_world_model"), { recursive: true });
+    return dir;
+  };
+  const manifestOf = (dir: string) => join(dir, "narrative_world_model", "MANIFEST.md");
+
+  const clean = mirror("vendor-clean");
+  const cleanRun = runVendor(clean);
+  assert(cleanRun.code === 0, `clean strict verification failed: ${cleanRun.out.slice(-300)}`);
+
+  const tampered = mirror("vendor-tampered");
+  const hashRows = readFileSync(manifestOf(tampered), "utf-8")
+    .split("\n")
+    .map((line) => line.split("|").map((c) => c.trim()))
+    .filter((cells) => cells.length > 11 && /^[0-9a-f]{64}$/i.test(cells[4] ?? ""));
+  assert(hashRows.length > 0, "no hash-bearing manifest row found");
+  const narrativeRoot = join(tampered, "narrative_world_model", "narrative");
+  const target = join(narrativeRoot, hashRows[0]![3]!);
+  assert(existsSync(target), `manifest names a missing source file: ${hashRows[0]![3]}`);
+  writeFileSync(target, `${readFileSync(target, "utf-8")}\n`);
+  const tamperedRun = runVendor(tampered);
+  assert(tamperedRun.code === 1, "a modified vendor source file must fail strict verification");
+  assert(tamperedRun.out.includes("MISMATCH"), "the tampered failure names the hash mismatch");
+
+  const unprovenanced = mirror("vendor-nourl");
+  writeFileSync(manifestOf(unprovenanced), readFileSync(manifestOf(unprovenanced), "utf-8").replace(/https:\/\//g, ""));
+  const urlRun = runVendor(unprovenanced);
+  assert(urlRun.code === 1, "a row with its https URL removed must fail strict verification");
+  assert(/BADURL|missing URL/.test(urlRun.out), "the URL failure names provenance");
+});
+
+// T542/REQ-452 — conversion evidence: a ruleset-free record is waived, a
+// sub-90% fidelity record fails the strict check. The seam is the checker's
+// existing `--decisions` flag; no script change is needed.
+test("T542/REQ-452: conversion evidence waives a record-free build and fails a sub-90% fidelity record", () => {
+  const CONVERSION_GATE = join(REPO_ROOT, "holonovel", "scripts", "check-conversion-evidence.ts");
+  const runConversion = (file: string) => {
+    const r = spawnSync("npx", ["tsx", CONVERSION_GATE, "--strict", "--decisions", file], { encoding: "utf-8" });
+    return { code: r.status ?? -1, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
+  };
+  const waived = join(TMP, "decisions-waived.md");
+  writeFileSync(waived, "# Decisions\n\nNo conversion records for this build.\n");
+  const waivedRun = runConversion(waived);
+  assert(waivedRun.code === 0, "a ruleset-free record must be waived, not failed");
+  assert(waivedRun.out.includes("conversion not selected"), "the waived path announces itself");
+
+  const low = join(TMP, "decisions-low-fidelity.md");
+  writeFileSync(
+    low,
+    ["# Decisions", "", "<!-- @section versions -->", "converter 1.2", "",
+     "<!-- @section waivers -->", "artifact disposition: fixed", "",
+     "<!-- @section evidence -->", "fidelity 85% content", ""].join("\n"),
+  );
+  const lowRun = runConversion(low);
+  assert(lowRun.code === 1, "a fidelity rate below 90% must fail the strict check");
+  assert(lowRun.out.includes("content-fidelity rate"), "the failure names the fidelity bar");
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

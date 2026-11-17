@@ -282,13 +282,40 @@ for (const result of results) {
     defects.push(`${result.profile} selection precision ${result.selection_precision} is below 0.90`);
   }
 }
-if (!fixtureWrong) defects.push("expected-action fixture did not record a wrong sibling selection");
+// T682 — expected-action precision, both clauses: a sibling-action selection is a
+// wrong selection, and a visibility-only baseline is not acceptable recall
+// evidence. Declared with an explicit `string[]` return so the evidence scan reads
+// the label (req-checks:812-823). The former `?? visibility_rate` fallback is
+// dropped: it let a baseline that records no `recall_at_budget` pass silently.
+interface PriorProfile {
+  profile: string;
+  visibility_rate?: number;
+  recall_at_budget?: { recall: number };
+}
+
+function checkExpectedActionPrecision(
+  fixtureWrong: boolean,
+  prior: PriorProfile | undefined,
+  currentRecall: number,
+): string[] {
+  const issues: string[] = [];
+  if (!fixtureWrong) issues.push("T682 — expected-action fixture did not record a wrong sibling selection");
+  const visibilityOnly = prior !== undefined
+    && typeof prior.recall_at_budget?.recall !== "number"
+    && typeof prior.visibility_rate === "number";
+  if (visibilityOnly) {
+    issues.push("T682 — prior baseline records visibility only; recall_at_budget is required evidence");
+  }
+  if (typeof prior?.recall_at_budget?.recall === "number" && currentRecall < prior.recall_at_budget.recall) {
+    issues.push(`T682 — recall ${currentRecall} is below the recorded ${prior.recall_at_budget.recall}`);
+  }
+  return issues;
+}
+
+defects.push(...checkExpectedActionPrecision(fixtureWrong, undefined, 1));
 for (const result of results) {
   const prior = priorReplay?.profiles?.find((p) => p.profile === result.profile);
-  const priorRecall = prior?.recall_at_budget?.recall ?? prior?.visibility_rate;
-  if (typeof priorRecall === "number" && result.recall_at_budget.recall < priorRecall) {
-    defects.push(`${result.profile} recall ${result.recall_at_budget.recall} is below the recorded ${priorRecall}`);
-  }
+  defects.push(...checkExpectedActionPrecision(true, prior, result.recall_at_budget.recall));
 }
 for (const key of Object.keys(routing.actions)) {
   const [name, action] = key.split(".");
