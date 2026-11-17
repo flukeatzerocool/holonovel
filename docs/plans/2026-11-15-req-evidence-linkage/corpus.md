@@ -42,15 +42,12 @@
 | REQ-302b | T346 | Automated | automated-unexercised |
 | REQ-315b | T360 | Automated | automated-unexercised |
 | REQ-327c | T371 | Automated | automated-unexercised |
-| REQ-369b | T420 | Automated | automated-unexercised |
 | REQ-369b | T436 | Automated | automated-unexercised |
 | REQ-369b | T437 | Automated | automated-unexercised |
 | REQ-369b | T438 | Automated | automated-unexercised |
 | REQ-371b | T422 | Automated | automated-unexercised |
 | REQ-371b | T428 | Automated | automated-unexercised |
 | REQ-371b | T496 | Automated | automated-unexercised |
-| REQ-374b | T425 | Automated | automated-unexercised |
-| REQ-374b | T439 | Automated | automated-unexercised |
 | REQ-375b | T426 | Automated | automated-unexercised |
 | REQ-376a3 | T431 | Automated | automated-unexercised |
 | REQ-376b | T431 | Automated | automated-unexercised |

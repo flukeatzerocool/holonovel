@@ -335,12 +335,12 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-366 | Observer narrative surface (Part a) (4 sub-parts) | 5.12 Narrative Architecture | C | T417, T643 | implemented |
 | REQ-367 | Property propagation across containment (Part a) (4 sub-parts) | 5.10 World-Model Layer | C | T418 | — |
 | REQ-368 | Countdown-world effect coupling (Part a) (5 sub-parts) | 5.10 World-Model Layer | C | T419 | — |
-| REQ-369 | Holodeck archetype taxonomy (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
+| REQ-369 | Holodeck archetype taxonomy (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | T420, T439 | — |
 | REQ-370 | Coupling derivation (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | T421, T434, T435 | — |
 | REQ-371 | Ruleset Wisdom as rendered reality (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
 | REQ-372 | Supplementary ruleset import (Part a) (5 sub-parts) | 5.14 Content Sources | C | T423 | — |
 | REQ-373 | Dynamic tool registration (Part a1) (2 sub-parts) | 5.14 Content Sources | E | T424 | — |
-| REQ-374 | Archetype coverage (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
+| REQ-374 | Archetype coverage (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | T425, T439 | — |
 | REQ-375 | Wisdom mechanical coupling rate (Part a) (2 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
 | REQ-376 | Holonovel Pattern Buffer traceability (Part a1) (5 sub-parts) | 5.13 Holodeck Coupling Model | E | — | — |
 | REQ-377 | Mechanical coupling extraction (Part a) (4 sub-parts) | 5.15 Mechanical Coupling | E | — | — |

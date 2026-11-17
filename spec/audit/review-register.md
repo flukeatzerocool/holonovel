@@ -3138,6 +3138,10 @@ rather than assumed: `T420`/`T425`/`T439` require "≥1 archetype per group" and
 `checkCouplingCompleteness` validates only unrecognised archetype tokens
 (`scripts/validate.ts:1097`), never non-emptiness.
 
+That last sentence was **superseded on 2026-11-17**: chunk 7 authored the non-emptiness,
+vocabulary, and usage assertions and taught the parse to keep an empty cell. See the chunk-7
+subsection below.
+
 The remaining 85 rows over 75 T-IDs each need a per-row assertion read; the plan
 sized that "M" and one session cannot finish it. The split is recorded on
 `ROADMAP.md` (gate-side builder rows vs server-runtime rows) and the full bar
@@ -3214,6 +3218,25 @@ the wrong clause. Reclassification is a kind correction, not a substitute for an
 Fifteen procedures were added to the "Manual verification procedures — 2026-11-16" section of
 `holonovel/DECISIONS.md`, each naming actor, precondition, procedure, and record. None has been
 executed: the duty is created, and first execution is the next ruleset-package build.
+
+
+### 2026-11-17 — REQ evidence linkage chunk 7 (the §7.7 archetype family, three rows)
+
+Chunk 7 (`docs/plans/2026-11-17-roadmap-drain-8`) authored the first class-(b) asserting sites:
+`T420`, `T425`, and `T439` now have assertions in `checkCouplingCompleteness`
+(`scripts/validate.ts`), taking the residue from 57 to **54**. Row dispositions:
+`docs/plans/2026-11-17-roadmap-drain-8/dispositions.md`.
+
+The three rows were the roadmap's own demonstration that class (b) is not bookkeeping: they require
+"≥1 archetype per group", a twelve-archetype vocabulary, and archetype usage by coupling rows, and
+no check asserted any of the three. Authoring the assertions exposed a parse defect — the property
+table dropped empty cells, so a missing archetype was misread as the GM-access column. The parse
+now keeps cell position and reports a short row instead of dropping it.
+
+The usage predicate is archetype-level, not group-level: §7.7.1b states the coupling table is
+curated, and `Ruling Ledger` carries no coupling row by design, so a group-level failure would
+contradict the clause. The completeness line reports the group count without failing on it. None of
+the 54 remaining rows was touched; the next chunk classifies them by asserting site.
 
 
 ## Resolved — 2026-11-16 T553 duplicate identifier

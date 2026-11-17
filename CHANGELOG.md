@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-17 — Linkage chunk 7: the §7.7 archetype family asserted, residue 57 → 54
+
+Chunk 7 authored the first class-(b) asserting sites: `T420`, `T425`, and `T439` now have real checks in `checkCouplingCompleteness`. Writing them exposed a parse defect — the property table dropped empty cells, so a missing archetype was misread as the GM-access column; the parse now keeps cell position and reports a short row. The usage predicate is archetype-level because §7.7.1b states the coupling table is curated. The residue falls 57 → 54, all class (b).
+
+- `scripts/validate.ts`: `checkCouplingCompleteness` now asserts archetype non-emptiness (`T420`/`T425`), the twelve-archetype vocabulary (`T439`), and archetype usage by coupling rows (`T420`/`T439`), and reports assignment completeness for all 41 groups; the property-table parse keeps empty cells so a missing archetype is observable
+- `T420`/`T425`/`T439` leave the linkage corpus; residue 57 → 54, all class (b); corpus regenerated and the coverage register's REQ-369/REQ-374 evidence cells now cite the assertions (both stay bucket E)
+- Mutation probes prove each assertion fires: an empty cell yields the `T420/T425` error and `40/41`; a bogus token yields the `T439` vocabulary error alongside the retained warning; removing the four `Mechanics → *` rows yields the usage error plus four `T435`. The current tree stays at `0 error(s)`
+- The usage predicate is archetype-level, not group-level: `Ruling Ledger` carries no coupling row by design (§7.7.1b curation), so the completeness line reports the group count without failing on it
+- `ROADMAP.md` item 3 restated at 54 with three bullets; `spec/audit/review-register.md` gains the chunk-7 subsection and supersedes the chunk-3 claim that only unrecognised tokens were validated
+
 ## 2026-11-17 — Linkage chunk 6: the class (c) block reclassified to Manual, residue 72 → 57
 
 All fifteen class-(c) rows moved from `Automated` to `Manual` after the triage found no in-repo-checkable clause in any of them. Every one of the thirteen cited REQs is bucket E (builder/verifier-side), and the three rows with a plausible in-repo half were refuted on evidence: the diagnostic record, `convergence_summary`, and per-section skip annotations do not exist in the server or its harnesses. Fifteen procedures were added to the Manual verification section; none has been executed yet, so the drop is a classification correction, not new evidence.

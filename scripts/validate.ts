@@ -1084,7 +1084,15 @@ function checkCouplingCompleteness(text: string): string[] {
   for (const line of propLines) {
     if (line.includes("| Property |") && line.includes("Archetypes")) { inPropTable = true; continue; }
     if (inPropTable && line.startsWith("|") && line.includes("|")) {
-      const cols = line.split("|").map((s) => s.trim()).filter(Boolean);
+      // REQ-374b — positional parse: keep empty cells so a missing archetype is
+      // observable instead of shifting the GM-access cell into cols[1].
+      const cols = line.split("|").map((s) => s.trim());
+      while (cols.length > 0 && cols[0] === "") cols.shift();
+      while (cols.length > 0 && cols[cols.length - 1] === "") cols.pop();
+      const isSeparator = cols.length > 0 && (cols[0].startsWith("-") || cols[0] === "Property");
+      if (!isSeparator && cols.length > 0 && cols.length < 4) {
+        issues.push(`ERROR: T420 — §7.7 property row "${cols[0]}" does not carry four columns`);
+      }
       if (cols.length >= 2) {
         const name = cols[0];
         const archetypeStr = cols[1];
@@ -1093,6 +1101,9 @@ function checkCouplingCompleteness(text: string): string[] {
           if (archetypeStr.includes(CONTENT_SOURCE_MARKER)) archetypes = [CONTENT_SOURCE_MARKER];
           else {
             archetypes = archetypeStr.split(",").map((s) => s.trim()).filter(Boolean);
+            if (archetypes.length === 0) {
+              issues.push(`ERROR: T420/T425 — property group "${name}" carries no archetype in §7.7`);
+            }
             for (const a of archetypes) {
               if (!VALID_ARCHETYPES.has(a)) issues.push(`WARNING: Property "${name}" has unrecognized archetype "${a}"`);
             }
@@ -1112,6 +1123,17 @@ function checkCouplingCompleteness(text: string): string[] {
     if (ALIASES[t]) return ALIASES[t];
     return null;
   };
+
+  // T439 — the table's archetype vocabulary is the §7.7.0 twelve, plus the
+  // content-source marker. A stray token or a missing archetype is a defect.
+  const declaredArchetypes = new Set(
+    propGroups.flatMap((g) => g.archetypes.filter((a) => a !== CONTENT_SOURCE_MARKER)),
+  );
+  const missingVocab = [...VALID_ARCHETYPES].filter((a) => !declaredArchetypes.has(a)).sort();
+  const extraVocab = [...declaredArchetypes].filter((a) => !VALID_ARCHETYPES.has(a)).sort();
+  if (missingVocab.length > 0 || extraVocab.length > 0) {
+    issues.push(`ERROR: T439 — §7.7 property archetypes [${[...declaredArchetypes].sort().join(", ")}] differ from the §7.7.0 twelve-archetype vocabulary [${[...VALID_ARCHETYPES].sort().join(", ")}]`);
+  }
 
   const couplingMatch = text.match(/##### 7\.7\.1a Active couplings[\s\S]*?(?=##### 7\.7\.1b Coupling curation)/);
   const couplingSection = couplingMatch ? couplingMatch[0] : "";
@@ -1217,6 +1239,26 @@ function checkCouplingCompleteness(text: string): string[] {
     }
   }
   if (mismatches > 0) console.log(`  ${mismatches} coupling row(s) with mismatched archetype rule`);
+
+  // T420/T439 — every taxonomy archetype is used by at least one coupling row.
+  // Group-level orphans are not defects: §7.7.1b states the table is curated,
+  // and content-source groups never participate in coupling derivation.
+  const usedArchetypes = new Set<string>();
+  for (const pair of couplingPairs) {
+    if (pair.includes(NON_PROPERTY_MARKER)) continue;
+    for (const token of pair.split("→")) {
+      const arch = resolveArchetypes(token);
+      if (!arch) continue;
+      for (const a of arch) if (a !== CONTENT_SOURCE_MARKER) usedArchetypes.add(a);
+    }
+  }
+  for (const archetype of [...VALID_ARCHETYPES].sort()) {
+    if (!usedArchetypes.has(archetype)) {
+      issues.push(`ERROR: T420/T439 — archetype "${archetype}" is used by no coupling row in §7.7.1a`);
+    }
+  }
+  const withArchetype = propGroups.filter((g) => g.archetypes.length > 0).length;
+  console.log(`T425 — Archetype assignment completeness: ${withArchetype}/${propGroups.length} property groups carry ≥1 archetype; ${usedArchetypes.size}/${VALID_ARCHETYPES.size} archetypes used`);
 
   const populatedRules = patternRules.size - orphanedRules;
   console.log(`T434 — Coupling derivation: ${populatedRules}/${patternRules.size} pattern rules have ≥1 coupling row`);

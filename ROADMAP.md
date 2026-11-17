@@ -35,19 +35,24 @@ large enough to report a catch rate with a useful confidence interval.
 
 ## REQ evidence linkage (P1)
 
-- 57 findings remain — all class (b), rows with no asserting site. Chunk 6 reclassified the
+- 54 findings remain — all class (b), rows with no asserting site. Chunk 6 reclassified the
   fifteen class-(c) builder drills to `Manual` on 2026-11-17, so the class boundary is gone; the
   chunk-4 triage lives in `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md`, the chunk-5
-  closure in `docs/plans/2026-11-16-roadmap-drain-6/dispositions.md`, and the chunk-6
-  dispositions in `docs/plans/2026-11-17-roadmap-drain-7/dispositions.md`.
-- Class (b) is real, not bookkeeping: `T420`/`T425`/`T439` require "≥1 archetype per group" and no
-  check asserts non-emptiness (`scripts/validate.ts:1097`).
-- Chunk 6 created Manual procedures for the class (c) rows; the first execution is the next
-  ruleset-package build. Chunk 5 changed three implementations rather than labelling them: the
-  Spec Update record now renders the five component hashes (`scripts/lib/spec-update.ts`),
-  `surfaces` hashes the sorted registered names from `holonovel/tool-definitions.json`
-  (REQ-313b), and `scopingAdvice` states the per-component action (REQ-314b). The block closed as
-  a unit because the linkage predicate is T-ID-scoped (`scripts/lib/req-checks.ts:881-887`).
+  closure in `docs/plans/2026-11-16-roadmap-drain-6/dispositions.md`, the chunk-6
+  dispositions in `docs/plans/2026-11-17-roadmap-drain-7/dispositions.md`, and the chunk-7
+  dispositions in `docs/plans/2026-11-17-roadmap-drain-8/dispositions.md`.
+- Class (b) is real, not bookkeeping: chunk 7 authored the `T420`/`T425`/`T439` archetype
+  assertions on 2026-11-17 (`scripts/validate.ts`, `checkCouplingCompleteness`), closing the
+  example that had "≥1 archetype per group" with no asserting site; the residue is runtime and
+  builder assertions with no in-repo site yet.
+- Chunk 7 also taught the property parse to keep an empty cell, so a group missing its archetype
+  is observable rather than misread as the GM-access column; chunk 6 created Manual procedures
+  for the class (c) rows, first executed at the next ruleset-package build. Chunk 5 changed three
+  implementations rather than labelling them: the Spec Update record now renders the five
+  component hashes (`scripts/lib/spec-update.ts`), `surfaces` hashes the sorted registered names
+  from `holonovel/tool-definitions.json` (REQ-313b), and `scopingAdvice` states the per-component
+  action (REQ-314b). The block closed as a unit because the linkage predicate is T-ID-scoped
+  (`scripts/lib/req-checks.ts:881-887`).
 
 **Trigger:** every remaining row dispositioned and class (a) at zero; closes when the check is
 error-mode in `validate`.
