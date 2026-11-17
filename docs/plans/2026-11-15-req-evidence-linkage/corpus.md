@@ -2,9 +2,6 @@
 |---|---|---|---|
 | REQ-011c | T182 | Automated | automated-unexercised |
 | REQ-012 | T4 | Automated | automated-unexercised |
-| REQ-013 | T25 | Automated | automated-unexercised |
-| REQ-013 | T36 | Automated | automated-unexercised |
-| REQ-014 | T21 | Automated | automated-unexercised |
 | REQ-082b | T205 | Automated | automated-unexercised |
 | REQ-088h2 | T379 | Automated | automated-unexercised |
 | REQ-088h2 | T72 | Automated | automated-unexercised |
@@ -17,7 +14,6 @@
 | REQ-110 | T113 | Automated | automated-unexercised |
 | REQ-111b | T114 | Automated | automated-unexercised |
 | REQ-114b | T117 | Automated | automated-unexercised |
-| REQ-123 | T130 | Automated | automated-unexercised |
 | REQ-131c | T145 | Automated | automated-unexercised |
 | REQ-141b | T163 | Automated | automated-unexercised |
 | REQ-141k | T537 | Automated | automated-unexercised |
@@ -31,7 +27,6 @@
 | REQ-162c | T197 | Automated | automated-unexercised |
 | REQ-207c | T251 | Automated | automated-unexercised |
 | REQ-208b | T250 | Automated | automated-unexercised |
-| REQ-209 | T252 | Automated | automated-unexercised |
 | REQ-210b | T173 | Automated | automated-unexercised |
 | REQ-211c | T188 | Automated | automated-unexercised |
 | REQ-211c | T253 | Automated | automated-unexercised |
@@ -41,22 +36,12 @@
 | REQ-243d | T308 | Automated | automated-unexercised |
 | REQ-245e | T310 | Automated | automated-unexercised |
 | REQ-245e | T495 | Automated | automated-unexercised |
-| REQ-270 | T290 | Automated | automated-unexercised |
-| REQ-272 | T292 | Automated | automated-unexercised |
 | REQ-273b | T293 | Automated | automated-unexercised |
-| REQ-274 | T294 | Automated | automated-unexercised |
-| REQ-275 | T295 | Automated | automated-unexercised |
 | REQ-277 | T297 | Automated | automated-unexercised |
 | REQ-278 | T298 | Automated | automated-unexercised |
-| REQ-299 | T343 | Automated | automated-unexercised |
-| REQ-299 | T430 | Automated | automated-unexercised |
-| REQ-300 | T344 | Automated | automated-unexercised |
-| REQ-301 | T345 | Automated | automated-unexercised |
 | REQ-302b | T346 | Automated | automated-unexercised |
-| REQ-303 | T347 | Automated | automated-unexercised |
 | REQ-315b | T360 | Automated | automated-unexercised |
 | REQ-327c | T371 | Automated | automated-unexercised |
-| REQ-354 | T405 | Automated | automated-unexercised |
 | REQ-369b | T420 | Automated | automated-unexercised |
 | REQ-369b | T436 | Automated | automated-unexercised |
 | REQ-369b | T437 | Automated | automated-unexercised |

@@ -35,18 +35,19 @@ large enough to report a catch rate with a useful confidence interval.
 
 ## REQ evidence linkage (P1)
 
-- 72 findings remain (2026-11-16 chunk 5 closed all eight `T497` rows — `REQ-313a`, `REQ-313b`,
-  `REQ-313c`, `REQ-313d`, `REQ-314a`, `REQ-314b`, `REQ-314c`, `REQ-314d`). The residue is 57
-  class-(b) rows with no asserting site and 15 class-(c) builder drills; the chunk-4 triage lives
-  in `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md` and the chunk-5 closure in
-  `docs/plans/2026-11-16-roadmap-drain-6/dispositions.md`.
+- 57 findings remain — all class (b), rows with no asserting site. Chunk 6 reclassified the
+  fifteen class-(c) builder drills to `Manual` on 2026-11-17, so the class boundary is gone; the
+  chunk-4 triage lives in `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md`, the chunk-5
+  closure in `docs/plans/2026-11-16-roadmap-drain-6/dispositions.md`, and the chunk-6
+  dispositions in `docs/plans/2026-11-17-roadmap-drain-7/dispositions.md`.
 - Class (b) is real, not bookkeeping: `T420`/`T425`/`T439` require "≥1 archetype per group" and no
   check asserts non-emptiness (`scripts/validate.ts:1097`).
-- Chunk 5 changed three implementations rather than labelling them: the Spec Update record now
-  renders the five component hashes (`scripts/lib/spec-update.ts`), `surfaces` hashes the sorted
-  registered names from `holonovel/tool-definitions.json` (REQ-313b), and `scopingAdvice` states
-  the per-component action (REQ-314b). The block closed as a unit because the linkage predicate is
-  T-ID-scoped (`scripts/lib/req-checks.ts:881-887`).
+- Chunk 6 created Manual procedures for the class (c) rows; the first execution is the next
+  ruleset-package build. Chunk 5 changed three implementations rather than labelling them: the
+  Spec Update record now renders the five component hashes (`scripts/lib/spec-update.ts`),
+  `surfaces` hashes the sorted registered names from `holonovel/tool-definitions.json`
+  (REQ-313b), and `scopingAdvice` states the per-component action (REQ-314b). The block closed as
+  a unit because the linkage predicate is T-ID-scoped (`scripts/lib/req-checks.ts:881-887`).
 
 **Trigger:** every remaining row dispositioned and class (a) at zero; closes when the check is
 error-mode in `validate`.

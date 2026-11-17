@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-17 — Linkage chunk 6: the class (c) block reclassified to Manual, residue 72 → 57
+
+All fifteen class-(c) rows moved from `Automated` to `Manual` after the triage found no in-repo-checkable clause in any of them. Every one of the thirteen cited REQs is bucket E (builder/verifier-side), and the three rows with a plausible in-repo half were refuted on evidence: the diagnostic record, `convergence_summary`, and per-section skip annotations do not exist in the server or its harnesses. Fifteen procedures were added to the Manual verification section; none has been executed yet, so the drop is a classification correction, not new evidence.
+
+- `spec/appendices-reference.md`: fifteen `Type` cells flipped to `Manual` — `T21`, `T25`, `T36`, `T130`, `T252`, `T290`, `T292`, `T294`, `T295`, `T343`, `T344`, `T345`, `T347`, `T405`, `T430`; each row keeps its own cell padding and its Test text
+- `holonovel/DECISIONS.md`: fifteen procedure entries under a dated lead-in, each naming actor, precondition, procedure, and record, with the Appendix F row left as the drill's full text
+- `T344`/`T345`/`T347` were the candidates for authoring and were not flipped on judgement: REQ-300's `resolution` field, REQ-301's `convergence_summary`, and REQ-303's per-section annotations are absent from `holonovel/src` and `holonovel/scripts`, and the ruleset Pattern Buffer skips on a whole-ruleset hash (`run_ruleset_pattern_buffer.ts:216`) — a different contract from T347's 2-of-5-section scope
+- REQ evidence-linkage residue 72 → 57, now all class (b); corpus and coverage register regenerated (the register is byte-identical, as the bucket derivation ignores row kind), `ROADMAP.md` item 3 restated with three bullets, and the chunk-5 subsection superseded in the review register
+- Duty created, not executed: first execution of the fifteen procedures is the next ruleset-package build, recorded on the roadmap and in the AAR
+
 ## 2026-11-16 — Linkage chunk 5: the T497 block closes as a unit, residue 80 → 72
 
 All eight `T497` rows under `REQ-313`/`REQ-314` closed with authored assertions after three implementations landed: the Spec Update record renders the five component hashes, the surfaces fingerprint hashes registered names rather than source bytes, and the delta record carries a per-component scoping advice. The block closed atomically because the linkage check keys on the T-ID, so a per-REQ deferral was not representable.

@@ -3190,6 +3190,31 @@ Recorded deviation: the surfaces redefinition moved two pre-existing `REQ-394a` 
 expectations were updated with the reason inline. All eight rows carry an asserting site in
 `docs/plans/2026-11-16-roadmap-drain-6/dispositions.md`.
 
+The fifteen class-(c) rows were **superseded on 2026-11-17**: chunk 6 reclassified all of them to
+`Manual` and documented a procedure for each, so the "57 (b) + 15 (c)" split stated here no longer
+holds. The current residue is **57, all class (b)**. See the chunk-6 subsection below.
+
+
+### 2026-11-17 — REQ evidence linkage chunk 6 (the class (c) block, fifteen rows)
+
+Chunk 6 (`docs/plans/2026-11-17-roadmap-drain-7`) reclassified all fifteen class-(c) rows to
+`Manual` — `T21`, `T25`, `T36`, `T130`, `T252`, `T290`, `T292`, `T294`, `T295`, `T343`, `T344`,
+`T345`, `T347`, `T405`, `T430` — taking the residue from 72 to **57, all class (b)**. Row
+dispositions: `docs/plans/2026-11-17-roadmap-drain-7/dispositions.md`.
+
+The block did not clear by authoring, and it was not cleared by relabelling. All thirteen cited
+REQs sit in bucket **E** (builder/verifier-side) in the coverage register, and the three rows with
+a plausible in-repo half were re-read before the flip: `T344` names a `resolution` field moving
+`pending` → `converged`, `T345` a `convergence_summary`, `T347` per-section skip annotations — none
+of the three exists in `holonovel/src` or `holonovel/scripts`. The ruleset Pattern Buffer does skip
+on a whole-ruleset hash (`holonovel/scripts/run_ruleset_pattern_buffer.ts:216`), which is a
+different contract from T347's 2-of-5-section scope, so a harness assertion there would have tested
+the wrong clause. Reclassification is a kind correction, not a substitute for an assertion.
+
+Fifteen procedures were added to the "Manual verification procedures — 2026-11-16" section of
+`holonovel/DECISIONS.md`, each naming actor, precondition, procedure, and record. None has been
+executed: the duty is created, and first execution is the next ruleset-package build.
+
 
 ## Resolved — 2026-11-16 T553 duplicate identifier
 

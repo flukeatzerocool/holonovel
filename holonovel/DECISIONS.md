@@ -3186,3 +3186,100 @@ the operator keeps.
   `[anti-slop]` items and forbidden/corrected pairs per badge, the Player and
   GM scoping, the Appendix J coverage, and the `[supplementary]` URLs. Record:
   the two resource captures.
+
+Extended 2026-11-17 by `docs/plans/2026-11-17-roadmap-drain-7`: fifteen class (c) rows of
+Appendix F reclassified from `Automated` to `Manual`. Each entry names the actor, the
+precondition, the procedure, and the record; the Appendix F row carries the drill's full text.
+
+- **`T21` — source immutability.** Actor: the builder at intake, on the source tree the build
+  will index. Precondition: the intake hashes are recorded in the build register (1).
+  Procedure: re-hash the Markdown sources — and the original sources where conversion applied —
+  compare against the recorded intake hash, and confirm the files are byte-identical to what was
+  hashed (REQ-065 owns any later drift reading; this drill is the freeze only). Record: the hash
+  comparison in the build register (1).
+- **`T25` — no assumed mechanics, deletion drills.** Actor: the builder on copies of the ruleset
+  fixture, before construction. Precondition: a build whose discovery waivers are recorded in
+  the build register (5). Procedure: delete the Dice section from one copy and re-run discovery —
+  a defect is flagged, no roll tool appears, dependent tests are waived with reasons; delete the
+  Confrontations section from another — conflict tools are waived under REQ-043's logged-reason
+  clause and the Dangers section stays searchable. Record: both waiver sets in the build
+  register (5).
+- **`T36` — no assumed mechanics, register review.** Actor: the builder at the extraction
+  review. Precondition: build register sections (1) and (5) are populated. Procedure: confirm
+  section (1)'s edition and title match the source and section (5) carries a waiver for every
+  hardcoded class, species, hit-dice, equipment, or spell table; a missing waiver is a failure.
+  Record: the review note in the build register (1)/(5).
+- **`T130` — builder-defined NPC stat fields.** Actor: the builder with two rulesets, one with
+  stat-block conventions and one without. Precondition: a server built from each. Procedure:
+  create an NPC and confirm the exposed stat fields match that ruleset's stat-block schema
+  (never a hardcoded ac/hp/speed); on the ruleset without conventions confirm the NPC surface
+  carries narrative fields only; confirm every stat field is optional and `name` the only
+  required one. Record: the two `manage_npc (action: create)` schema captures in the release
+  note.
+- **`T252` — cross-format consistency.** Actor: the builder between extraction and construction.
+  Precondition: `RULESET_MODEL.md` and `ruleset_model.json` generated from the same extraction.
+  Procedure: sample ten items across at least three extraction categories and compare name,
+  source anchor, confidence label, and action classification in both formats; introduce a
+  deliberate mismatch and confirm it is flagged as a discovery defect with both values and blocks
+  construction. Record: the sample table and the defect-log entry in the build register (6).
+- **`T290` — artifact version identification.** Actor: the builder at handoff. Precondition: the
+  four handoff artifacts and a running `spec_health`. Procedure: inspect the first HTML comment
+  line of each artifact (`<!-- built against Holonovel spec vX.Y.Z -->`) and compare it with
+  `spec_health.spec_version`; remove the comment from one artifact and confirm handoff
+  verification flags it; repeat with a mismatched version. Record: the three
+  handoff-verification reads in the build register (6).
+- **`T292` — stock elements catalog.** Actor: the builder at the Discovery checkpoint.
+  Precondition: a ruleset with reusable archetypes, monsters, locations, lore patterns, and
+  generation tables. Procedure: confirm the build register (4) carries a `stock_elements` table
+  with those five columns, each entry keyed with a description and source anchor; rebuild against
+  an unchanged ruleset hash and confirm the catalog is referenced, not re-extracted; mutate the
+  source and confirm delta extraction updates only the changed entries. Record: the catalog and
+  the two rebuild notes in the build register (4).
+- **`T294` — verifier confidence score.** Actor: the independent verifier in Phase 2.
+  Precondition: the comparison set is complete under REQ-273. Procedure: score three constructed
+  sets — 3 Discrepancies of 10 → 0.70 (FAIL); 1 Discrepancy, 2 operator-confirmed Pin drifts, 7
+  matches → 0.84 (PARTIAL); 10 matches → 1.0 (PASS) — and confirm the per-workflow component
+  weights are recorded. Record: the scored comparison in the verifier evidence.
+- **`T295` — evidence hash commitment.** Actor: the verifier across the Phase 1 / Phase 2
+  boundary. Precondition: the redacted DECISIONS.md supplied for Phase 1. Procedure: compute and
+  record its SHA-256 before Phase 1; after the operator supplies the unredacted copy recompute
+  and compare; modify the unredacted copy after commitment and confirm the mismatch is recorded
+  as an "evidence tampered" Discrepancy and blocks Phase 2. Record: both hashes and the tamper
+  reading in the verifier evidence.
+- **`T343` — adjusted confidence thresholds.** Actor: the builder with a ruleset whose
+  indexed-item count exceeds 200. Precondition: the extraction index for that ruleset.
+  Procedure: confirm the confidence threshold is lowered per REQ-098 and the build register
+  records the adjusted threshold with justification; repeat under 200 items and confirm the
+  standard threshold; re-run convergence and confirm the adjusted thresholds survive. Record:
+  the threshold readings and justification in the build register (5).
+- **`T344` — structured failure diagnostics.** Actor: the builder when a Pattern Buffer
+  sub-workflow fails. Precondition: a G2 failure induced on `manage_combat (action: init)` by a
+  turn-order mismatch. Procedure: confirm the build register (5) carries a diagnostic record with
+  gate name, sub-workflow name, failing test ID, REQ citation, expected and actual output, and a
+  line-level diff; fix the defect and confirm the `resolution` field moves from `pending` to
+  `converged`. Record: the diagnostic record before and after the fix in the build register (5).
+- **`T345` — convergence loop audit trail.** Actor: the builder after a convergence loop of two
+  or more iterations. Precondition: the iteration logs for that loop. Procedure: confirm the
+  build register (5) carries one record per iteration — iteration number, REQ or test ID, change
+  summary, re-test result, token cost — and a `convergence_summary` with total iterations, total
+  token cost, REQ coverage, and final disposition. Record: the per-iteration records and the
+  summary in the build register (5).
+- **`T347` — scoped re-verification.** Actor: the builder on an incremental extraction.
+  Precondition: an earlier build and a source set in which 2 of 5 sections changed. Procedure:
+  run the Pattern Buffer and confirm sub-workflows verifying unchanged sections are skipped with
+  the `[section unchanged — re-validating from previous build]` annotation and the
+  `[validated-by-prior-build]` disposition, cross-section sub-workflows run in full, and the
+  summary separates "skipped (unchanged)" from "passed". Record: the Pattern Buffer summary in
+  the build register (5).
+- **`T405` — extended narrative synthesis.** Actor: the builder on a ruleset whose GM advice
+  chapters cover scene pacing, NPC relationships, dramatic structure, and solo-play guidance.
+  Precondition: a completed Discovery. Procedure: confirm `manage_synthesis (action: list,
+  module="supplementary_guidance")` returns items whose `component_type` annotations come from
+  the REQ-354 catalogue (any combination of at least two types), and that a ruleset without
+  those chapters yields unchanged REQ-225 output. Record: the two `manage_synthesis` listings in
+  the release note.
+- **`T430` — cross-model audit archetype coverage.** Actor: the builder running the REQ-299
+  cross-model audit. Precondition: two models' extractions of the same ruleset. Procedure:
+  confirm the audit covers at least two distinct archetype categories from §7.7.0, enumerates
+  the categories compared, and records archetype disagreements as findings with both models'
+  assignments and source anchors. Record: the audit report in the build register (6).
