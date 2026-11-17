@@ -958,7 +958,7 @@ function checkPatternBufferCoverageMap(text: string, reqIndex: Map<string, strin
   const familyCovered = (fam: string) =>
     [...mapReqs].some((k) => k === `REQ-${fam}` || (k.startsWith(`REQ-${fam}`) && k.length > `REQ-${fam}`.length));
   for (const fam of [...familyIds].sort()) {
-    if (!familyCovered(fam)) issues.push(`ERROR: REQ-${fam} in a Pattern Buffer covered section but missing from the coverage map`);
+    if (!familyCovered(fam)) issues.push(`ERROR: T538 — REQ-${fam} in a Pattern Buffer covered section but missing from the coverage map`);
   }
   const reqKeys = [...reqIndex.keys()];
   for (const r of [...mapReqs].sort()) {
@@ -1470,7 +1470,7 @@ function checkPhaseMapHash(): string[] {
   const current = computeSpecContentHash();
   if (recorded !== current) {
     return [
-      `spec/build-phase-map.md content hash is stale (recorded ${recorded.slice(0, 12)}…, current ${current.slice(0, 12)}…) — run \`npm run assemble\``,
+      `T298 — spec/build-phase-map.md content hash is stale (recorded ${recorded.slice(0, 12)}…, current ${current.slice(0, 12)}…) — run \`npm run assemble\``,
     ];
   }
   return [];
@@ -2247,6 +2247,100 @@ function checkAgentsMapFreshness(): string[] {
   return issues;
 }
 
+// REQ-153 / REQ-154a/b: the handoff documents are committed artifacts, so their
+// required sections and footer are checkable here rather than by a live drill.
+const HANDOFF_CLASSES = [
+  { phrase: "config mismatch", marker: "mcpServers" },
+  { phrase: "corrupted state file", marker: ".bak" },
+  { phrase: "badge confusion", marker: "set_badge" },
+  { phrase: "missing environment variables", marker: "TTRPG_" },
+];
+
+function handoffCommand(block: string): string | null {
+  for (const m of block.matchAll(/`([^`]+)`/g)) {
+    const cmd = m[1].trim();
+    if (/^(npm run |npx tsx )/.test(cmd)) return cmd;
+  }
+  return null;
+}
+
+function checkHandoffDocs(text: string): string[] {
+  const issues: string[] = [];
+  const serverDir = path.resolve(__dirname, "..", "holonovel");
+
+  // T186 — AGENTS.md troubleshooting (REQ-153).
+  const agentsPath = path.join(serverDir, "AGENTS.md");
+  let agents = "";
+  try { agents = fs.readFileSync(agentsPath, "utf-8"); } catch { return [`ERROR: T186 — holonovel/AGENTS.md unreadable`]; }
+  const sectionStart = agents.indexOf("\n## Troubleshooting");
+  if (sectionStart === -1) {
+    issues.push("ERROR: T186 — holonovel/AGENTS.md has no '## Troubleshooting' section");
+  } else {
+    const next = agents.indexOf("\n## ", sectionStart + 1);
+    const section = agents.slice(sectionStart, next === -1 ? undefined : next);
+    const blocks = section.split(/^### /m).slice(1);
+    for (const cls of HANDOFF_CLASSES) {
+      const block = blocks.find((b) => b.toLowerCase().includes(cls.phrase));
+      if (!block) {
+        issues.push(`ERROR: T186 — Troubleshooting has no '${cls.phrase}' subsection`);
+        continue;
+      }
+      if (!block.toLowerCase().includes(cls.marker.toLowerCase())) {
+        issues.push(`ERROR: T186 — '${cls.phrase}' subsection carries no recovery step (expected ${cls.marker})`);
+      }
+      const cmd = handoffCommand(block);
+      if (cmd === null) {
+        issues.push(`ERROR: T186 — '${cls.phrase}' subsection carries no verification command`);
+      } else {
+        const named = cmd.match(/holonovel\/scripts\/([\w.-]+\.ts)/);
+        if (named && !fs.existsSync(path.join(serverDir, "scripts", named[1]))) {
+          issues.push(`ERROR: T186 — '${cls.phrase}' verification command names missing ${named[0]}`);
+        }
+      }
+    }
+  }
+
+  // T187 — README handoff content (REQ-154a/b).
+  const readmePath = path.join(serverDir, "README.md");
+  let readme = "";
+  try { readme = fs.readFileSync(readmePath, "utf-8"); } catch { return [...issues, `ERROR: T187 — holonovel/README.md unreadable`]; }
+  if (!/^## (Requirements|Install|Prerequisites|Setup)/m.test(readme)) issues.push("ERROR: T187 — README has no prerequisites/setup section");
+  const jsonBlocks = [...readme.matchAll(/```json\n([\s\S]*?)```/g)].map((m) => m[1]);
+  if (!jsonBlocks.some((b) => b.includes('"mcpServers"') && b.includes('"command"') && b.includes('"args"'))) {
+    issues.push("ERROR: T187 — README has no mcpServers block with command and args");
+  }
+  if (!/(TTRPG_SEED|Deterministic PRNG seed)/i.test(readme)) issues.push("ERROR: T187 — README does not state the RNG continuity contract");
+  if (!/badge/i.test(readme)) issues.push("ERROR: T187 — README does not describe the badge model");
+  if (!/(## Data|persistence|survives restart)/i.test(readme)) issues.push("ERROR: T187 — README does not describe the state model");
+
+  const licenseStart = readme.search(/^## License$/m);
+  if (licenseStart === -1) {
+    issues.push("ERROR: T187 — README has no '## License' section");
+  } else {
+    const license = readme.slice(licenseStart);
+    if (!/^Canonical origin:/m.test(license)) issues.push("ERROR: T187 — License lacks the canonical-origin line");
+    if (!/\bMIT\b/.test(license)) issues.push("ERROR: T187 — License lacks the MIT statement");
+    if (!license.includes("Built from:")) issues.push("ERROR: T187 — License lacks the literal 'Built from:' lead-in");
+    if (!/\[RSS\]\(https?:/.test(license)) issues.push("ERROR: T187 — License lacks the RSS link");
+    if (!/Last updated: \d{4}-\d{2}-\d{2}/.test(license)) issues.push("ERROR: T187 — License lacks the last-updated date");
+
+    const uStart = text.indexOf("## Appendix U");
+    if (uStart === -1) {
+      issues.push("ERROR: T187 — Appendix U content licenses not found in the assembled spec");
+    } else {
+      const uNext = text.indexOf("\n## Appendix ", uStart + 1);
+      const appendixU = text.slice(uStart, uNext === -1 ? undefined : uNext);
+      const sources = [...appendixU.matchAll(/^\| ([^|]+?) \| [^|]+ \| [^|]+ \| [^|]+ \|$/gm)]
+        .map((m) => m[1].trim())
+        .filter((s) => s !== "Source");
+      for (const source of sources) {
+        if (!license.includes(source)) issues.push(`ERROR: T187 — License is missing the Appendix U source '${source}'`);
+      }
+    }
+  }
+  return issues;
+}
+
 function main(): void {
   const text = readSpec();
   let errors = 0;
@@ -2588,6 +2682,10 @@ function main(): void {
   const agentsMapIssues = checkAgentsMapFreshness();
   if (agentsMapIssues.length > 0) { for (const issue of agentsMapIssues) console.log(`WARNING: ${issue}`); warnings += agentsMapIssues.length; }
   else { console.log("PASS: AGENTS.md layer map names every appendix"); }
+
+  const handoffIssues = checkHandoffDocs(text);
+  if (handoffIssues.length > 0) { for (const issue of handoffIssues) console.log(issue); errors += handoffIssues.length; }
+  else { console.log("PASS: handoff documents satisfy REQ-153 and REQ-154a/b"); }
 
   reportSectionCounts(text);
 

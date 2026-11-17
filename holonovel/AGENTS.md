@@ -214,6 +214,35 @@ job, not in `test:all` (it needs a registry install). Node 22+ is required.
 - **Snapshots:** Per-mutation snapshots per badge stack (`manage_history` action: undo/redo).
 - **Audit:** Append-only chained log embedded in novel state.
 
+## Troubleshooting
+
+Operator-facing recovery for the four failure classes REQ-153 names. Each entry gives the symptom,
+the recovery step, and the command that exercises the failure mode.
+
+### Config mismatch
+
+Symptom: the client launches the server but `tools/list` fails, or an `mcpServers` entry points at
+a stale binary. Recovery: compare the `mcpServers` block in `README.md` with the client config and
+reinstall from the current package. Verify with `npm run test:all`.
+
+### Corrupted state file
+
+Symptom: `[STATE_CONFLICT]` on launch or resume because a Novel JSON file is truncated. Recovery:
+restore `.holonovel-state/novels/<slug>.json` from its `.bak` sibling; the atomic-save rotation
+keeps one backup per write. Verify with `npx tsx holonovel/scripts/test-persistence.ts`.
+
+### Badge confusion
+
+Symptom: a Player session sees GM-only fields, or `set_badge` refuses a known badge. Recovery: call
+`set_badge` with `player`, `gm`, or none explicitly and re-read the briefing; a missing badge
+inherits the connection default. Verify with `npx tsx holonovel/scripts/test-briefing.ts`.
+
+### Missing environment variables
+
+Symptom: the server starts with defaults that ignore the intended data directory or seed. Recovery:
+set `TTRPG_DATA_DIR` and `TTRPG_SEED` in the client `env` block; the `TTRPG_` prefix is the full
+configuration surface. Verify with `npx tsx holonovel/scripts/test-data-dir.ts`.
+
 ## Two-Repo Workflow (commit canonical source first)
 
 This server ships in one repo but runs in two locations:

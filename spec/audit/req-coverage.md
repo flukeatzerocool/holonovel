@@ -88,7 +88,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-105 | Spec resource | 5.3 Tools, Resources, and Lookups | C | T104 | — |
 | REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | C | T105 | — |
 | REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T493 | — |
-| REQ-108 | Pattern Buffer traceability (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | — | — |
+| REQ-108 | Pattern Buffer traceability (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | T538 | — |
 | REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T109, T110, T201, T140, T149, T359 | — |
 | REQ-110 | Tool surface consolidation | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-111 | Search result quality (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
@@ -130,8 +130,8 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-150 | Golden transcript coverage completeness (Part a) (2 sub-parts) | 5.5 Badges and Access | E | S6 | — |
 | REQ-151 | Creation step enumeration (Part a) (2 sub-parts) | 5.4 Decision workflows | C | T32, T468 | — |
 | REQ-152 | Starting equipment assignment (Part a) (2 sub-parts) | 5.4 Decision workflows | C | T32, T468 | — |
-| REQ-153 | AGENTS.md troubleshooting | 5.2 Extraction and Confidence | E | T291 | — |
-| REQ-154 | README.md handoff content (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
+| REQ-153 | AGENTS.md troubleshooting | 5.2 Extraction and Confidence | E | T186, T291 | — |
+| REQ-154 | README.md handoff content (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | T187 | — |
 | REQ-155 | Sticky counter decay (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T299 | — |
 | REQ-156 | NPC description field | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T191 | — |
 | REQ-157 | Combat determinism (Part a) (2 sub-parts) | 5.7 Determinism, Safety, and Performance | C | T192 | — |
@@ -250,7 +250,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-275 | Evidence hash commitment | 5.5 Badges and Access | E | — | — |
 | REQ-276 | Independent verifier model criteria | 5.5 Badges and Access | E | T296 | — |
 | REQ-277 | Fixture evolution contract | 5.1 Output and Error Contracts | E | — | — |
-| REQ-278 | Build-phase-map staleness detection | 5.3 Tools, Resources, and Lookups | E | — | — |
+| REQ-278 | Build-phase-map staleness detection | 5.3 Tools, Resources, and Lookups | E | T298 | — |
 | REQ-279 | Narrative orientation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T328 | — |
 | REQ-280 | Source-anchor citation (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T329 | — |
 | REQ-281 | Narrative-threads section token (Part a) (3 sub-parts) | 5.5 Badges and Access | C | T330 | — |

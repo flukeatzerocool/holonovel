@@ -3238,6 +3238,20 @@ curated, and `Ruling Ledger` carries no coupling row by design, so a group-level
 contradict the clause. The completeness line reports the group count without failing on it. None of
 the 54 remaining rows was touched; the next chunk classifies them by asserting site.
 
+### 2026-11-17 — REQ evidence linkage chunk 8 (the committed-artifact assertions, four rows)
+
+Chunk 8 (`docs/plans/2026-11-17-roadmap-drain-9`) authored the next class-(b) asserting sites:
+`T186` and `T187` now assert the server handoff documents, `T298` labels the build-phase-map hash
+check, and `T538` labels the Pattern Buffer coverage-map gap error — taking the residue from 54 to
+**50**. Row dispositions: `docs/plans/2026-11-17-roadmap-drain-9/dispositions.md`.
+
+Two rows were labels on checks that already asserted their clause; two exposed document gaps. The
+`AGENTS.md` troubleshooting section did not exist, and the server README's license footer lacked the
+canonical-origin line, the literal `Built from:` lead-in, the RSS link, and the last-updated date.
+Both documents now carry them, and the new handoff-document check fails the build when either
+regresses. The build-phase-map label claims only the validate obligation; the builder-side
+file-list record remains a build-record duty and is disclaimed in the dispositions.
+
 
 ## Resolved — 2026-11-16 T553 duplicate identifier
 

@@ -35,16 +35,18 @@ large enough to report a catch rate with a useful confidence interval.
 
 ## REQ evidence linkage (P1)
 
-- 54 findings remain — all class (b), rows with no asserting site. Chunk 6 reclassified the
+- 50 findings remain — all class (b), rows with no asserting site. Chunk 6 reclassified the
   fifteen class-(c) builder drills to `Manual` on 2026-11-17, so the class boundary is gone; the
   chunk-4 triage lives in `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md`, the chunk-5
   closure in `docs/plans/2026-11-16-roadmap-drain-6/dispositions.md`, the chunk-6
-  dispositions in `docs/plans/2026-11-17-roadmap-drain-7/dispositions.md`, and the chunk-7
-  dispositions in `docs/plans/2026-11-17-roadmap-drain-8/dispositions.md`.
+  dispositions in `docs/plans/2026-11-17-roadmap-drain-7/dispositions.md`, the chunk-7
+  dispositions in `docs/plans/2026-11-17-roadmap-drain-8/dispositions.md`, and the chunk-8
+  dispositions in `docs/plans/2026-11-17-roadmap-drain-9/dispositions.md`.
 - Class (b) is real, not bookkeeping: chunk 7 authored the `T420`/`T425`/`T439` archetype
-  assertions on 2026-11-17 (`scripts/validate.ts`, `checkCouplingCompleteness`), closing the
-  example that had "≥1 archetype per group" with no asserting site; the residue is runtime and
-  builder assertions with no in-repo site yet.
+  assertions on 2026-11-17 (`scripts/validate.ts`, `checkCouplingCompleteness`), and chunk 8 the
+  committed-artifact assertions (`T186`/`T187` handoff documents, `T298` phase-map hash, `T538`
+  coverage map), closing examples that had no asserting site; the residue is runtime assertions
+  with no in-repo site yet.
 - Chunk 7 also taught the property parse to keep an empty cell, so a group missing its archetype
   is observable rather than misread as the GM-access column; chunk 6 created Manual procedures
   for the class (c) rows, first executed at the next ruleset-package build. Chunk 5 changed three

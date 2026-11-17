@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-17 — Linkage chunk 8: the committed-artifact assertions, residue 54 → 50
+
+Chunk 8 gave four class-(b) rows real asserting sites. `T538` now labels the §6.6 coverage-map gap error and `T298` the build-phase-map hash check; a new handoff-document check asserts the AGENTS.md troubleshooting section and the server README's five handoff items and license footer, which exposed two real document gaps now closed. The residue falls 54 → 50.
+
+- `scripts/validate.ts`: `checkHandoffDocs` asserts the AGENTS.md `## Troubleshooting` section (four classes, each with a recovery step and a verification command naming an existing harness) and the server README's prerequisites, `mcpServers`, RNG, badge and state-model items plus the Appendix U license footer
+- `T538` labels the Pattern Buffer coverage-map gap error; `T298` labels the build-phase-map hash check, claiming its validate obligation only
+- `holonovel/AGENTS.md` gains a `## Troubleshooting` section; `holonovel/README.md`'s License gains the canonical-origin line, the literal `Built from:` lead-in, the RSS link, and the last-updated date
+- Four negative probes prove each assertion fires; the pre-edit dry run found exactly the five expected gaps
+- Residue 54 → 50; corpus 52 lines, four evidence cells move in the coverage register with no bucket change; `ROADMAP.md` item 3 restated at 50 and the review register gains the chunk-8 subsection
+
 ## 2026-11-17 — Linkage chunk 7: the §7.7 archetype family asserted, residue 57 → 54
 
 Chunk 7 authored the first class-(b) asserting sites: `T420`, `T425`, and `T439` now have real checks in `checkCouplingCompleteness`. Writing them exposed a parse defect — the property table dropped empty cells, so a missing archetype was misread as the GM-access column; the parse now keeps cell position and reports a short row. The usage predicate is archetype-level because §7.7.1b states the coupling table is curated. The residue falls 57 → 54, all class (b).

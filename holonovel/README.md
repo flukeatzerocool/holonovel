@@ -98,9 +98,9 @@ Tests are `tsx` harnesses under `scripts/` (there is no `test/` directory).
 
 ## License
 
-MIT. See `LICENSE.md`.
+Canonical origin: [git.gay/flukeatzerocool/Holonovel](https://git.gay/flukeatzerocool/Holonovel).
 
-Bundled mechanics and Ruleset Wisdom are built from:
+Holonovel is MIT-licensed. See `LICENSE.md`. Built from:
 
 - D&D 5e SRD v5.2.1 (CC BY 4.0, Wizards of the Coast)
 - Graham Nelson's Inform (Artistic License 2.0, Graham Nelson)
@@ -136,3 +136,5 @@ Upstream sources: [D&D 5e SRD](https://www.dndbeyond.com/srd),
 [Fate SRD](https://fate-srd.com),
 [Ironsworn SRD](https://ironswornrpg.com),
 [COF](https://github.com/yannsouetre/cof).
+
+[RSS](https://git.gay/flukeatzerocool/Holonovel.rss). Last updated: 2026-11-17.
