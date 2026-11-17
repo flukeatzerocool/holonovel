@@ -2341,6 +2341,181 @@ function checkHandoffDocs(text: string): string[] {
   return issues;
 }
 
+// T205 (REQ-082b) — the DECISIONS.md section-token mapping must agree with the
+// runtime briefing registry that `spec_health.section_tokens` and the
+// `[INVALID_INPUT]` enumeration are built from. The two layer values are the
+// ones the table uses today; a third is a deliberate fail-loud signal that the
+// check needs amending, not a silent pass.
+const BRIEFING_LAYERS = new Set(["critical", "supplementary"]);
+
+function checkBriefingTokenRegistry(): string[] {
+  const issues: string[] = [];
+  const serverDir = path.resolve(__dirname, "..", "holonovel");
+
+  let decisions = "";
+  try { decisions = fs.readFileSync(path.join(serverDir, "DECISIONS.md"), "utf-8"); }
+  catch { return ["ERROR: T205 — holonovel/DECISIONS.md unreadable"]; }
+  const lines = decisions.split("\n");
+  const headerAt = lines.findIndex((l) =>
+    /^\|\s*#\s*\|\s*Token\s*\|\s*REQ-109 group\s*\|\s*Layer\s*\|/.test(l));
+  if (headerAt === -1) {
+    return ["ERROR: T205 — holonovel/DECISIONS.md carries no '# | Token | REQ-109 group | Layer' table"];
+  }
+  const documented: Array<{ n: number; token: string }> = [];
+  for (let i = headerAt + 1; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (!line.startsWith("|")) break;
+    const cells = line.split("|").map((c) => c.trim());
+    if (cells.length < 6 || /^:?-+:?$/.test(cells[1]!)) continue;
+    const n = Number(cells[1]);
+    const token = (cells[2] ?? "").replace(/`/g, "");
+    if (!Number.isInteger(n) || !token) {
+      issues.push(`ERROR: T205 — DECISIONS.md table row ${i + 1} carries no numeric '#' or no token`);
+      continue;
+    }
+    if (!cells[3]) issues.push(`ERROR: T205 — DECISIONS.md row '${token}' carries no REQ-109 group label`);
+    if (!BRIEFING_LAYERS.has(cells[4] ?? "")) {
+      issues.push(`ERROR: T205 — DECISIONS.md row '${token}' carries layer '${cells[4]}' outside critical/supplementary`);
+    }
+    documented.push({ n, token });
+  }
+  if (documented.length === 0) return [...issues, "ERROR: T205 — the DECISIONS.md token table carries no rows"];
+  if (documented.some((row, k) => row.n !== k + 1)) {
+    issues.push("ERROR: T205 — the DECISIONS.md '#' column is not contiguous 1..N");
+  }
+
+  let src = "";
+  try { src = fs.readFileSync(path.join(serverDir, "src", "index.ts"), "utf-8"); }
+  catch { return [...issues, "ERROR: T205 — holonovel/src/index.ts unreadable"]; }
+  const sectionsAt = src.indexOf("const BRIEFING_SECTIONS");
+  const viewAt = src.indexOf("const BRIEFING_VIEW_TOKENS");
+  const byTokenAt = src.indexOf("const BRIEFING_BY_TOKEN");
+  if (sectionsAt === -1 || viewAt === -1 || byTokenAt === -1 || !(sectionsAt < viewAt && viewAt < byTokenAt)) {
+    return [...issues, "ERROR: T205 — the briefing registry markers (BRIEFING_SECTIONS / BRIEFING_VIEW_TOKENS / BRIEFING_BY_TOKEN) are missing or out of order"];
+  }
+  const sections = [...src.slice(sectionsAt, viewAt).matchAll(/^\s+token:\s*"([^"]+)",?\s*$/gm)]
+    .map((m) => m[1]!);
+  const views = [...src.slice(viewAt, byTokenAt).matchAll(/token:\s*"([^"]+)"/g)].map((m) => m[1]!);
+  if (sections.length === 0) {
+    return [...issues, "ERROR: T205 — the BRIEFING_SECTIONS registry body carries no token literals"];
+  }
+  const threadAt = sections.indexOf("narrative_threads");
+  if (threadAt === -1) {
+    // Req-186a inserts the view tokens after this section only; without it the
+    // set the server builds is not the set the table could be compared against.
+    return [...issues, "ERROR: T205 — the registry has no narrative_threads section, so the view tokens are not composed and the comparison would be false"];
+  }
+  const runtime = [...sections];
+  runtime.splice(threadAt + 1, 0, ...views);
+  if (JSON.stringify(documented.map((row) => row.token)) !== JSON.stringify(runtime)) {
+    issues.push("ERROR: T205 — the DECISIONS.md token table order or set differs from the runtime briefing registry order");
+  }
+
+  // Clause (e): the unknown-token rejection enumerates the same identifier. A
+  // static read can only see the interpolation, not that the value reaches a
+  // client — the live drill is recorded as unclaimed in dispositions.md.
+  const rejection = src.match(/^.*INVALID_INPUT.*[Uu]nknown section token.*$/m);
+  if (!rejection) issues.push("ERROR: T205 — the unknown-token rejection message is absent");
+  else if (!rejection[0].includes("VALID_BRIEFING_TOKENS")) {
+    issues.push("ERROR: T205 — the unknown-token rejection does not enumerate VALID_BRIEFING_TOKENS");
+  }
+  return issues;
+}
+
+// T297 (REQ-277) — the fixture RNG witness tables and the golden transcript's
+// seed-pinned dice must reproduce the generator Appendix B.4 documents:
+// `state ← (state × 1664525 + 1013904223) mod 2³²`, dN draw `⌊next() × N⌋ + 1`.
+function witnessDraws(seed: number, count: number, faces: number): number[] {
+  const out: number[] = [];
+  let state = seed;
+  for (let i = 0; i < count; i++) {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    out.push(Math.floor((state / 4294967296) * faces) + 1);
+  }
+  return out;
+}
+
+function witnessRegion(text: string, heading: string): string | null {
+  const at = text.indexOf(heading);
+  if (at === -1) return null;
+  const rest = text.slice(at + heading.length);
+  const stop = rest.search(/^### |^---/m);
+  return stop === -1 ? rest : rest.slice(0, stop);
+}
+
+function checkFixtureWitness(text: string): string[] {
+  const issues: string[] = [];
+  const regions: Array<{ name: string; body: string }> = [];
+  for (const [name, heading] of [["B.4", "### B.4 "], ["N.4", "### N.4 "]] as const) {
+    const body = witnessRegion(text, heading);
+    if (body === null) { issues.push(`ERROR: T297 — Appendix ${name} RNG witness region is absent`); continue; }
+    regions.push({ name, body });
+  }
+
+  let rows = 0;
+  for (const region of regions) {
+    const lines = region.body.split("\n");
+    const headerAt = lines.findIndex((l) => /^\|\s*Seed\s*\|/i.test(l));
+    if (headerAt === -1) { issues.push(`ERROR: T297 — Appendix ${region.name} carries no '| Seed |' header`); continue; }
+    const columns = lines[headerAt]!.split("|").map((c) => c.trim()).slice(2, -1);
+    const faces: number[] = [];
+    for (const column of columns) {
+      const m = column.match(/d(\d+)/i);
+      if (!m) { issues.push(`ERROR: T297 — Appendix ${region.name} column '${column}' names no die`); faces.push(0); continue; }
+      faces.push(Number(m[1]));
+    }
+    for (let i = headerAt + 1; i < lines.length; i++) {
+      const line = lines[i]!;
+      if (!line.startsWith("|")) break;
+      const cells = line.split("|").map((c) => c.trim());
+      if (cells.length < 3 || /^:?-+:?$/.test(cells[1]!)) continue;
+      const seed = Number(cells[1]);
+      if (!Number.isInteger(seed)) { issues.push(`ERROR: T297 — Appendix ${region.name} row has no numeric seed`); continue; }
+      rows++;
+      for (let c = 0; c < faces.length; c++) {
+        const want = faces[c]!;
+        const listed = (cells[c + 2] ?? "").split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
+        if (want === 0) continue;
+        if (want !== 6 && want !== 20) {
+          issues.push(`ERROR: T297 — Appendix ${region.name} seed ${seed} names d${want}; the check implements d6 and d20 only`);
+          continue;
+        }
+        const expected = witnessDraws(seed, listed.length, want);
+        if (JSON.stringify(expected) !== JSON.stringify(listed)) {
+          issues.push(`ERROR: T297 — Appendix ${region.name} seed ${seed} d${want} row reads [${listed.join(", ")}]; the generator yields [${expected.join(", ")}]`);
+        }
+      }
+    }
+  }
+  if (rows === 0) issues.push("ERROR: T297 — no witness rows were read from the fixture appendices");
+
+  // Transcript arrays: nearest-preceding `"seed": N` within the same response
+  // block. Every bracketed array in the B.3 transcript is a d6 roll today; the
+  // die size is pinned rather than inferred, so an unsupported die is loud.
+  let arrays = 0;
+  const seedRe = /"seed"\s*:\s*(\d+)/g;
+  for (const m of text.matchAll(seedRe)) {
+    const seed = Number(m[1]);
+    const window = text.slice(m.index! + m[0].length, m.index! + m[0].length + 400);
+    const die = window.match(/\b(\d+)d(\d+)\b/);
+    const dice = window.match(/\[(\d+(?:\s*,\s*\d+)+)\]/);
+    if (!dice) continue;
+    const listed = dice[1]!.split(",").map((s) => Number(s.trim()));
+    if (listed.length < 2) continue;
+    arrays++;
+    if (die && Number(die[2]) !== 6) {
+      issues.push(`ERROR: T297 — a transcript roll under seed ${seed} names d${die[2]}; the check pins d6 for transcript arrays`);
+      continue;
+    }
+    const expected = witnessDraws(seed, listed.length, 6);
+    if (JSON.stringify(expected) !== JSON.stringify(listed)) {
+      issues.push(`ERROR: T297 — the transcript die array under seed ${seed} reads [${listed.join(", ")}]; the generator yields [${expected.join(", ")}]`);
+    }
+  }
+  if (arrays === 0) issues.push("ERROR: T297 — no seed-pinned transcript die array was read");
+  return issues;
+}
+
 function main(): void {
   const text = readSpec();
   let errors = 0;
@@ -2686,6 +2861,14 @@ function main(): void {
   const handoffIssues = checkHandoffDocs(text);
   if (handoffIssues.length > 0) { for (const issue of handoffIssues) console.log(issue); errors += handoffIssues.length; }
   else { console.log("PASS: handoff documents satisfy REQ-153 and REQ-154a/b"); }
+
+  const briefingIssues = checkBriefingTokenRegistry();
+  if (briefingIssues.length > 0) { for (const issue of briefingIssues) console.log(issue); errors += briefingIssues.length; }
+  else { console.log("PASS: the DECISIONS.md briefing token table agrees with the runtime registry (REQ-082b)"); }
+
+  const witnessIssues = checkFixtureWitness(text);
+  if (witnessIssues.length > 0) { for (const issue of witnessIssues) console.log(issue); errors += witnessIssues.length; }
+  else { console.log("PASS: the fixture witness tables and transcript dice reproduce the generator (REQ-277)"); }
 
   reportSectionCounts(text);
 

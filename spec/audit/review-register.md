@@ -3253,6 +3253,25 @@ regresses. The build-phase-map label claims only the validate obligation; the bu
 file-list record remains a build-record duty and is disclaimed in the dispositions.
 
 
+### 2026-11-17 — REQ evidence linkage chunk 9 (cross-artifact agreement, three rows)
+
+Chunk 9 (`docs/plans/2026-11-17-roadmap-drain-10`) authored three comparisons between artifacts
+that shipped side by side but were never cross-checked, taking the residue from 50 to **47**.
+`T205` (REQ-082b) now asserts that the 40-row DECISIONS.md briefing token table agrees with the
+runtime registry in row order, numbering, and set, and that the `[INVALID_INPUT]` rejection
+enumerates that same identifier; `T297` (REQ-277) re-implements the B.4 generator and checks the
+B.4/N.4 witness tables plus the B.3 transcript's seed-pinned dice; `T106` (REQ-107b) adds the
+CalVer-shape and DECISIONS §2 equality clauses to `version-check`. Row dispositions, including
+every unclaimed clause: `docs/plans/2026-11-17-roadmap-drain-10/dispositions.md`.
+
+All three were green on the pre-edit tree — the value is the regression guard, not a repair. Each
+assertion was proven by a negative probe on a mutated artifact, then restored: a retokened
+DECISIONS row, one witness face and one transcript die through `npm run assemble`, and both a
+DECISIONS version row and the CalVer shape. The version check carries a pre-existing `T493`
+currency failure (root `2026.11.16` behind the `2026-11-17` CHANGELOG entry); it is recorded in the
+increment's AAR as out of scope, with `npm run version-bump` as its recovery at publish time.
+
+
 ## Resolved — 2026-11-16 T553 duplicate identifier
 
 `T553` was defined twice — `spec/appendices-reference.md:1824` (REQ-284f) and

@@ -62,7 +62,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-079 | Adventure modules (Part a) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T59, T60, T61, T206, T207, T209, T146, T285, T287, T368 | — |
 | REQ-080 | Synthesis boundaries (Part a) (9 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T63, T82, T94, T95, T97, T102, T125, T194, T144, T288, T695 | — |
 | REQ-081 | Narrative directive (Part a) (4 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T64, T134, T450 | — |
-| REQ-082 | Prompt section ordering (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T66, T225 | — |
+| REQ-082 | Prompt section ordering (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T66, T205, T225 | — |
 | REQ-083 | Dynamic lore (Part a) (6 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T67, T79, T81, T82, T83, T342, T400, T407, T411 | — |
 | REQ-084 | Action suggestions (Part b1) (7 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T68, T96, T119, T120, T359 | — |
 | REQ-085 | Macro system (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T69 | — |
@@ -78,7 +78,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-095 | Novel switching (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T98 | — |
 | REQ-096 | Novel interchange (Part a) (15 sub-parts) | 5.9 Novel Persistence and Transport | C | T100, T281, T693, T691, T694, T692, T740 | — |
 | REQ-097 | Novel health (Part a1) (4 sub-parts) | 5.9 Novel Persistence and Transport | C | T101, T160, T384 | — |
-| REQ-098 | Spec-driven update workflow | 6.7 Spec-driven updates | E | T84b | — |
+| REQ-098 | Spec-driven update workflow | 6.7 Spec-driven updates | E | T84b, T106 | — |
 | REQ-099 | Confidence-floor acknowledgment | 5.2 Extraction and Confidence | E | — | — |
 | REQ-100 | Performance benchmark (Part a) (4 sub-parts) | 5.7 Determinism, Safety, and Performance | E | T479 | — |
 | REQ-101 | Assumption audit trail (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | E | — | — |
@@ -87,9 +87,9 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-104 | Character creation workflow (Part a) (3 sub-parts) | 5.4 Decision workflows | C | T32, T468, T103, T141 | — |
 | REQ-105 | Spec resource | 5.3 Tools, Resources, and Lookups | C | T104 | — |
 | REQ-106 | Spec repository URL | 5.3 Tools, Resources, and Lookups | C | T105 | — |
-| REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T493 | — |
+| REQ-107 | Version coordination (Part a) (2 sub-parts) | 5.3 Tools, Resources, and Lookups | E | T106, T493 | — |
 | REQ-108 | Pattern Buffer traceability (Part a) (3 sub-parts) | 6.6 The Pattern Buffer | E | T538 | — |
-| REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T109, T110, T201, T140, T149, T359 | — |
+| REQ-109 | Badge briefing composition (Part a) (8 sub-parts) | 5.5 Badges and Access | C | T109, T110, T201, T205, T140, T149, T359 | — |
 | REQ-110 | Tool surface consolidation | 5.3 Tools, Resources, and Lookups | E | — | — |
 | REQ-111 | Search result quality (Part a) (2 sub-parts) | 5.2 Extraction and Confidence | E | — | — |
 | REQ-112 | Cross-reference discovery | 5.3 Tools, Resources, and Lookups | C | T115 | — |
@@ -249,7 +249,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-274 | Independent verifier confidence score | 5.7 Determinism, Safety, and Performance | E | — | — |
 | REQ-275 | Evidence hash commitment | 5.5 Badges and Access | E | — | — |
 | REQ-276 | Independent verifier model criteria | 5.5 Badges and Access | E | T296 | — |
-| REQ-277 | Fixture evolution contract | 5.1 Output and Error Contracts | E | — | — |
+| REQ-277 | Fixture evolution contract | 5.1 Output and Error Contracts | E | T297 | — |
 | REQ-278 | Build-phase-map staleness detection | 5.3 Tools, Resources, and Lookups | E | T298 | — |
 | REQ-279 | Narrative orientation (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T328 | — |
 | REQ-280 | Source-anchor citation (Part a) (3 sub-parts) | 5.1 Output and Error Contracts | C | T329 | — |

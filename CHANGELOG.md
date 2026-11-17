@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-11-17 — Linkage chunk 9: three cross-artifact agreement checks, residue 50 → 47
+
+Chunk 9 gave three class-(b) rows real asserting sites by cross-checking artifacts that shipped side by side but were never compared. `T205` asserts the DECISIONS.md briefing token table against the runtime registry in order, numbering, and set; `T297` re-derives the Appendix B.4 generator and checks the witness tables plus the transcript's seed-pinned dice; `T106` adds the CalVer-shape clause to the version check. The residue falls 50 → 47.
+
+- `scripts/validate.ts`: `checkBriefingTokenRegistry` compares the 40-row DECISIONS.md token table with `BRIEFING_SECTIONS` + the conditional `BRIEFING_VIEW_TOKENS` insertion, and asserts the `[INVALID_INPUT]` rejection enumerates the same identifier; `checkFixtureWitness` implements the documented 32-bit LCG, parses the B.4/N.4 tables by their die headers, and binds B.3 transcript arrays to their nearest preceding seed
+- `scripts/version-check.ts`: `checkVersionCoordination` adds the CalVer date-stamp grammar, a real-calendar-date check, and the DECISIONS §2 equality, beside the untouched `T493` currency check
+- Five negative probes prove each assertion fires: a retokened DECISIONS row, a mutated witness face and transcript die (each through `npm run assemble`), and both a DECISIONS version row and the CalVer shape
+- Residue 50 → 47; corpus 49 lines; three evidence cells move in the coverage register with no bucket change; `ROADMAP.md` item 3 restated at 47 and the review register gains the chunk-9 subsection
+
 ## 2026-11-17 — Linkage chunk 8: the committed-artifact assertions, residue 54 → 50
 
 Chunk 8 gave four class-(b) rows real asserting sites. `T538` now labels the §6.6 coverage-map gap error and `T298` the build-phase-map hash check; a new handoff-document check asserts the AGENTS.md troubleshooting section and the server README's five handoff items and license footer, which exposed two real document gaps now closed. The residue falls 54 → 50.

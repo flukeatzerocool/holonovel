@@ -85,6 +85,14 @@ const holoDecisionsVersion = grepVersion(
 );
 ok = check("holonovel/DECISIONS.md", holoDecisionsVersion, rootVersion) && ok;
 
+const coordinationIssues = checkVersionCoordination(rootVersion as string, holoDecisionsVersion);
+if (coordinationIssues.length > 0) {
+  for (const issue of coordinationIssues) console.error(`  FAIL  ${issue}`);
+  ok = false;
+} else {
+  console.log("  OK  REQ-107b version coordination (T106): CalVer shape and DECISIONS §2 agree");
+}
+
 const holoIndexVersion = grepVersion(
   join(root, "holonovel", "src", "index.ts"),
   /^\s+version: "(.+)"[,;]?$/m
@@ -140,6 +148,30 @@ if (manifestValidation.ok) {
   console.error("  FAIL  holonovel/server.json: registry schema validation failed");
   for (const error of manifestValidation.errors.slice(0, 5)) console.error(`        ${error}`);
   ok = false;
+}
+
+// ── REQ-107b: version coordination (T106) ──
+
+// T106 — the clauses this function owns: the root version is a CalVer
+// date-stamp, it names a real calendar date, and the DECISIONS §2 Pinned
+// Versions row (the value `spec_health.spec_version` reports) matches it. The
+// live-server clauses are recorded as unclaimed in the increment's
+// dispositions.md.
+function checkVersionCoordination(rootVersion: string, decisionsVersion: string | null): string[] {
+  const issues: string[] = [];
+  if (!/^\d{4}\.\d{2}\.\d{2}$/.test(rootVersion)) {
+    issues.push(`T106 — root package.json version ${rootVersion} is not a CalVer date-stamp (YYYY.MM.DD).`);
+    return issues;
+  }
+  const [year, month, day] = rootVersion.split(".").map(Number) as [number, number, number];
+  const stamp = new Date(Date.UTC(year, month - 1, day));
+  if (stamp.getUTCFullYear() !== year || stamp.getUTCMonth() !== month - 1 || stamp.getUTCDate() !== day) {
+    issues.push(`T106 — root package.json version ${rootVersion} is not a real calendar date.`);
+  }
+  if (decisionsVersion !== rootVersion) {
+    issues.push(`T106 — DECISIONS.md §2 Pinned Versions reads ${decisionsVersion ?? "nothing"}; expected ${rootVersion}.`);
+  }
+  return issues;
 }
 
 // ── REQ-107a: version currency vs CHANGELOG ──

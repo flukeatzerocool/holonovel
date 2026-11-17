@@ -35,26 +35,23 @@ large enough to report a catch rate with a useful confidence interval.
 
 ## REQ evidence linkage (P1)
 
-- 50 findings remain — all class (b), rows with no asserting site. Chunk 6 reclassified the
-  fifteen class-(c) builder drills to `Manual` on 2026-11-17, so the class boundary is gone; the
-  chunk-4 triage lives in `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md`, the chunk-5
-  closure in `docs/plans/2026-11-16-roadmap-drain-6/dispositions.md`, the chunk-6
-  dispositions in `docs/plans/2026-11-17-roadmap-drain-7/dispositions.md`, the chunk-7
-  dispositions in `docs/plans/2026-11-17-roadmap-drain-8/dispositions.md`, and the chunk-8
-  dispositions in `docs/plans/2026-11-17-roadmap-drain-9/dispositions.md`.
+- 47 findings remain — all class (b), rows with no asserting site. Chunk 9 added the
+  cross-artifact agreement checks on 2026-11-17 (`T205` DECISIONS token table ↔ runtime registry,
+  `T297` witness tables ↔ generator ↔ transcript dice, `T106` CalVer shape), so the residue is
+  runtime assertions with no in-repo site. The chunk dispositions live in
+  `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md` through
+  `docs/plans/2026-11-17-roadmap-drain-10/dispositions.md` (chunks 4–9).
 - Class (b) is real, not bookkeeping: chunk 7 authored the `T420`/`T425`/`T439` archetype
-  assertions on 2026-11-17 (`scripts/validate.ts`, `checkCouplingCompleteness`), and chunk 8 the
-  committed-artifact assertions (`T186`/`T187` handoff documents, `T298` phase-map hash, `T538`
-  coverage map), closing examples that had no asserting site; the residue is runtime assertions
-  with no in-repo site yet.
-- Chunk 7 also taught the property parse to keep an empty cell, so a group missing its archetype
-  is observable rather than misread as the GM-access column; chunk 6 created Manual procedures
-  for the class (c) rows, first executed at the next ruleset-package build. Chunk 5 changed three
-  implementations rather than labelling them: the Spec Update record now renders the five
-  component hashes (`scripts/lib/spec-update.ts`), `surfaces` hashes the sorted registered names
-  from `holonovel/tool-definitions.json` (REQ-313b), and `scopingAdvice` states the per-component
-  action (REQ-314b). The block closed as a unit because the linkage predicate is T-ID-scoped
-  (`scripts/lib/req-checks.ts:881-887`).
+  assertions (`scripts/validate.ts`, `checkCouplingCompleteness`), chunk 8 the committed-artifact
+  assertions (`T186`/`T187` handoff documents, `T298` phase-map hash, `T538` coverage map), and
+  chunk 9 two registry/table comparisons plus a generator re-derivation; each closed a row that
+  had no asserting site.
+- Chunk 9 also pinned its parse predicates rather than inferring them: the briefing check fails
+  loud when the registry markers or `narrative_threads` are absent, and the witness check pins d6
+  for transcript arrays and d20 for the B.4/N.4 columns, so a future die type is a parse error
+  rather than a silent skip. Chunk 7 kept the property parse's empty cell observable; chunk 6
+  created Manual procedures for the class (c) rows. The block closes as a unit because the
+  linkage predicate is T-ID-scoped (`scripts/lib/req-checks.ts:881-887`).
 
 **Trigger:** every remaining row dispositioned and class (a) at zero; closes when the check is
 error-mode in `validate`.

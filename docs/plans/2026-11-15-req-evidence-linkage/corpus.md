@@ -2,13 +2,11 @@
 |---|---|---|---|
 | REQ-011c | T182 | Automated | automated-unexercised |
 | REQ-012 | T4 | Automated | automated-unexercised |
-| REQ-082b | T205 | Automated | automated-unexercised |
 | REQ-088h2 | T379 | Automated | automated-unexercised |
 | REQ-088h2 | T72 | Automated | automated-unexercised |
 | REQ-088h2 | T73 | Automated | automated-unexercised |
 | REQ-100b | T87 | Automated | automated-unexercised |
 | REQ-100d | T87 | Automated | automated-unexercised |
-| REQ-107b | T106 | Automated | automated-unexercised |
 | REQ-108b | T107 | Automated | automated-unexercised |
 | REQ-110 | T113 | Automated | automated-unexercised |
 | REQ-111b | T114 | Automated | automated-unexercised |
@@ -34,7 +32,6 @@
 | REQ-245e | T310 | Automated | automated-unexercised |
 | REQ-245e | T495 | Automated | automated-unexercised |
 | REQ-273b | T293 | Automated | automated-unexercised |
-| REQ-277 | T297 | Automated | automated-unexercised |
 | REQ-302b | T346 | Automated | automated-unexercised |
 | REQ-315b | T360 | Automated | automated-unexercised |
 | REQ-327c | T371 | Automated | automated-unexercised |
