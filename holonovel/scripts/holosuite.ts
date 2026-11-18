@@ -315,10 +315,25 @@ async function main(): Promise<void> {
   } else {
     for (const r of results) console.log(`${r.failed === 0 ? "PASS" : "FAIL"} ${r.tier}: ${r.passed} passed, ${r.failed} failed`);
     for (const r of results) {
-      if (r.metrics && typeof r.metrics.catch_rate === "number") {
-        const missed = Array.isArray(r.metrics.missed) ? r.metrics.missed : [];
-        console.log(`  ${r.tier} catch_rate=${r.metrics.catch_rate} (${r.metrics.caught}/${r.metrics.seeded})${missed.length ? ` missed: ${missed.join(", ")}` : ""}`);
+      if (!r.metrics || !("catch_rate" in r.metrics)) continue;
+      const m = r.metrics as Record<string, any>;
+      const rate = m.catch_rate === null ? "n/a" : String(m.catch_rate);
+      const ci = m.ci95 as { low: number; high: number; width: number } | null | undefined;
+      console.log(`  ${r.tier} catch_rate=${rate} (${m.caught}/${m.seeded})${ci ? ` ci95=[${ci.low}, ${ci.high}] width=${ci.width}` : ""} controls=${m.controls_passed}/${m.seeded}`);
+      const composition = m.composition as Record<string, number> | undefined;
+      if (composition) {
+        console.log(`  ${r.tier} composition=${Object.entries(composition).map(([k, v]) => `${k}:${v}`).join(" ")}`);
       }
+      const strata = m.strata as Record<string, { caught: number; seeded: number; ci95: { low: number; high: number } | null }> | undefined;
+      if (strata) {
+        const labels: Record<string, string> = { lane: "GM lane", invariant: "harness invariant", contract: "contract evaluator" };
+        for (const [token, s] of Object.entries(strata)) {
+          const label = token === "lens" ? `lens (${s.caught}/${s.seeded}, under-powered)` : (labels[token] ?? token);
+          console.log(`  ${r.tier} stratum ${label} ${s.caught}/${s.seeded}${s.ci95 ? ` ci95=[${s.ci95.low}, ${s.ci95.high}]` : ""}`);
+        }
+      }
+      if (typeof m.claim_note === "string") console.log(`  ${r.tier} note: ${m.claim_note}`);
+      if (typeof m.status === "string") console.log(`  ${r.tier} STATUS: ${m.status}`);
     }
     for (const f of summary.findings) console.error(`  FINDING [${f.severity}] ${f.tier}/${f.class} @ ${f.predicate} — ${f.detail}`);
   }

@@ -3904,10 +3904,11 @@ Closed by `docs/plans/2026-11-16-release-hardening/` (P1 and P2 executed).
   `docs/publish-pipeline.md`.
 - **F12 — the plan over-scoped P3-T1. Resolved** by the bounded execution:
   four contract mutants with controls bound to production evaluators (8 → 12 scored, catch rate 1).
-- **F9 — the mutation sample was too small. Scheduled-roadmap (partly
-  shipped).** The contract-mutant block covers the predicates this increment
-  added; a wider *lens* sample needs new deterministic lenses, since the two
-  uncomputed lanes are judgment lanes (`JUDGMENT_GM_LANES`).
+- **F9 — the mutation sample was too small. Resolved 2026-11-18.** The audit now publishes a
+  stratified rate over 35 seeded cases (lens 5, GM lane 2, harness invariant 3, contract
+  evaluator 25), all caught, `controls=35/35`, Wilson 95% `[0.9011, 1.0000]` (width 0.0989);
+  both former judgment lanes are computed and `JUDGMENT_GM_LANES` is deleted. The lens stratum
+  stays 5 and is labelled under-powered; its breadth is scheduled on `ROADMAP.md`.
 - **F10 — §10 independent verification never run. Scheduled-roadmap.** Operator
   step; first post-publish action.
 

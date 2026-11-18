@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-18 — Mutation-sample depth: a stratified 35-case catch rate with its interval
+
+The mutation audit now publishes the number §8 defines and its uncertainty: 35 seeded cases across four strata, each with a clean control, all caught, `ci95=[0.9011, 1.0000]` (width 0.0989). The two judgment lanes became deterministic, the `TTRPG_MUTANT` selector and `JUDGMENT_GM_LANES` are gone, and roadmap item 2 is retired with the lens-breadth residue scheduled.
+
+- §8: the catch rate is defined over the bound detection predicate, requires a clean control per counted mutant, and publishes the set enumerated with every stratum's rate
+- `world_population_failure` fires on an `[OK]` `manage_npc` create whose `state_delta.npcs` is 0; `coupling_failure` on a successful move whose `pre_fp === post_fp`
+- 35 cases: 5 lens-derived, 2 GM lane, 3 harness invariant, 25 contract evaluator; `controls=35/35`, `STATUS: CLEAN`
+- `wilsonInterval` (new `lib/eval-stats.ts`) publishes `ci95` and width; the lens stratum prints as `lens (5/5, under-powered)` beside the aggregate
+- every mutant carries its own fault and clean fixture; the environment selector is removed
+- `test:holosuite-evidence` grows to 14 cases (interval known values, all 35 two-direction checks, broken-clean, composition and branch uniqueness)
+- ROADMAP item 2 retired, F9 closed, and a deterministic-lens-breadth section scheduled; `test:all` 56/56 and the full gate green
+
 ## 2026-11-18 — index.ts split, stage 3: the world-model command surface leaves the entry point
 
 The `run_command` surface — the block that parses and dispatches world commands, with its hazard, ambiguity, and countdown helpers — moves out of `index.ts` into `src/tools/world-model.ts`, behind a factory that takes the host context and an explicit ports object and returns the two helpers the entry point still calls. `index.ts` drops from 17,217 to 16,244 lines with no behavioural change.

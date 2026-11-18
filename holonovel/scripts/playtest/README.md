@@ -153,11 +153,17 @@ exercise, and the runner emits a per-REQ coverage aggregate.
 
 The **method audit** (`scripts/holosuite.ts --tier=mutation`, `npm run
 test:holosuite-mutation`) is report-only: it seeds a deterministic mutant set,
-checks that the oracle catches each, and prints the catch rate. It is excluded
-from `--tier=all`; it runs as the `test:holosuite-mutation` manifest gate, which
-is advisory — it publishes the rate in every `check`/CI log and never blocks. A
-persona campaign is not treated as evidence unless its accompanying catch rate
-is published.
+each mutant bound to a detection predicate and paired with a clean control. The
+published rate is the fraction of seeded mutants whose predicate observes its
+fault, printed with a Wilson 95% interval, the composition by stratum
+(lens-derived, GM lane, harness invariant, contract evaluator), and each
+stratum's own rate — the lens stratum is labelled under-powered, because its
+interval is five cases and the aggregate is not lens precision. The tier ends
+with a `STATUS:` line (`CLEAN` or `FAIL <ids>`) so a defect is visible even
+though the command itself never fails. It is excluded from `--tier=all`; it runs
+as the `test:holosuite-mutation` manifest gate, which is advisory — it publishes
+the rate in every `check`/CI log and never blocks. A persona campaign is not
+treated as evidence unless its accompanying catch rate is published.
 
 ### Understudies data contract
 

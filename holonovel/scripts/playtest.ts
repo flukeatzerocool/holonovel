@@ -37,7 +37,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statS
 import { createHash } from "node:crypto";
 import { join, basename } from "node:path";
 import { tmpdir } from "node:os";
-import { DEFECT_PREFIXES, DENIAL_PREFIXES, WORLD_TOOLS, prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, authoredAdventureHash, partyRooms, entityCounts, stateDelta, LENSES, GM_LANES, JUDGMENT_LENSES, JUDGMENT_GM_LANES, toEvalEvents, computeLenses, type LensFinding } from "./lib/playtest-lib.js";
+import { DEFECT_PREFIXES, DENIAL_PREFIXES, WORLD_TOOLS, prefix, errorClass, classifyResult, roomSet, stateFingerprint, pcVitals, pcAlive, anchorPresent, runPhase, reachableRooms, authoredAdventureHash, partyRooms, entityCounts, stateDelta, LENSES, GM_LANES, JUDGMENT_LENSES, toEvalEvents, computeLenses, type LensFinding } from "./lib/playtest-lib.js";
 import { canonicalJson, type EvalProvenance } from "./lib/eval-schema.js";
 import { gitSha } from "./lib/eval-provenance.js";
 
@@ -572,7 +572,6 @@ function writeHolosuiteReport(run: string, cfg: RunConfig, oracle: any, allTx: a
     lenses: Object.fromEntries(LENSES.map((l) => [l, lenses[l] ?? []])),
     gm_lanes: Object.fromEntries(GM_LANES.map((l) => [l, lenses[l] ?? []])),
     judgment_lenses: JUDGMENT_LENSES,
-    judgment_gm_lanes: JUDGMENT_GM_LANES,
     oracle: { success: oracle.success, partial_score: oracle.partial_score, turns: oracle.turns },
   };
   writeFileSync(join(run, "holosuite.json"), canonicalJson(report) + "\n");

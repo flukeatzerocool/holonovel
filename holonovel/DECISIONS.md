@@ -1480,6 +1480,46 @@ that carries it.
 - **Delta class:** minor. Changed surfaces: REQ-321f narrowed to the Codex provenance contract (per-kind capture parameters owned by REQ-321g and REQ-347a); Appendix O gained the structured-result field catalog (O.9) and the Codex adventure payload (O.10); Appendix M gained the spec-addition mechanical-consequences rule; the proofread register reconciled to 158 accepted warnings; the review register moved the Codex-capture conflict to `Resolved`, and ROADMAP.md now schedules general capture and defers §6.7 self-invocation.
 - **Verification:** `npm run assemble` ok; `npm run validate:sdd` 0 errors / 158 accepted warnings; `npm run action-conflicts` no longer reports the `capture` candidate; fingerprint sync clean. The lean-narrator integration shipped in commits `23f96ec`/`9bff349` with `npm run test:all` 35/35 and `npm run check` 0 errors.
 
+## Mutation-audit population and interval, 2026-11-18
+
+The §8 catch rate published a number its own clause excluded: the clause promised "seeded mutants
+that cause at least one lens to fail", while seven of the twelve counted cases (four contract
+pairs, three harness invariants) never ran a lens. The audit now computes the population the
+amended clause defines, and publishes its composition.
+
+- **Decision — the population is the enumerated seeded set, stratified.** Each case binds one
+  detection predicate and one clean control; the rate is the fraction whose predicate observes its
+  injected fault. The four strata are published beside the aggregate (`lens`, `lane`, `invariant`,
+  `contract`), and the aggregate may not be read as lens precision: the lens stratum is 5 of 35.
+  Rejected: leaving §8's lens-only wording and excluding the non-lens cases, which caps the
+  reportable sample at five and makes the roadmap's "useful confidence interval" unreachable.
+- **Decision — every case carries its own fault and clean fixture.** The `TTRPG_MUTANT`
+  environment selector is removed. A global selector made a correct control impossible without an
+  ordering rule: `detects()` needs the selector set, `control()` needs it clear, and the fixture
+  body is chosen by it. Each transcript case now owns an `Evidence` pair, and invariant/contract
+  cases own two closures. Rejected: keeping the selector and documenting an ordering rule.
+- **Decision — the two judgment lanes became deterministic, and `wrong_tool` did not.**
+  `world_population_failure` fires on an `[OK]` `manage_npc` create whose `state_delta.npcs` is 0;
+  `coupling_failure` fires on a successful movement command whose `pre_fp === post_fp` (a move
+  changes `stateFingerprint`, which folds `current_room`). Both read fields a live transcript
+  carries. `wrong_tool` stays a judgment lens with no deterministic signal, and `JUDGMENT_GM_LANES`
+  is deleted because it is empty. Rejected: deriving either lane from narration text, which fires on
+  `look`/`examine` results and on GM-only runs where `active_room` is null.
+- **Decision — the bar is n = 35, caught = 35, width 0.0989, lower bound 0.9011.** Every case is
+  authored, so a miss is a defect in the case or the harness, not a property of the world: no
+  one-miss tolerance. A miss is fixed or the case is replaced from the reserve. The interval is a
+  case-level Wilson interval and overstates precision within a stratum; no design-effect correction
+  is claimed, because none is measured, and the per-stratum rates are published for the same reason.
+- **Decision — the tier stays report-only.** It keeps exit code 0 and gains a `STATUS:` line
+  (`CLEAN` / `FAIL <ids>`) so a defect is visible without turning the audit into a gate. A blocking
+  mutation audit invites tuning the mutants to the gate.
+- **Residue — lens breadth is its own roadmap section.** De-tautologising the three `ORACLE_DERIVED`
+  lenses and admitting several fault branches per lens is the next step; a tenth lens is a §8 change.
+- **Verification.** `npm run assemble` ok; `test:holosuite-mutation` 35/35, `controls=35/35`,
+  `STATUS: CLEAN`, interval `[0.9011, 1]`; `test:holosuite-evidence` 14/14 (interval known values,
+  all 35 two-direction cases, broken-clean test, composition and branch-key uniqueness);
+  `test:all` 56/56; `check:fast` and `check` green.
+
 ## World-model tool module seam, 2026-11-18
 
 Stage 3 of the `index.ts` split moved the `run_command` world-model surface (980 lines) into

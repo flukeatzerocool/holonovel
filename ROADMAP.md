@@ -21,17 +21,19 @@
 
 **Trigger:** the first publish after 2026-11-16; closes when the verifier report
 and its `DISPUTED` adjudications are recorded.
+## Deterministic lens breadth
 
-## Mutation-sample depth (P2)
+- The aggregate catch rate is 35 of 35, but its lens stratum is only 5 of 35, so
+  a lens-only interval stays under-powered (5/5 `[0.5655, 1.0000]`). Three lens
+  mutants (`hallucinated_tool`, `unrecovered_error`, `state_divergence`) are
+  excluded as tautologies because the lens re-emits the field the mutant seeds.
+- Grow the stratum by de-tautologising those three (the lens derives its signal
+  from the transcript) and by giving each deterministic lens at least two fault
+  branches, with a clean control per branch. A tenth lens is a §8 change.
 
-- `test:holosuite-mutation` scores 12 transcript-derived cases: the lens set
-  plus four contract mutants with clean controls (2026-11-16, 8 → 12). The two
-  uncomputed lanes (`world_population_failure`, `coupling_failure`) are judgment
-  lanes, so a larger *lens* sample needs new deterministic lenses rather than
-  repeated seeds (the tautology `ORACLE_DERIVED`/CR-32 already excludes).
-
-**Trigger:** the next Holosuite lens change; closes when the derived sample is
-large enough to report a catch rate with a useful confidence interval.
+**Trigger:** the next change to `computeLenses` — a new or revised lens, or a
+lens's signal handed to it; closes when no lens mutant is `ORACLE_DERIVED` and
+the lens stratum reaches at least 22 cases with a width ≤ 0.15 at zero misses.
 
 ## Split `index.ts` (P2)
 

@@ -17,6 +17,8 @@ import { recordAssertion } from "./lib/eval-assertion.js";
 import { parsePredicate, resolvePredicate, unresolvedPredicates } from "./lib/eval-predicate.js";
 import { deriveCoverage, validateCoverage } from "./lib/eval-coverage.js";
 import { specContentHash } from "./lib/eval-provenance.js";
+import { wilsonInterval } from "./lib/eval-stats.js";
+import { CASES, CONTRACT_MUTANTS, detectsOf, controlOf } from "./lib/holosuite-mutation.js";
 import type { TierResult } from "./lib/eval-schema.js";
 
 installHarnessGuard();
@@ -153,6 +155,57 @@ try {
     writeFileSync(spec, "**REQ-001 — Test.**\n");
     assert(specContentHash(spec) === specContentHash(spec), "hash should be stable");
     assert(specContentHash(join(ROOT, "nope.md")) === null, "missing spec should be null");
+  });
+
+  test("wilsonInterval matches its known values", () => {
+    const check = (caught: number, seeded: number, low: number, high: number, width: number) => {
+      const ci = wilsonInterval(caught, seeded);
+      assert(ci !== null, `${caught}/${seeded} should produce an interval`);
+      assert(ci!.low === low && ci!.high === high, `${caught}/${seeded} bounds should be [${low}, ${high}], got [${ci!.low}, ${ci!.high}]`);
+      assert(ci!.width === width, `${caught}/${seeded} width should be ${width}, got ${ci!.width}`);
+    };
+    check(35, 35, 0.9011, 1, 0.0989);
+    check(34, 35, 0.8547, 0.9949, 0.1403);
+    check(12, 12, 0.7575, 1, 0.2425);
+    check(7, 7, 0.6457, 1, 0.3543);
+    check(0, 35, 0, 0.0989, 0.0989);
+    assert(wilsonInterval(0, 0) === null, "an empty sample has no interval");
+  });
+
+  test("mutation audit: every seeded case observes its fault and passes its control", () => {
+    const seeded = CASES.filter((c) => c.derived);
+    assert(seeded.length === 35, `expected 35 seeded cases, got ${seeded.length}`);
+    const failures: string[] = [];
+    for (const c of seeded) {
+      if (!detectsOf(c)) failures.push(`${c.id} missed its fault`);
+      if (!controlOf(c)) failures.push(`${c.id} failed its control`);
+    }
+    assert(failures.length === 0, `seeded cases failed: ${failures.join("; ")}`);
+    const uncounted = CASES.filter((c) => !c.derived);
+    assert(uncounted.length === 5, `expected 5 uncounted cases, got ${uncounted.length}`);
+    for (const c of uncounted) {
+      assert(detectsOf(c), `${c.id} should still observe its seeded fault`);
+      assert(controlOf(c), `${c.id} should keep a clean control`);
+    }
+  });
+
+  test("mutation audit: a broken clean side fails its control", () => {
+    const evidenceCase = CASES.find((c) => c.kind === "evidence" && c.id === "coupling_failure");
+    assert(evidenceCase && evidenceCase.kind === "evidence", "coupling_failure should be an evidence case");
+    if (evidenceCase && evidenceCase.kind === "evidence") {
+      const broken = { ...evidenceCase, clean: evidenceCase.fault };
+      assert(controlOf(broken) === false, "supplying the fault fixture as clean must fail the control");
+    }
+    const brokenPredicate = { ...CONTRACT_MUTANTS[0]!, kind: "predicate" as const, stratum: "contract" as const, lens: null, derived: true, clean: () => false };
+    assert(controlOf(brokenPredicate) === false, "a clean thunk returning false must fail the control");
+  });
+
+  test("mutation audit: composition and stratum tallies match the seeded set", () => {
+    const seeded = CASES.filter((c) => c.derived);
+    const tally: Record<string, number> = {};
+    for (const c of seeded) tally[c.stratum] = (tally[c.stratum] ?? 0) + 1;
+    assert(tally.lens === 5 && tally.lane === 2 && tally.invariant === 3 && tally.contract === 25, `unexpected composition ${JSON.stringify(tally)}`);
+    assert(new Set(CONTRACT_MUTANTS.map((c) => c.branch)).size === CONTRACT_MUTANTS.length, "contract branch keys must be unique");
   });
 } finally {
   rmSync(ROOT, { recursive: true, force: true });

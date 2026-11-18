@@ -305,7 +305,13 @@ export const LENSES = [
 export const GM_LANES = ["gating_leak", "world_population_failure", "coupling_failure", "unreachable_goal"] as const;
 /** Lenses whose assignment requires external judgment, not a deterministic signal. */
 export const JUDGMENT_LENSES = ["wrong_tool"] as const;
-export const JUDGMENT_GM_LANES = ["world_population_failure", "coupling_failure"] as const;
+
+/** Movement verbs the coupling_failure lane treats as a relocation attempt. */
+const MOVEMENT_TOKENS = new Set([
+  "go", "move", "walk", "north", "south", "east", "west",
+  "northeast", "northwest", "southeast", "southwest",
+  "up", "down", "in", "out", "enter", "exit", "climb", "descend", "ascend",
+]);
 
 export interface ObservedSurface {
   tools: string[];
@@ -427,6 +433,31 @@ export function computeLenses(tx: any[], oracle: any): Record<string, LensFindin
   const reach = oracle.authoring?.reachability;
   if (reach && reach.objective_reachable === false) {
     push("unreachable_goal", 0, "authoring", `escape room "${reach.objective}" not reachable from spawn`);
+  }
+
+  // world_population_failure — a successful NPC creation that adds no NPC.
+  // Derived from the record's own state delta: the call declared a new
+  // inhabitant and the counted population did not move.
+  for (const r of tx) {
+    if (r.tool !== "manage_npc" || r.args?.action !== "create") continue;
+    if (r.prefix !== "[OK]" || !r.state_delta) continue;
+    if (Number(r.state_delta.npcs ?? 0) === 0) {
+      push("world_population_failure", Number(r.t), r.tool, "manage_npc create reported [OK] with no NPC added to state");
+    }
+  }
+
+  // coupling_failure — a successful move that leaves the mechanical state
+  // fingerprint unchanged. A real move changes the fingerprint (it folds each
+  // entity's current_room), so an equal pair is the location property failing
+  // to couple. Only a movement token reaches the predicate; a gated move is
+  // [NOT_FOUND]/[INVALID_INPUT] and never does.
+  for (const r of tx) {
+    if (r.tool !== "run_command" || r.prefix !== "[OK]") continue;
+    const command = String(r.args?.command ?? "").trim().toLowerCase().split(/\s+/)[0] ?? "";
+    if (!MOVEMENT_TOKENS.has(command)) continue;
+    if (r.pre_fp && r.post_fp && r.pre_fp === r.post_fp) {
+      push("coupling_failure", Number(r.t), r.tool, `${command} reported [OK] without moving the state fingerprint`);
+    }
   }
   return out;
 }

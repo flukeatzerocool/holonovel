@@ -8481,15 +8481,21 @@ restart boundary). The GM/interaction lanes — `gating_leak`,
 reported as a separate section, not as lenses. A finding that carries no lens
 assignment is a report defect.
 
-**Mutation-audit catch rate.** The method audit measures whether the oracle
+**Mutation-audit catch rate.** The method audit measures whether the harness
 detects known defects. It seeds a deterministic set of mutants — fault
-injections into the server or harness, selected by a declared mutant identifier
-that leaves normal runs unaffected — executes the oracle over each mutant, and
-reports a catch rate: the fraction of seeded mutants that cause at least one
-lens to fail. The catch rate SHALL be published with the mutant set enumerated
-before an Understudies campaign is treated as evidence; a campaign whose
-accompanying catch rate is absent is diagnostic only and does not support a
-convergence claim. The audit is report-only and never blocks a build.
+injections into the server, the harness, or the evaluation evidence — each bound
+to a declared detection predicate, and reports a catch rate: the fraction of
+seeded mutants whose bound predicate observes the injected fault. A mutant MAY
+be selected by an identifier that leaves normal runs unaffected, or MAY carry
+its fault and control evidence directly. Every counted mutant SHALL carry a
+clean control that its bound predicate does not observe. The mutant set SHALL be
+published enumerated, with its composition by stratum — lens-derived, GM lane,
+harness invariant, and contract evaluator — and each stratum's own rate SHALL be
+published beside the aggregate, so the aggregate is never read as lens
+precision. The catch rate SHALL be published before an Understudies campaign is
+treated as evidence; a campaign whose accompanying catch rate is absent is
+diagnostic only and does not support a convergence claim. The audit is
+report-only and never blocks a build.
 
 **Coverage traceability.** Every Holosuite event SHALL carry the REQ
 identifiers it exercises, and the tier SHALL emit a machine-readable per-REQ
