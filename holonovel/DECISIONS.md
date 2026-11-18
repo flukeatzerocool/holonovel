@@ -1480,6 +1480,37 @@ that carries it.
 - **Delta class:** minor. Changed surfaces: REQ-321f narrowed to the Codex provenance contract (per-kind capture parameters owned by REQ-321g and REQ-347a); Appendix O gained the structured-result field catalog (O.9) and the Codex adventure payload (O.10); Appendix M gained the spec-addition mechanical-consequences rule; the proofread register reconciled to 158 accepted warnings; the review register moved the Codex-capture conflict to `Resolved`, and ROADMAP.md now schedules general capture and defers §6.7 self-invocation.
 - **Verification:** `npm run assemble` ok; `npm run validate:sdd` 0 errors / 158 accepted warnings; `npm run action-conflicts` no longer reports the `capture` candidate; fingerprint sync clean. The lean-narrator integration shipped in commits `23f96ec`/`9bff349` with `npm run test:all` 35/35 and `npm run check` 0 errors.
 
+## World-model tool module seam, 2026-11-18
+
+Stage 3 of the `index.ts` split moved the `run_command` world-model surface (980 lines) into
+`src/tools/world-model.ts`. The block was not self-contained, so the seam is the design decision
+worth recording.
+
+- **Decision — factory, not module-scope state.** `registerWorldModelTools(register, ctx, ports)`
+  returns `{ expireCountdown, expireSurvivalWithUnit }`, the shape `registerWorldCrudTools` uses for
+  its schema. Every one of the block's 74 bare `audit`/`raw`/`err`/`ok` calls therefore stays bare
+  through the head destructure, and the entry point holds the returned helpers as a `const` above
+  all four call sites. Rejected: exporting the helpers as module-level functions, which forces the
+  block to module scope where `ctx` is unbound (74 prefixes, or a nullable module-scope store);
+  rejected: importing `../index.js` from the module (a cycle the split exists to avoid).
+- **Decision — a 16-name ports object.** The block reads sixteen `index.ts` top-level names:
+  `resolveIntentWorld`, `presentIdsForLedger`, `fireCountdown`, `resolvePendingDiscoveries`,
+  `advanceSceneTransitionCountdowns`, `effectiveWisdomItems`, `badgeCanSeeWisdom`, `currentBeat`,
+  `activeLoreKeys`, `effectiveRoomDescriptionMode`, `runWorldReactivityCycle`, `relationshipMarkers`,
+  `PLAYER_READONLY_VERBS`, `detailLevel`, `playerRegister`, `roomDescriptionMode`. They cross as
+  twelve providers, one constant, and three session accessors plus one setter — accessors, because
+  destructuring a `let` would freeze it by value and silently change `detailLevel === "rich"` reads.
+  Rejected: adding them to `ToolContext`, whose contract is host services, not feature helpers.
+- **Decision — `ParserState` is an object, not five `let`s.** `visitedRooms`, `visitedRoomNovel`,
+  `lastCommand`, `lastReferencedThing`, and `pendingAmbiguity` are read only by the moved block, so
+  they now live on one object in `src/tools/context.ts` (with `createParserState()`) and cross the
+  seam by reference. This is the first step of the session-state extraction the next stage should
+  finish for `detailLevel`/`playerRegister`/`roomDescriptionMode`.
+- **Verification.** `test:all` 56/56; `check-tool-surface` 300 actions / 29,915 catalog tokens
+  unchanged; `surface-budget` and `surface-replay` unchanged; a runtime `tools/list` capture is
+  identical before and after (37 tools, same order); 19 evidence anchors repaired by three measured
+  declarations (+1, −6, −973); `check-anchors` current.
+
 ## World in Motion changes, codex health, and transient prompts, 2026-11-12
 
 - **D1 — pending world changes live under the existing World in Motion

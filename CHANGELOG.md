@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-18 — index.ts split, stage 3: the world-model command surface leaves the entry point
+
+The `run_command` surface — the block that parses and dispatches world commands, with its hazard, ambiguity, and countdown helpers — moves out of `index.ts` into `src/tools/world-model.ts`, behind a factory that takes the host context and an explicit ports object and returns the two helpers the entry point still calls. `index.ts` drops from 17,217 to 16,244 lines with no behavioural change.
+
+- `holonovel/src/tools/world-model.ts` (new): the 980-line block with its bodies unchanged, behind `registerWorldModelTools(register, ctx, ports)`, which returns `expireCountdown` and `expireSurvivalWithUnit` — the `world-crud.ts` factory idiom, so no module-scope context store exists
+- `holonovel/src/tools/context.ts`: `ParserState` and `createParserState()`; the five session-local command-parser variables (`visitedRooms`, `visitedRoomNovel`, `lastCommand`, `lastReferencedThing`, `pendingAmbiguity`) become one object, shared by reference so the module mutates the same state
+- `holonovel/src/index.ts`: the ports literal carries the sixteen index-local names the block needs — twelve providers, `PLAYER_READONLY_VERBS`, `parserState`, and accessors for `detailLevel`/`playerRegister`/`roomDescriptionMode`; the three shared `let`s cross as accessors because destructuring them would freeze their values
+- A runtime `tools/list` capture is identical before and after (37 tools, same order), and the surface trio is unchanged: 300 actions, 29,915 catalog tokens
+- 19 evidence anchors repaired by three measured declarations (+1, −6, −973), the deltas taken from the diff rather than predicted; `check-anchors` reports current
+- `holonovel/AGENTS.md`, `holonovel/DECISIONS.md`, and `ROADMAP.md` record the new module, the seam decisions, and the remaining extraction targets
+- `test:all` 56/56; `check:fast` 46/46
+
 ## 2026-11-18 — Roadmap plan set 2: six executable plans for the four open items, reviewed cold
 
 `ROADMAP.md`'s four remaining sections each get a plan an executing session can pick up: the operator-bound §10 verification as three steps (builder evidence, verifier kit, report and adjudication), the mutation sample measured against a named population, the third `index.ts` split stage with its seam and anchor bands measured, and the `codex pack` kind with its admission rule. Two cold passes failed before a third passed; all six Blockers and nineteen Majors were resolved.

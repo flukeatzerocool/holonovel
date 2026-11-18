@@ -38,12 +38,12 @@ large enough to report a catch rate with a useful confidence interval.
 - Stage 1 landed 2026-11-17 (`docs/plans/2026-11-17-index-split-1`): `--repath` on
   `refresh-predicates`, the knowledge-tool cluster in `src/tools/knowledge.ts`,
   `index.ts` 19,156 → 17,857 lines.
-- Stage 2 landed 2026-11-18 (`docs/plans/2026-11-18-index-split-2`): the five
-  generation types in `src/world/generation-types.ts` and the `manage_world` CRUD
-  block in `src/tools/world-crud.ts`, one shared `toolCtx` behind both modules,
-  `index.ts` 17,857 → 17,217 lines. Extract leaf-first next: the World-Model Tools
-  block (`run_command`, seven forward references), then dispatch, the ruleset
-  surface, and the synthesis router.
+- Stages 2 and 3 landed 2026-11-18 (`docs/plans/2026-11-18-index-split-2`,
+  `2026-11-18-index-split-3`): the `manage_world` CRUD block and the `run_command`
+  world-model surface now live in `src/tools/world-crud.ts` and
+  `src/tools/world-model.ts`, both behind one shared `toolCtx`; `index.ts`
+  17,857 → 16,244 lines. Extract next: dispatch, the ruleset surface, and the
+  synthesis router.
 - Each stage is one commit passing `test:all` 56/56; no file above 3,000 lines.
 
 **Trigger:** the next increment that moves more than 50 anchors, or a week with

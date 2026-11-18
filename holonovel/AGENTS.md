@@ -50,8 +50,10 @@ src/tools/context.ts    ToolContext — the host services a tool module destruct
                         window-aware divergence verdict, the scoped-action merger, and
                         (split stage 2) the ruleset manager, the world-generation helper
                         family, the adventure-annotation materializer, and the lazy
-                        knowledge-tool accessor. One `toolCtx` literal in index.ts feeds
-                        every module.
+                        knowledge-tool accessor. (Split stage 3) `ParserState` and its
+                        factory: the session-local command-parser state the world-model
+                        module shares by reference. One `toolCtx` literal in index.ts
+                        feeds every module.
 src/world/generation-types.ts
                         World-generation types shared across the split: WorldGenRole,
                         GeneratedSecret, GeneratedWitness, WorldGenTable, WorldGenRoll.
@@ -60,6 +62,15 @@ src/tools/world-crud.ts The `manage_world` surface — rooms, things, exits, con
                         generation, and causal proposals — moved verbatim from index.ts
                         (split stage 2) behind registerWorldCrudTools(register, ctx),
                         which returns the schema resolve_intent still spreads.
+src/tools/world-model.ts
+                        The `run_command` world-model surface (REQ-084, REQ-196e,
+                        REQ-197, REQ-319, REQ-622) plus the hazard and countdown
+                        helpers it owns, moved from index.ts (split stage 3) behind
+                        registerWorldModelTools(register, ctx, ports). It returns the
+                        two helpers index.ts still calls, so no module-scope context
+                        store exists; `ports` carries the sixteen index-local names the
+                        block needs, three of them session accessors and one the shared
+                        parser-state object (src/tools/context.ts).
 src/tools/knowledge.ts  Knowledge, identity, and agency tools — manage_belief (evidence,
                         stances, perception ledger, subjective memory), manage_identity,
                         manage_knowledge (semantic index and knowledge graph), and
@@ -68,9 +79,10 @@ src/tools/knowledge.ts  Knowledge, identity, and agency tools — manage_belief 
                         helpers index.ts still calls.
 src/index.ts            McpServer adapter: 37 action-discriminator tools, 47 resources and 23 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
                         Registers tools through the registry, then binds MCP. Knowledge-family
-                        tools register from src/tools/knowledge.ts and the world-model CRUD
-                        surface from src/tools/world-crud.ts; index.ts is 17,217 lines after
-                        the stage-2 split (target: no file above 3,000).
+                        tools register from src/tools/knowledge.ts, the world-model CRUD
+                        surface from src/tools/world-crud.ts, and the world-model command
+                        surface from src/tools/world-model.ts; index.ts is 16,244 lines after
+                        the stage-3 split (target: no file above 3,000).
                         Registers tools through the registry, then binds MCP.
                         Entry point for STDIO transport, guarded by
                         HOLONOVEL_NO_AUTOSTART. Badge gating via
