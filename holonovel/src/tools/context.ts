@@ -13,6 +13,10 @@
 // silently drop all of them.
 
 import type { Badge, NovelState, StateManager } from "../core/state.js";
+import type { Rng } from "../core/rng.js";
+import type { RulesetManager } from "../rulesets.js";
+import type { WorldKind, WorldModel, AnnotationDirective } from "../world/model.js";
+import type { WorldGenRole, GeneratedSecret, GeneratedWitness, WorldGenTable, WorldGenRoll } from "../world/generation-types.js";
 import type { DivergenceResult } from "../core/divergence.js";
 import type { ReinforcementEntry, SubjectiveMemoryRecord, ValidityWindow } from "../core/subjective.js";
 
@@ -53,6 +57,37 @@ export interface ToolContext {
   raw(text: string): any;
   /** REQ-413/REQ-429 — strip an absorbed action's scope prefix from args. */
   mergeScopedArgs(args: Record<string, any>, prefix: string): Record<string, any>;
+  // ── World-model and generation surface (stage 2 of the entry-point split) ──
+  /** The loaded-ruleset manager (`:2208` in `index.ts`). */
+  rulesets: RulesetManager;
+  /** Reduce a schema to the named keys the caller exposes. */
+  pickParams<T extends Record<string, unknown>>(schema: T, keys: readonly string[]): Partial<T>;
+  /** Emit the world snapshot resource after a world mutation. */
+  worldSnapshot(): void;
+  /** The world-generation room cap (`TTRPG_WORLD_GEN_MAX_ROOMS`). */
+  worldGenMaxRooms(): number;
+  /** The generation role order (`room`, `objects`, `persons`, `hazards`, `secrets`). */
+  WORLD_GEN_ROLES: WorldGenRole[];
+  /** Map a sanitized generation name to its role. */
+  sanitizeGenerationName(value: unknown): string;
+  /** Strip markup the world model cannot store from generated prose. */
+  sanitizeGenerationText(value: unknown): string;
+  /** Resolve a generation table key and title to its role. */
+  worldGenRoleOf(key: string, title: string): WorldGenRole | null;
+  /** Resolve the world kind a generated object belongs to. */
+  generationObjectKind(result: string, title: string): WorldKind;
+  /** The generation validator: returns one failure string per broken invariant. */
+  validateGeneratedWorld(world: WorldModel, secrets: GeneratedSecret[], witness: GeneratedWitness | null, personTablePresent: boolean): string[];
+  /** Roll one generation table row. */
+  rollGenerationTable(rng: Rng, table: WorldGenTable): WorldGenRoll | null;
+  /** Materialize an adventure's annotations into the live Novel. */
+  materializeAnnotations(novel: NovelState, directives: AnnotationDirective[], slug: string | null): { counts: { npcs: number; lore: number }; warnings: string[] };
+  /** The `[NEED_INPUT]` envelope, with its parsed decision options. */
+  needInput(text: string): { content: Array<{ type: "text"; text: string }>; structuredContent: unknown };
+  /** The `(seed n)` suffix for a generated proposal. */
+  seedWarningSuffix(seed: unknown): string;
+  /** The knowledge-tool helpers, resolved lazily because they are created after this literal. */
+  knowledgeTools(): any;
 }
 
 /** Re-exported for module signatures that name the badge. */
