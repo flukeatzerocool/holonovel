@@ -11,14 +11,23 @@
  * the ±40-line window is refused rather than guessed. Output is deterministic
  * (sorted by file then line).
  *
- * Usage: npx tsx scripts/refresh-predicates.ts [--check] [--write] [--write --json] [--help]
+ * `--repath` extends resolution to a move between files: when the recorded file
+ * no longer carries the symbol, the whole source root (the recorded path's first
+ * two segments — `holonovel/src` or `holonovel/scripts`) is searched, and the
+ * anchor is rewritten only when exactly one other file in that root carries the
+ * symbol on a code line. Two carriers are ambiguous and refused; a recorded path
+ * that no longer exists is unresolved. `npm run fix-anchors` passes the flag;
+ * `check-anchors` does not, so a move fails the gate instead of being repaired
+ * silently during a check.
+ *
+ * Usage: npx tsx scripts/refresh-predicates.ts [--check] [--write] [--repath] [--json] [--help]
  * Exit codes: 0 = current or repaired, 1 = drift under --check, ambiguous or
  * unresolvable anchor, 2 = fatal.
  */
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { handleHelp, parseFlag, rejectUnknown } from "./lib/args.js";
-import { resolveAnchorLine } from "./lib/anchor-resolver.js";
+import { resolveAnchorInRoot, resolveAnchorLine } from "./lib/anchor-resolver.js";
 
 const ROOT = join(import.meta.dirname, "..");
 const ANCHOR_RE = /anchor\("([^"]+)",\s*(\d+),\s*"([A-Za-z_$][\w$]*)"\)/g;
@@ -26,12 +35,17 @@ const ANCHOR_RE = /anchor\("([^"]+)",\s*(\d+),\s*"([A-Za-z_$][\w$]*)"\)/g;
 const USAGE = `refresh-predicates — repair holosuite predicate line numbers
 
 Usage:
-  npx tsx scripts/refresh-predicates.ts [--check] [--write] [--json] [--help]
+  npx tsx scripts/refresh-predicates.ts [--check] [--write] [--repath] [--json] [--help]
 
 Without --write the tool reports drift only. With --write it rewrites the
 recorded line to the current line that carries the symbol token. With --check it
 fails on drift, naming the repair. A symbol on several lines with none within
 ±40 lines of the recorded line is ambiguous and refused.
+
+--repath accepts a move between files: it searches the recorded path's source
+root (its first two segments) and rewrites the path as well as the line, but
+only when exactly one other file in that root carries the symbol. Two carriers
+are ambiguous and refused; a missing recorded file is unresolved.
 
 Exit codes: 0 = current or repaired; 1 = drift under --check, ambiguous or
 unresolvable anchor; 2 = fatal.
@@ -44,6 +58,7 @@ interface Drift {
   to: number;
   symbol: string;
   matched: string;
+  toPath: string;
 }
 
 function anchorFiles(): string[] {
@@ -59,13 +74,52 @@ function anchorFiles(): string[] {
   return out;
 }
 
+/** The recorded path's source root: its first two segments. A path with fewer
+ *  segments has no root and is never repathed. */
+function sourceRoot(recordedPath: string): string | null {
+  const parts = recordedPath.split("/").filter(Boolean);
+  if (parts.length < 3) return null;
+  return `${parts[0]}/${parts[1]}`;
+}
+
+const rootCache = new Map<string, Map<string, string[]>>();
+
+/** Every `.ts` file under `root`, keyed by repo-relative path with `/`
+ *  separators. Built once per root, sorted so the map iterates deterministically. */
+function filesUnder(root: string): Map<string, string[]> {
+  const cached = rootCache.get(root);
+  if (cached) return cached;
+  const out = new Map<string, string[]>();
+  let names: string[];
+  try {
+    names = (readdirSync(join(ROOT, root), { recursive: true }) as string[]).sort();
+  } catch {
+    rootCache.set(root, out);
+    return out;
+  }
+  for (const name of names) {
+    if (!name.endsWith(".ts")) continue;
+    const abs = join(ROOT, root, name);
+    try {
+      if (!statSync(abs).isFile()) continue;
+      out.set(`${root}/${name.split("\\").join("/")}`, readFileSync(abs, "utf-8").split(/\r?\n/));
+    } catch {
+      // An unreadable file under the root cannot carry the symbol we need; the
+      // anchor stays unresolved rather than failing the whole run.
+    }
+  }
+  rootCache.set(root, out);
+  return out;
+}
+
 function main(): void {
   const argv = process.argv.slice(2);
   handleHelp(argv, USAGE);
-  rejectUnknown(argv, new Set(["--check", "--write", "--json"]), USAGE);
+  rejectUnknown(argv, new Set(["--check", "--write", "--repath", "--json"]), USAGE);
   const check = parseFlag(argv, "--check");
   const write = parseFlag(argv, "--write") && !check;
   const asJson = parseFlag(argv, "--json");
+  const repath = parseFlag(argv, "--repath");
 
   const drifts: Drift[] = [];
   const unresolved: string[] = [];
@@ -82,6 +136,7 @@ function main(): void {
       catch { unresolved.push(`${relative(ROOT, source)}: cannot read ${path}`); continue; }
       const lines = target.split(/\r?\n/);
       let current: number | null;
+      let currentPath = path!;
       if (1 <= recorded && recorded <= lines.length && lines[recorded - 1]!.includes(symbol!)) {
         current = recorded;
       } else {
@@ -92,13 +147,31 @@ function main(): void {
           continue;
         }
         if (current === null) {
-          unresolved.push(`${relative(ROOT, source)}: ${path} has no code line with '${symbol}'`);
-          continue;
+          if (!repath) {
+            unresolved.push(`${relative(ROOT, source)}: ${path} has no code line with '${symbol}'; if the symbol moved between files, repair with: npm run fix-anchors (--repath)`);
+            continue;
+          }
+          const root = sourceRoot(path!);
+          if (root === null) {
+            unresolved.push(`${relative(ROOT, source)}: ${path} has no code line with '${symbol}' and no source root to search`);
+            continue;
+          }
+          const moved = resolveAnchorInRoot(filesUnder(root), path!, recorded, symbol!);
+          if (moved.ambiguous.length > 0) {
+            unresolved.push(`${relative(ROOT, source)}: ${path}:${recorded}#${symbol} is ambiguous across files (${moved.ambiguous.length} candidates: ${moved.ambiguous.join(", ")})`);
+            continue;
+          }
+          if (moved.path === null || moved.line === null) {
+            unresolved.push(`${relative(ROOT, source)}: ${path} has no code line with '${symbol}' in ${root}`);
+            continue;
+          }
+          currentPath = moved.path;
+          current = moved.line;
         }
       }
-      if (current !== recorded) {
-        drifts.push({ source: relative(ROOT, source), path: path!, from: recorded, to: current, symbol: symbol!, matched: whole });
-        next = next.replace(whole, `anchor("${path}", ${current}, "${symbol}")`);
+      if (current !== recorded || currentPath !== path) {
+        drifts.push({ source: relative(ROOT, source), path: path!, from: recorded, to: current, symbol: symbol!, matched: whole, toPath: currentPath });
+        next = next.replace(whole, `anchor("${currentPath}", ${current}, "${symbol}")`);
       }
     }
     if (next !== text) edits.set(source, next);
@@ -114,7 +187,8 @@ function main(): void {
     process.stdout.write(JSON.stringify({ drifts, unresolved, written: write }, null, 2) + "\n");
   } else {
     for (const d of drifts.sort((a, b) => a.source.localeCompare(b.source) || a.from - b.from)) {
-      process.stdout.write(`${d.source}: ${d.path}:${d.from}#${d.symbol} -> ${d.to}${write ? " (written)" : ""}\n`);
+      const target = d.toPath === d.path ? `${d.path}:${d.to}` : `${d.toPath}:${d.to}`;
+      process.stdout.write(`${d.source}: ${d.path}:${d.from}#${d.symbol} -> ${target}${write ? " (written)" : ""}\n`);
     }
     for (const u of unresolved) process.stderr.write(`unresolved: ${u}\n`);
     if (drifts.length === 0 && unresolved.length === 0) process.stdout.write("predicates current\n");
