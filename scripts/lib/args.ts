@@ -26,8 +26,20 @@ export function handleHelp(argv: string[], usage: string): boolean {
 }
 
 // Reject an unrecognized `-`-prefixed argument: diagnostic to stderr, exit 1.
-export function rejectUnknown(argv: string[], known: Set<string>, usage = ""): void {
-  for (const arg of argv) {
+// `valueFlags` names the flags that take a value, so the value token is skipped:
+// a negative number (`--offset -1300`) follows its flag and is not itself a flag.
+export function rejectUnknown(
+  argv: string[],
+  known: Set<string>,
+  usage = "",
+  valueFlags: Set<string> = new Set(),
+): void {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]!;
+    if (valueFlags.has(arg)) {
+      i++; // skip the flag's value, whatever shape it takes
+      continue;
+    }
     if (arg.startsWith("-") && !known.has(arg)) {
       process.stderr.write(`unknown flag: ${arg}\n`);
       if (usage) process.stderr.write(usage);

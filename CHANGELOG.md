@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-17 — Anchor repair: identity resolution and a declared offset
+
+`fix-anchors` bound stale anchors to the nearest occurrence of their symbol, so after a block move it wrote eight wrong lines that then self-validated. Resolution is now by identity only, a move is repaired by a declared `--offset` that is verified before and after the write, and the cross-file fallback is refused while the recorded file still carries the symbol. ROADMAP's *Split `index.ts`* loses the bullet that recorded the defect.
+
+- `scripts/lib/anchor-resolver.ts`: the ±40-line window and the nearest-wins branch are deleted; `lineCarriesSymbol` is the single code-line/whole-word predicate; `resolveAnchorSymbol` takes no line number, so a symbol on several lines is ambiguous rather than ranked by distance; a repath accepts only a carrier file that carries the symbol on exactly one line
+- `scripts/refresh-predicates.ts`: `--offset <n> --path <p> [--from-line <n>]` declares a line shift — anchors still on their recorded line are untouched, a verified target is rewritten, anything else is refused; the `--repath` fallback fires only when the recorded file carries no candidate line; every rewrite is re-read after the write; a stderr `hint` names a move's modal delta
+- `scripts/lib/args.ts`: `rejectUnknown` skips the token following a value flag, so a negative offset parses instead of being rejected as an unknown flag
+- `scripts/test-anchor-tooling.ts`: 20 → 44 assertions across 24 labels, including the regression that a near-but-wrong candidate is refused (C2), the offset refusal (C4), and the guarded cross-file fallback (C16)
+- Four live probes recorded in `docs/plans/2026-11-17-anchor-repair-gap/probe.md`: wrong-nearest, substring-only line, offset miss with the symbol still present, and an empty `--path` selection — each fails with its message and is restored
+- `ROADMAP.md` retires the anchor-repair bullet; the review register closes its Scheduled-roadmap subsection and records two Resolved findings; the `check-anchors` gate description and the AGENTS.md table name the new contract
+- The residual is stated rather than implied: a line that carries the symbol by coincidence still self-validates, because the anchor format records no content fingerprint
+
 ## 2026-11-17 — index.ts split, stage 1: --repath and the knowledge-tool cluster
 
 The extraction that ROADMAP item 4 calls for starts with the prerequisite it names: anchors could not follow a symbol between files, so the tool that repairs them now can. `index.ts` sheds its largest closed block — belief, identity, knowledge, agent, perception, and subjective memory — which moves verbatim behind a destructured context; the file drops from 19,156 to 17,856 lines with no behavioural change (`test:all` 56/56).

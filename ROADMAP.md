@@ -40,9 +40,6 @@ large enough to report a catch rate with a useful confidence interval.
   `index.ts` 19,156 → 17,857 lines. Extract leaf-first next: trust core, dispatch,
   ruleset surface, world model, synthesis router.
 - Each stage is one commit passing `test:all` 56/56; no file above 3,000 lines.
-- Close the anchor-repair gap stage 1 exposed: a block move shifted 20 anchors past the
-  resolver's ±40 window and `fix-anchors` matched eight nearby wrong lines silently.
-  Make a move repath by a declared offset or verify every rewritten line.
 
 **Trigger:** the next increment that moves more than 50 anchors, or a week with
 more than 100 reads of one file.

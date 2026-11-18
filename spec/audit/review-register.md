@@ -3098,6 +3098,13 @@ increment relocated all 21 anchors by the block's exact net offset and confirmed
 line, and ROADMAP item 4 gains the closing bullet: a move repaths by a declared offset or
 verifies every rewritten line.
 
+**Closed 2026-11-17** (`docs/plans/2026-11-17-anchor-repair-gap`): resolution is now by identity
+only. The ±40-line window and the nearest-wins branch are deleted, a stale anchor whose symbol is
+carried on several lines is refused with every candidate named, `--offset <n>` declares a line
+shift and every target is verified before and after the write, and an offset miss never falls back
+to a cross-file repath while the recorded file still carries the symbol. See the Resolved entry at
+the end of this register.
+
 ### 2026-11-15 REQ evidence linkage (P1)
 
 Chunk 2 of 3 landed 2026-11-16 (`docs/plans/2026-11-16-roadmap-drain-3`): the
@@ -3925,3 +3932,28 @@ Closed by `docs/plans/2026-11-16-release-hardening/` (P1 and P2 executed).
   `classes` header that drifts from `LINKAGE_CLASSES`, a missing baseline file, and any verdict
   other than `automated-unexercised` (which no baseline may suppress). Negative probes for each
   path are recorded in the increment's AAR.
+
+## Resolved — 2026-11-17 anchor repair: identity resolution and a declared offset
+
+- **F-AN-1 — `fix-anchors` bound stale anchors to nearby wrong lines. Resolved 2026-11-17.**
+  Predicate that failed: `resolveAnchorLine` returned the nearest candidate inside a ±40-line
+  window (`scripts/lib/anchor-resolver.ts`, pre-fix `:53-68`), and the writer treated a recorded
+  line that merely contained the symbol as current (`scripts/refresh-predicates.ts`, pre-fix
+  `:140`, a substring test). After the stage-1 block move, eight anchors resolved to a nearby
+  wrong occurrence and then self-validated, so `check-anchors` reported `predicates current`.
+  Measured on the corpus: 39 anchors, 34 of them naming a symbol carried on more than one code
+  line (`err` 378 candidates, `registerResource` 66, `recap` 44, `prompt` 40), so proximity was
+  not a discriminator. Resolved by deleting the window and the nearest-wins branch, tightening
+  the carrying-line test to a code-line whole word, refusing any stale anchor whose symbol has
+  several candidate lines, adding `--offset <n> --path <p> [--from-line <n>]` as the declared
+  repair with pre-write and post-write verification, and gating the `--repath` fallback on the
+  recorded file carrying no candidate line. Negative probes for the wrong-nearest, substring,
+  offset-miss and empty-selection paths are recorded in `docs/plans/2026-11-17-anchor-repair-gap/probe.md`;
+  the suite is 44 assertions (`test:anchor-tooling`).
+- **F-AN-2 — the declaration is the evidence, not the line number. Resolved 2026-11-17.**
+  Predicate: an anchor records `path:line#symbol` and no content fingerprint, so no resolver can
+  prove that a carrying line is the *intended* one. The tool therefore states the limit instead of
+  hiding it: `--offset` applies only where the declared number lands on a carrying line, a
+  coincidentally-carried line still self-validates, and the increment claims only the class "the
+  recorded line no longer carries the symbol". A content-hash anchor argument was considered and
+  rejected in the plan's D2 (39 call sites plus a re-blessing path for every legitimate edit).

@@ -363,7 +363,7 @@ This runs (the table is generated from the gate manifest):
 | `check-loop-artifacts` | yes | yes | Increment plan/tasks/AAR contract under docs/plans |
 | `check-spec-copy` | no | yes | The untracked package spec copy matches the assembled spec |
 | `test:pipeline` | no | yes | Hermetic publication-pipeline harness |
-| `check-anchors` | yes | yes | Evidence anchors resolve to their symbols; fix-anchors repaths a moved symbol |
+| `check-anchors` | yes | yes | Evidence anchors resolve by identity; fix-anchors repaths a move declared by --offset |
 | `test:anchor-tooling` | yes | yes | Self-tests for the anchor resolver and refresh-predicates |
 | `typecheck` | yes | yes | TypeScript type checking |
 <!-- gate-manifest:end -->
