@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-18 — Roadmap plan set 2: six executable plans for the four open items, reviewed cold
+
+`ROADMAP.md`'s four remaining sections each get a plan an executing session can pick up: the operator-bound §10 verification as three steps (builder evidence, verifier kit, report and adjudication), the mutation sample measured against a named population, the third `index.ts` split stage with its seam and anchor bands measured, and the `codex pack` kind with its admission rule. Two cold passes failed before a third passed; all six Blockers and nineteen Majors were resolved.
+
+- `item-1a-handoff-evidence.md`: the writable evidence set is bounded by §9's declared homes and the record parser, and H10/H12/H13 require (6) records
+- `item-1b-verifier-kit.md`: the kit is three top-level entries — the H14 `handoff/` directory, the spec, and the verbatim prompt — so H14 stays testable
+- `item-1c-report-adjudication.md`: the report's nine sections, the recomputed REQ-274 score, and one adjudication row per `DISPUTED` item; a non-VERIFIED verdict still retires the item and opens a dated roadmap entry
+- `item-2-mutation-sample-depth.md`: the aggregate seeded set closes the item at n ≥ 35 with width ≤ 0.15; the lens-only interval is published as under-powered because nine lenses cap it at seven mutants
+- `item-4-index-split-stage-3.md`: the 980-line block moves behind `registerWorldModelTools` with the `ctx` destructure stated, a `WorldModelDeps` object of seven hoisted providers, and two measured anchor declarations across two line bands
+- `item-5-codex-pack.md`: a pack is the exporter's payload verbatim plus an optional declared hash excluded from the hash input; four refusals across two codes, and two anchor declarations straddling the increment's own insertions
+- Every draft states its trigger status (all four unfired), a falsifiable close condition, and the rebase rule against the others
+- `check:fast` 46/46 before and after; no `spec/`, `holonovel/src`, or register file changed; the plan is stamped fresh at standard depth
+
 ## 2026-11-18 — index.ts split, stage 2: the world-model CRUD surface leaves the entry point
 
 Stage 2 takes the largest remaining closed block out of the entry point. The `manage_world` surface — rooms, things, exits, converts, world generation, and causal proposals — moves verbatim into its own module behind one shared tool context, and the five world-generation types move to a module both sides can import. `index.ts` drops from 17,857 to 17,217 lines with no behavioural change and `test:all` 56/56.
