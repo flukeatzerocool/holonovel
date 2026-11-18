@@ -6,7 +6,7 @@
 
 **Recorded description budget:** 1000 bytes (REQ-024c)
 
-**Recorded surface budgets:** full 29,915 tokens; standard 25,929; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
+**Recorded surface budgets:** full 29,922 tokens; standard 25,935; small 1,180; estimator UTF-8 bytes / 4, rounded up (REQ-571, Appendix T.3)
 
 **Roadmap rule:** `ROADMAP.md` holds scheduled work only — one section per item, 1–3 bullets, and a `**Trigger:**` line. Standing facts live here; `npm run check-roadmap` enforces the split and resolves the `## Non-goals` pointer.
 
@@ -1005,6 +1005,36 @@ that carries it.
   tools stay in `tools/list` until restart. The tool description states this
   limitation rather than claiming live deregistration (REQ-621's "deregister"
   is the scan-derived artifact registry entry, which is removed).
+
+### Codex pack kind — 2026-11-18
+
+- **D1 — `codex` is the fourth artifact kind, at `<DATA_DIR>/codex/<slug>.json`.**
+  The directory sits beside `novels/`, `adventures/`, `rulesets/`, and `inbox/`;
+  `codex.json` (the live library) is a file, so the name does not collide. The
+  kind order appends: novel, adventure, ruleset, codex.
+- **D2 — admission accepts the exporter's payload verbatim.** A pack is
+  `{schema: "holonovel.codex/1", entries: [...]}` with at least one entry; the
+  source file stem supplies the slug, and an optional top-level `title` names it.
+  Growing the exporter instead was rejected: REQ-321o's body has 49 characters of
+  headroom against the 800-character limit, too little for a normative hash
+  clause without rewriting a shipped acceptance criterion.
+- **D3 — the hash is over `{schema, entries}` ordered by id; a declared hash is
+  optional and compared.** `codexPackHash` sorts a copy before hashing, so equal
+  entries hash equally regardless of payload order. A declared top-level
+  `content_hash` is compared against it and never fed back into it. Integrity is
+  `verified` (declared and matching), `unverified` (declared and mismatched), or
+  `absent` (no declaration) — the Novel save's convention.
+- **D4 — a duplicate slug is refused, not suffixed.** A `-N` suffix exists for a
+  Novel pack because its slug comes from inside the file (REQ-621a); a codex
+  pack's slug is its filename, so a silent fork would be a second library.
+- **D5 — provenance is copied and shape-validated, not attested.** A pack's
+  top-level `provenance {creator, attribution, license}` must be string-valued
+  and is copied onto the registry entry. No signature format exists to verify.
+- **D6 — no new REQ and no new tool action.** The kind is named in REQ-620 and
+  REQ-621, and the roadmap's "catalogue entry" is the registry entry rendered by
+  `manage_artifact (action: list, kind: codex)`; extending `manage_codex (action:
+  list)` with installed packs was rejected because it mixes library entries with
+  exchange artifacts.
 
 ### Two-week review remediation — 2026-10-25
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-18 — Codex packs: the exported library becomes a fourth artifact kind
+
+`manage_codex (action: export)` no longer ships one-way. The `holonovel.codex/1` payload installs through `manage_artifact (action: install, kind: codex)` into `<DATA_DIR>/codex/`, is listed and counted by the scan-derived registry, and is refused when it traverses, carries the wrong schema, has no entries, duplicates a slug, or declares a mismatched hash. Hash is over `{schema, entries}` sorted by id; integrity is verified, unverified, or absent by the pack's own declaration.
+
+- Added `codex` to the artifact kind set, the registry scan, the install and removal branches, `spec_health` counts, and the removal label.
+- Admission accepts the exporter payload verbatim: slug from the file stem, optional top-level title and provenance (shape-checked), and a duplicate slug refused rather than `-N` suffixed.
+- Extended `test:artifact-registry` 23 → 31 cases: round trip, absent-hash integrity, order-independent hash, and five refusals.
+- REQ-620/REQ-621, T738/T739, the §4 glossary, both §7.6 rows, runbook V.10, the engine contract, and `holonovel/AGENTS.md` now name the fourth kind.
+- Repaired two evidence anchors by measured offsets (`11321 → 11322`, `14784 → 14844`).
+- Retired ROADMAP item 5; recorded review finding F-CP-1 and a dated `holonovel/DECISIONS.md` entry.
+
 ## 2026-11-18 — Mutation-sample depth: a stratified 35-case catch rate with its interval
 
 The mutation audit now publishes the number §8 defines and its uncertainty: 35 seeded cases across four strata, each with a clean control, all caught, `ci95=[0.9011, 1.0000]` (width 0.0989). The two judgment lanes became deterministic, the `TTRPG_MUTANT` selector and `JUDGMENT_GM_LANES` are gone, and roadmap item 2 is retired with the lens-breadth residue scheduled.

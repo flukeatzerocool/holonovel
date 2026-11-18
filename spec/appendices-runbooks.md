@@ -281,23 +281,26 @@ what it would change.
 **Exchange formats.** A Novel pack is the Appendix Q interchange JSON produced
 by `manage_archive (action: export)`. An adventure module is an Appendix K
 Markdown file (with its provenance block, REQ-616). A ruleset package is the
-six-file package directory (REQ-389).
+six-file package directory (REQ-389). A codex pack is the `holonovel.codex/1`
+JSON produced by `manage_codex (action: export)`.
 
 **Happy path.**
 
 1. On the source installation, produce the artifact: export the Novel, copy
-   the adventure Markdown, or emit the package with `build-ruleset`.
+   the adventure Markdown, emit the package with `build-ruleset`, or export the
+   codex library.
 2. Copy the artifact into the receiving installation's exchange inbox
    (`TTRPG_ARTIFACT_INBOX`, default `<DATA_DIR>/inbox/`). Do not copy it
    directly into a kind directory.
 3. Run `manage_artifact (action: install, kind, source)`. The host verifies the
    content hash and any declared provenance (`REQ-096j`, `REQ-617`,
    `REQ-446`), writes the artifact into its kind directory, and audits the
-   install.
+   install. A codex pack's provenance is shape-checked, not attested.
 4. Run `manage_artifact (action: list)` to confirm the entry and its integrity
    state. The artifact is also visible through its kind catalog
    (`manage_novel (action: list)`, `manage_adventure (action: list)`,
-   `manage_ruleset (action: list)`).
+   `manage_ruleset (action: list)`); a codex pack through
+   `manage_artifact (action: list, kind: codex)`.
 
 **Recovery.**
 

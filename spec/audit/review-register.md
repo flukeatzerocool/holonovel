@@ -11,6 +11,21 @@ condition — not a gate's emitted message; a message alone is not evidence.
 
 ## Resolved
 
+### 2026-11-18 codex pack as a fourth artifact kind
+
+ROADMAP item 5, closed by `docs/plans/2026-11-18-codex-pack-kind/`.
+
+- **F-CP-1 — the codex export shipped one-way. Resolved 2026-11-18.** The
+  predicate: `holonovel/src/core/artifact-registry.ts:16` typed `ArtifactKind`
+  as `"novel" | "adventure" | "ruleset"`, and `manage_artifact`'s `kind` enum
+  (`holonovel/src/index.ts:11356`) enumerated the same three, so the
+  `holonovel.codex/1` payload from `manage_codex (action: export)` had no
+  admission path and an exported library could not cross hosts. Fixed in
+  `docs/plans/2026-11-18-codex-pack-kind/`: `codex` joins the kind set with
+  `<DATA_DIR>/codex/<slug>.json`, admission verifies the hash over
+  `{schema, entries}`, a duplicate slug refuses rather than suffixes, and
+  REQ-620/REQ-621 plus T738/T739 name the fourth kind.
+
 ### 2026-11-15 gate-retirement sweep — the streak is a candidate, not a decision
 
 Closed by the 2026-11-15 gate-retirement sweep

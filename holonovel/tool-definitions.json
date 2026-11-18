@@ -1,19 +1,19 @@
 {
   "schema_version": 4,
   "tool_count": 37,
-  "tools_list_bytes": 119660,
+  "tools_list_bytes": 119686,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 119660,
-        "tokens": 29915
+        "bytes": 119686,
+        "tokens": 29922
       },
       "standard": {
         "tools": 37,
-        "bytes": 103713,
-        "tokens": 25929
+        "bytes": 103739,
+        "tokens": 25935
       },
       "small": {
         "tools": 6,
@@ -295,8 +295,8 @@
     {
       "name": "manage_artifact",
       "title": "Local Artifact Registry",
-      "description": "Manage the host registry of shareable artifacts — Novel packs, adventure modules, and ruleset packages — exchanged offline through an inbox. list and verify are read-only. install copies a verified artifact into its kind directory and audits it; ruleset tools become callable after restart. remove is permanent (no undo), rebuilds ruleset prompts, and refuses while a Novel depends on it. install/remove need the GM badge and record a security event, and install refuses a hash/provenance mismatch, a mismatched slug, or an existing slug; slug names remove/verify and must match the artifact's slug on install (a pack without one adopts it). source is an inbox-relative file or package directory; location is GM-only. Use when: exchanging a world pack or ruleset between installations. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
-      "description_bytes": 965,
+      "description": "Manage the host registry of shareable artifacts — Novel packs, adventures, rulesets, and codex packs — exchanged offline through an inbox. list and verify are read-only. install copies a verified artifact into its kind directory and audits it; ruleset tools become callable after restart. remove is permanent (no undo), rebuilds ruleset prompts, and refuses while a Novel depends on it. install/remove need the GM badge and record a security event, and install refuses a hash/provenance mismatch, a mismatched slug, or an existing slug; slug names remove/verify and must match the artifact's slug on install (a pack without one adopts it). source is an inbox-relative file or package directory; location is GM-only. Use when: exchanging a world pack or ruleset between installations. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
+      "description_bytes": 963,
       "action_enum": [
         "list",
         "install",
@@ -311,7 +311,7 @@
         "integrity": "Integrity filter: verified, unverified, or absent (list).",
         "kind": "Artifact kind; filters list and targets install/remove/verify.",
         "slug": "Artifact slug (remove/verify); on install it must match the artifact's own slug, and a pack without one adopts it.",
-        "source": "Inbox-relative Novel pack (.json), adventure module (.md), or ruleset package directory to install (install)."
+        "source": "Inbox-relative Novel pack (.json), adventure module (.md), ruleset package directory, or codex pack (.json) to install (install)."
       },
       "output_fields": {
         "status": "Machine-readable result status: OK, NEED_INPUT, WARNING, PARTIAL, or ERROR; an error's Appendix O.2 category rides in `category` (REQ-002, REQ-548c).",
@@ -340,8 +340,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2451,
-        "descriptionBytes": 965
+        "definitionBytes": 2477,
+        "descriptionBytes": 963
       },
       "category": "",
       "gate": ""

@@ -4,16 +4,19 @@
 // produce equal listings.
 //
 // Kinds: Novel packs (<DATA_DIR>/novels/*.json), adventure modules
-// (configured dirs plus <DATA_DIR>/adventures/*.md), and ruleset packages
-// (<DATA_DIR>/rulesets/*/manifest.json). Integrity is recomputed from the
-// artifact's own declaration (REQ-092, REQ-617, REQ-389b).
+// (configured dirs plus <DATA_DIR>/adventures/*.md), ruleset packages
+// (<DATA_DIR>/rulesets/*/manifest.json), and codex packs
+// (<DATA_DIR>/codex/*.json). Integrity is recomputed from the artifact's own
+// declaration (REQ-092, REQ-617, REQ-389b, REQ-621).
 
+import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { novelChecksumValid } from "./state.js";
+import { canonicalJson } from "./state-hash.js";
 import { parseAdventureProvenance, verifyAdventureProvenance } from "./adventure-provenance.js";
 
-export type ArtifactKind = "novel" | "adventure" | "ruleset";
+export type ArtifactKind = "novel" | "adventure" | "ruleset" | "codex";
 export type ArtifactIntegrity = "verified" | "unverified" | "absent";
 
 export interface ArtifactEntry {
@@ -45,19 +48,21 @@ export interface RulesetRecord {
 export interface RegistrySources {
   novelsDir: string;
   adventureDirs: string[];
+  codexDir: string;
   rulesets: () => RulesetRecord[];
   // Recomputes a package's content hash from its five payload files. Throws on
   // a missing or unreadable file so the entry reports a non-verified state.
   rulesetHash: (dir: string) => string;
 }
 
-const KIND_ORDER: ArtifactKind[] = ["novel", "adventure", "ruleset"];
+const KIND_ORDER: ArtifactKind[] = ["novel", "adventure", "ruleset", "codex"];
 
 export function buildArtifactRegistry(sources: RegistrySources): ArtifactEntry[] {
   const entries: ArtifactEntry[] = [
     ...scanNovels(sources.novelsDir),
     ...scanAdventures(sources.adventureDirs),
     ...scanRulesets(sources),
+    ...scanCodexPacks(sources.codexDir),
   ];
   return entries.sort((a, b) =>
     KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.slug.localeCompare(b.slug),
@@ -185,8 +190,72 @@ function scanRulesets(sources: RegistrySources): ArtifactEntry[] {
   });
 }
 
+// REQ-621 — a codex pack is the `holonovel.codex/1` export payload. The hash is
+// taken over `{schema, entries}` with entries ordered by id, so two packs
+// carrying equal entries hash equally regardless of payload order; a declared
+// top-level `content_hash` is compared against it and never fed back into it.
+export function codexPackHash(entries: readonly unknown[]): string {
+  const ordered = [...entries].sort((a: any, b: any) =>
+    String(a?.id ?? "").localeCompare(String(b?.id ?? "")),
+  );
+  return createHash("sha256")
+    .update(canonicalJson({ schema: "holonovel.codex/1", entries: ordered }))
+    .digest("hex");
+}
+
+function scanCodexPacks(dir: string): ArtifactEntry[] {
+  let files: string[];
+  try {
+    files = fs.readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
+  } catch {
+    // Absent pack directory: nothing installed yet.
+    return [];
+  }
+  const out: ArtifactEntry[] = [];
+  for (const file of files) {
+    const location = path.join(dir, file);
+    const slug = file.slice(0, -".json".length);
+    let data: any;
+    try {
+      data = JSON.parse(fs.readFileSync(location, "utf-8"));
+    } catch {
+      out.push({
+        kind: "codex",
+        slug,
+        title: slug,
+        version: null,
+        content_hash: null,
+        creator: null,
+        attribution: null,
+        license: null,
+        integrity: "unverified",
+        location,
+      });
+      continue;
+    }
+    const entries = Array.isArray(data?.entries) ? data.entries : null;
+    const wellFormed = data?.schema === "holonovel.codex/1" && entries !== null && entries.length > 0;
+    const declared = typeof data?.content_hash === "string" ? data.content_hash : null;
+    const hash = wellFormed ? codexPackHash(entries!) : null;
+    const provenance = data?.provenance && typeof data.provenance === "object" ? data.provenance : {};
+    out.push({
+      kind: "codex",
+      slug,
+      title: typeof data?.title === "string" && data.title.trim() ? data.title : slug,
+      version: null,
+      content_hash: hash,
+      creator: typeof provenance.creator === "string" ? provenance.creator : null,
+      attribution: typeof provenance.attribution === "string" ? provenance.attribution : null,
+      license: typeof provenance.license === "string" ? provenance.license : null,
+      integrity: hash === null ? "unverified" : declared === null ? "absent" : declared === hash ? "verified" : "unverified",
+      location,
+    });
+  }
+  return out;
+}
+
 export function registryCounts(entries: ArtifactEntry[]): Record<ArtifactKind, number> {
-  const counts: Record<ArtifactKind, number> = { novel: 0, adventure: 0, ruleset: 0 };
+  const counts: Record<ArtifactKind, number> = { novel: 0, adventure: 0, ruleset: 0, codex: 0 };
   for (const entry of entries) counts[entry.kind]++;
   return counts;
 }

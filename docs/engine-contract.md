@@ -286,8 +286,8 @@ The six divergences recorded by the E2 review were closed on 2026-10-29:
 
 ## 10. Artifact provenance
 
-The three shareable artifact classes — ruleset package, adventure module, and
-Novel — carry one provenance envelope:
+The four shareable artifact classes — ruleset package, adventure module, Novel,
+and codex pack — carry one provenance envelope:
 
 | Field | Meaning |
 | --- | --- |
@@ -307,7 +307,8 @@ content hash or manifest signature does not verify is refused at install
 (REQ-446). An adventure module whose declared hash does not match its body, or
 whose declared signature does not verify under a configured key, is refused at
 load (REQ-617). A Novel whose `integrity` envelope does not verify refuses under
-`strict` (REQ-096l). A declared signature with no configured key warns and
+`strict` (REQ-096l). A codex pack whose declared content hash does not match its
+`{schema, entries}` payload is refused at install (REQ-621). A declared signature with no configured key warns and
 loads; it is not evidence of tampering.
 
 ## Appendix: Clause-to-source map

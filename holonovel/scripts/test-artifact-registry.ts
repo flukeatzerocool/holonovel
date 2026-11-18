@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import { installHarnessGuard, harnessComplete } from "./lib/harness-guard.js";
 import { resourceReader } from "./lib/jsonrpc.js";
 import { computeContentHash } from "../src/rulesets.js";
+import { canonicalJson } from "../src/core/state-hash.js";
 import { PACKAGE_FORMAT } from "../src/generated/contract-fingerprints.js";
 installHarnessGuard();
 
@@ -357,6 +358,113 @@ async function main() {
     const reinstalled = await call(b, "manage_artifact", { action: "install", kind: "novel", source: "pack-one.json" });
     assert.match(reinstalled, /\[OK\]/);
     const entries = (await registry(b, { kind: "novel" })).artifacts.filter((e: any) => e.slug === "pack-one");
+    assert.equal(entries.length, 1);
+  });
+
+  // ── REQ-620/REQ-621 — the codex pack is a fourth artifact kind ──
+  const packEntries: any[] = [
+    { id: "faction_lantern_guild", kind: "faction", name: "Lantern Guild", content: { goals: ["Keep the lamps lit"] } },
+    { id: "npc_archivist", kind: "npc", name: "Archivist", content: { description: "Keeper of records" } },
+  ];
+  const packHash = (entries: any[]): string => createHash("sha256")
+    .update(canonicalJson({ schema: "holonovel.codex/1", entries: [...entries].sort((x, y) => String(x.id).localeCompare(String(y.id))) }))
+    .digest("hex");
+  await test("T739/REQ-621: a codex pack is admitted from its export payload", async () => {
+    await call(b, "set_badge", { badge: "game_master" });
+    for (const entry of packEntries) {
+      await call(b, "manage_codex", { action: "set", kind: entry.kind, name: entry.name, content: entry.content });
+    }
+    const exported = JSON.parse(await call(b, "manage_codex", { action: "export" }));
+    assert.equal(exported.schema, "holonovel.codex/1");
+    const declared = packHash(exported.entries);
+    writeFileSync(join(ROOT_B, "inbox", "library-one.json"), JSON.stringify({
+      ...exported, content_hash: declared, title: "Library One", provenance: { creator: "Ada", license: "CC BY 4.0" },
+    }));
+    const out = await call(b, "manage_artifact", { action: "install", kind: "codex", source: "library-one.json" });
+    assert.match(out, /\[OK\]/);
+    const listed = (await registry(b, { kind: "codex" })).artifacts.find((e: any) => e.slug === "library-one");
+    assert.ok(listed, "an installed codex pack must appear in the registry");
+    assert.equal(listed.title, "Library One");
+    assert.equal(listed.content_hash, declared);
+    assert.equal(listed.integrity, "verified");
+    assert.equal(listed.creator, "Ada");
+    const verified = JSON.parse(await call(b, "manage_artifact", { action: "verify", kind: "codex", slug: "library-one" }));
+    assert.equal(verified.integrity, "verified");
+    assert.equal(verified.content_hash, declared);
+    const health = await call(b, "manage_diagnostics", { action: "health" });
+    assert.match(health, /"codex": 1/);
+  });
+
+  await test("T739/REQ-621: a codex pack with no declared hash reports absent integrity", async () => {
+    const exported = JSON.parse(await call(b, "manage_codex", { action: "export" }));
+    writeFileSync(join(ROOT_B, "inbox", "library-two.json"), JSON.stringify(exported));
+    const out = await call(b, "manage_artifact", { action: "install", kind: "codex", source: "library-two.json" });
+    assert.match(out, /\[OK\]/);
+    const listed = (await registry(b, { kind: "codex" })).artifacts.find((e: any) => e.slug === "library-two");
+    assert.ok(listed);
+    assert.equal(listed.integrity, "absent");
+    assert.equal(listed.content_hash, packHash(exported.entries));
+    // The hash is order-independent: the same entries in reverse hash equally.
+    const shuffled = [...exported.entries].reverse();
+    writeFileSync(join(ROOT_B, "inbox", "library-reordered.json"), JSON.stringify({
+      schema: "holonovel.codex/1", entries: shuffled, content_hash: packHash(shuffled),
+    }));
+    const reorderedInstall = await call(b, "manage_artifact", { action: "install", kind: "codex", source: "library-reordered.json" });
+    assert.match(reorderedInstall, /\[OK\]/);
+    const reordered = (await registry(b, { kind: "codex" })).artifacts.find((e: any) => e.slug === "library-reordered");
+    assert.ok(reordered);
+    assert.equal(reordered.content_hash, listed.content_hash);
+    assert.equal(reordered.integrity, "verified");
+  });
+
+  await test("T739/REQ-621: a codex pack with the wrong schema is refused", async () => {
+    writeFileSync(join(ROOT_B, "inbox", "library-wrong.json"), JSON.stringify({ schema: "holonovel.codex/2", entries: packEntries }));
+    const out = await call(b, "manage_artifact", { action: "install", kind: "codex", source: "library-wrong.json" });
+    assert.match(out, /\[ERROR\] \[INVALID_INPUT\]/);
+    assert.match(out, /holonovel\.codex\/1/);
+    assert.ok(!existsSync(join(ROOT_B, "codex", "library-wrong.json")), "a refused pack must not be written");
+  });
+
+  await test("T739/REQ-621: a codex pack with no entries is refused", async () => {
+    writeFileSync(join(ROOT_B, "inbox", "library-empty.json"), JSON.stringify({ schema: "holonovel.codex/1", entries: [] }));
+    const out = await call(b, "manage_artifact", { action: "install", kind: "codex", source: "library-empty.json" });
+    assert.match(out, /\[ERROR\] \[INVALID_INPUT\]/);
+    assert.match(out, /no entries/);
+    assert.ok(!existsSync(join(ROOT_B, "codex", "library-empty.json")), "an empty pack must not be written");
+  });
+
+  await test("T739/REQ-621: a duplicate codex slug is refused rather than suffixed", async () => {
+    const out = await call(b, "manage_artifact", { action: "install", kind: "codex", source: "library-one.json" });
+    assert.match(out, /\[ERROR\] \[STATE_CONFLICT\]/);
+    assert.match(out, /already installed/);
+    assert.match(out, /action: remove, kind: codex, slug: library-one/);
+  });
+
+  await test("T739/REQ-621: a codex pack declaring a mismatched hash is refused", async () => {
+    writeFileSync(join(ROOT_B, "inbox", "library-tampered.json"), JSON.stringify({
+      schema: "holonovel.codex/1", entries: packEntries, content_hash: "deadbeef",
+    }));
+    const out = await call(b, "manage_artifact", { action: "install", kind: "codex", source: "library-tampered.json" });
+    assert.match(out, /\[ERROR\] \[STATE_CONFLICT\]/);
+    assert.match(out, /content hash mismatch/);
+    assert.ok(!existsSync(join(ROOT_B, "codex", "library-tampered.json")), "a tampered pack must not be written");
+  });
+
+  await test("T739/REQ-621: a codex pack source outside the inbox is refused", async () => {
+    const out = await call(b, "manage_artifact", { action: "install", kind: "codex", source: "../codex/evil.json" });
+    assert.match(out, /\[ERROR\] \[INVALID_INPUT\]/);
+    assert.match(out, /outside the exchange inbox/);
+  });
+
+  await test("T739/REQ-620: a codex pack removes and reinstalls", async () => {
+    const removed = await call(b, "manage_artifact", { action: "remove", kind: "codex", slug: "library-one" });
+    assert.match(removed, /\[OK\]/);
+    assert.match(removed, /Codex pack 'library-one' removed/);
+    const after = (await registry(b, { kind: "codex" })).artifacts.filter((e: any) => e.slug === "library-one");
+    assert.equal(after.length, 0);
+    const reinstalled = await call(b, "manage_artifact", { action: "install", kind: "codex", source: "library-one.json" });
+    assert.match(reinstalled, /\[OK\]/);
+    const entries = (await registry(b, { kind: "codex" })).artifacts.filter((e: any) => e.slug === "library-one");
     assert.equal(entries.length, 1);
   });
 

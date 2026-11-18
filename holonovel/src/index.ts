@@ -104,7 +104,7 @@ import { createRng, sessionRoll, rollNotationWithRng, seedConflictWarning, type 
 import { deriveAnchor } from "./core/anchors.js";
 import { extractAdventureStructure, isSpatialPremise, adventureWorldSection, adventureKey, type AdventureStructure } from "./core/adventure.js";
 import { groupCaps, capRefusal } from "./core/limits.js";
-import { buildArtifactRegistry, registryCounts, type ArtifactEntry, type ArtifactKind } from "./core/artifact-registry.js";
+import { buildArtifactRegistry, registryCounts, codexPackHash, type ArtifactEntry, type ArtifactKind } from "./core/artifact-registry.js";
 import { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary, ADVENTURE_PROVENANCE_KEYS, type AdventureProvenance } from "./core/adventure-provenance.js";
 import { resolveInboxDir, resolveWithin, isSafeSlug } from "./core/data-dir.js";
 import { deriveSlug, fitSlug, isReservedSlugStem, SLUG_PATH_CEILING } from "./core/slug.js";
@@ -11308,6 +11308,7 @@ function artifactRegistry(): ReturnType<typeof buildArtifactRegistry> {
   return buildArtifactRegistry({
     novelsDir: path.join(DATA_DIR, "novels"),
     adventureDirs: adventureDirs(),
+    codexDir: path.join(DATA_DIR, "codex"),
     rulesets: () => rulesets.manifests(),
     rulesetHash: (dir) => {
       const read = (name: string): any => JSON.parse(fs.readFileSync(path.join(dir, name), "utf-8"));
@@ -11350,11 +11351,11 @@ function artifactDependencyError(kind: ArtifactKind, slug: string): string | nul
 
 server.registerTool("manage_artifact", {
   title: "Local Artifact Registry",
-  description: "Manage the host registry of shareable artifacts — Novel packs, adventure modules, and ruleset packages — exchanged offline through an inbox. list and verify are read-only. install copies a verified artifact into its kind directory and audits it; ruleset tools become callable after restart. remove is permanent (no undo), rebuilds ruleset prompts, and refuses while a Novel depends on it. install/remove need the GM badge and record a security event, and install refuses a hash/provenance mismatch, a mismatched slug, or an existing slug; slug names remove/verify and must match the artifact's slug on install (a pack without one adopts it). source is an inbox-relative file or package directory; location is GM-only. Use when: exchanging a world pack or ruleset between installations. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
+  description: "Manage the host registry of shareable artifacts — Novel packs, adventures, rulesets, and codex packs — exchanged offline through an inbox. list and verify are read-only. install copies a verified artifact into its kind directory and audits it; ruleset tools become callable after restart. remove is permanent (no undo), rebuilds ruleset prompts, and refuses while a Novel depends on it. install/remove need the GM badge and record a security event, and install refuses a hash/provenance mismatch, a mismatched slug, or an existing slug; slug names remove/verify and must match the artifact's slug on install (a pack without one adopts it). source is an inbox-relative file or package directory; location is GM-only. Use when: exchanging a world pack or ruleset between installations. Do NOT use when: installing a package built in-process — use manage_ruleset (action: install); importing state into the active Novel — use manage_archive (action: import).",
   inputSchema: {
     action: z.enum(["list", "install", "remove", "verify"]).describe("list, install, remove, or verify."),
-    kind: z.enum(["novel", "adventure", "ruleset"]).optional().describe("Artifact kind; filters list and targets install/remove/verify."),
-    source: z.string().optional().describe("Inbox-relative Novel pack (.json), adventure module (.md), or ruleset package directory to install (install)."),
+    kind: z.enum(["novel", "adventure", "ruleset", "codex"]).optional().describe("Artifact kind; filters list and targets install/remove/verify."),
+    source: z.string().optional().describe("Inbox-relative Novel pack (.json), adventure module (.md), ruleset package directory, or codex pack (.json) to install (install)."),
     slug: z.string().optional().describe("Artifact slug (remove/verify); on install it must match the artifact's own slug, and a pack without one adopts it."),
     integrity: z.enum(["verified", "unverified", "absent"]).optional().describe("Integrity filter: verified, unverified, or absent (list)."),
   },
@@ -11507,6 +11508,59 @@ server.registerTool("manage_artifact", {
         return ok(`Adventure module '${slug}' installed.${provenance ? "" : " [WARNING] [provenance-absent]"}${checks.warnings.length ? ` Warnings: ${checks.warnings.join("; ")}` : ""}`);
       }
 
+      if (kind === "codex") {
+        // REQ-621 — a codex pack is the `holonovel.codex/1` export payload: the
+        // slug is the file stem, the hash is over `{schema, entries}`, and a
+        // duplicate slug is refused rather than suffixed.
+        const file = resolved.endsWith(".json") ? resolved : `${resolved}.json`;
+        if (!fs.existsSync(file)) return err("NOT_FOUND", `Codex pack '${args.source}' not found in the exchange inbox.`);
+        let pack: any;
+        try { pack = JSON.parse(fs.readFileSync(file, "utf-8")); } catch { return err("INVALID_INPUT", `Codex pack '${args.source}' is not valid JSON.`); }
+        if (pack?.schema !== "holonovel.codex/1") {
+          return err("INVALID_INPUT", `Codex pack '${args.source}' does not carry schema 'holonovel.codex/1'.`);
+        }
+        if (!Array.isArray(pack.entries) || pack.entries.length === 0) {
+          return err("INVALID_INPUT", `Codex pack '${args.source}' carries no entries.`);
+        }
+        if (pack.entries.some((e: any) => !e || typeof e !== "object" || typeof e.id !== "string" || typeof e.kind !== "string")) {
+          return err("INVALID_INPUT", `Codex pack '${args.source}' carries a malformed entry.`);
+        }
+        const provenance = pack.provenance;
+        if (provenance !== undefined) {
+          if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) {
+            return err("INVALID_INPUT", `Codex pack '${args.source}' has a malformed provenance block.`);
+          }
+          for (const key of ["creator", "attribution", "license"] as const) {
+            if (provenance[key] !== undefined && typeof provenance[key] !== "string") {
+              return err("INVALID_INPUT", `Codex pack '${args.source}' has a non-string provenance ${key}.`);
+            }
+          }
+        }
+        const slug = path.basename(file).replace(/\.json$/, "");
+        if (args.slug !== undefined && String(args.slug) !== slug) {
+          return err("INVALID_INPUT", `slug '${args.slug}' does not match the pack file slug '${slug}'.`);
+        }
+        if (!isSafeSlug(slug)) return err("INVALID_INPUT", `Codex pack slug '${slug}' must match ^[a-z0-9]+(?:-[a-z0-9]+)*$.`);
+        const declared = typeof pack.content_hash === "string" ? pack.content_hash : null;
+        const recomputed = codexPackHash(pack.entries);
+        if (declared !== null && declared !== recomputed) {
+          return err("STATE_CONFLICT", `Codex pack '${slug}' content hash mismatch. Expected ${declared}, received ${recomputed}.`);
+        }
+        const codexDirPath = path.join(DATA_DIR, "codex");
+        const target = resolveWithin(codexDirPath, `${slug}.json`);
+        if (!target) return err("INVALID_INPUT", `Codex slug '${slug}' resolves outside the codex directory.`);
+        if (fs.existsSync(target)) {
+          return err("STATE_CONFLICT", `Codex pack '${slug}' is already installed. Remove it first with manage_artifact (action: remove, kind: codex, slug: ${slug}).`);
+        }
+        fs.mkdirSync(codexDirPath, { recursive: true });
+        const tmp = `${target}.${process.pid}.tmp`;
+        fs.writeFileSync(tmp, fs.readFileSync(file));
+        fs.renameSync(tmp, target);
+        audit("install_artifact", { kind, slug, content_hash: declared ?? recomputed });
+        if (state.activeNovel) state.saveNovel(state.activeNovel);
+        return ok(`Codex pack '${slug}' installed. It is available through manage_artifact (action: list, kind: codex).`);
+      }
+
       const manifestPath = path.join(resolved, "manifest.json");
       if (!fs.existsSync(manifestPath)) return err("NOT_FOUND", `Ruleset package '${args.source}' has no manifest.json in the exchange inbox.`);
       let manifest: any;
@@ -11560,6 +11614,12 @@ server.registerTool("manage_artifact", {
         if (!target) return err("INVALID_INPUT", `Adventure slug '${slug}' resolves outside the adventures directory.`);
         if (!fs.existsSync(target)) return err("STATE_CONFLICT", `Adventure '${slug}' is not installed in ${path.join(DATA_DIR, "adventures")}; remove the source copy instead.`);
         fs.unlinkSync(target);
+      } else if (kind === "codex") {
+        const codexDir = path.join(DATA_DIR, "codex");
+        const target = resolveWithin(codexDir, `${slug}.json`);
+        if (!target) return err("INVALID_INPUT", `Codex slug '${slug}' resolves outside the codex directory.`);
+        if (!fs.existsSync(target)) return err("STATE_CONFLICT", `Codex pack '${slug}' is not installed in ${codexDir}.`);
+        fs.unlinkSync(target);
       } else {
         const dir = path.join(DATA_DIR, "novels");
         const target = resolveWithin(dir, `${slug}.json`);
@@ -11576,7 +11636,7 @@ server.registerTool("manage_artifact", {
       }
       audit("remove_artifact", { kind, slug });
       if (state.activeNovel) state.saveNovel(state.activeNovel);
-      return ok(`${kind === "novel" ? "Novel pack" : kind === "adventure" ? "Adventure module" : "Ruleset package"} '${slug}' removed.`);
+      return ok(`${kind === "novel" ? "Novel pack" : kind === "adventure" ? "Adventure module" : kind === "codex" ? "Codex pack" : "Ruleset package"} '${slug}' removed.`);
     }
     default:
       return err("INVALID_INPUT", `Unknown artifact action '${args.action}'. Valid actions: list, install, remove, verify.`);
