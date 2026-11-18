@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-17 — REQ evidence linkage closed: T253 asserted, T87 reconciled, 46 rows ratified
+
+The linkage queue closes on its own stated trigger instead of another three-row chunk. `T253` gains a real asserting site on the `@section evidence` field contract, `T87`'s Appendix F row is reconciled with REQ-100a's no-threshold rule, and the remaining 46 rows carry a reviewed disposition class and a measured evidence string in a new baseline the check now enforces in error mode. ROADMAP item 3 is retired.
+
+- `scripts/lib/req-checks.ts`: `checkEvidenceRecordContract` parses each `@section evidence` record (six exact labels, canonical workflow token, ISO timestamp, `pass`/`fail`, sub-check enumeration); `diffLinkageBaseline` keys dispositions by REQ and T-ID and refuses to suppress any verdict other than `automated-unexercised`
+- `scripts/validate.ts`: the REQ evidence-linkage check moves from warnings to errors — unbaselined finding, stale entry, unknown class, empty evidence, duplicate key, drifted `classes` header, or a missing file fails `validate`; `--write-linkage-baseline` regenerates deterministically and writes new keys as `unclassified` so they fail until dispositioned
+- `spec/audit/evidence-linkage-baseline.json`: 46 reviewed entries (`build-time` 22, `server-drill` 14, `pattern-buffer-gap` 6, `operator` 4), each transcribed from the increment's P1 probe table
+- `spec/appendices-reference.md`: the `T87` row loses its "query latency ≤ 1 second" clause, which REQ-100a forbids; the cold-start tier clause and the recording clauses stay
+- `ROADMAP.md` item 3 retires; the review register closes its Scheduled-roadmap subsection and records two Resolved findings; the coverage register gains `T253`; `AGENTS.md` documents the new flag; the linkage corpus and its flag are retired
+- Five negative probes prove each path: a deleted `Timestamp` field, a removed baseline entry, a bogus key, an `unclassified` class, and a synthetic `no-row` citation
+- `holonovel/src/generated/g7-attestation.ts` regenerates its `SPEC_HASH` after the spec edit; `check:fast` 46/46, `test:validators` 95/95
+
 ## 2026-11-17 — Linkage chunk 9: three cross-artifact agreement checks, residue 50 → 47
 
 Chunk 9 gave three class-(b) rows real asserting sites by cross-checking artifacts that shipped side by side but were never compared. `T205` asserts the DECISIONS.md briefing token table against the runtime registry in order, numbering, and set; `T297` re-derives the Appendix B.4 generator and checks the witness tables plus the transcript's seed-pinned dice; `T106` adds the CalVer-shape clause to the version check. The residue falls 50 → 47.

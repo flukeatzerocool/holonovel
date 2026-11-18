@@ -417,9 +417,14 @@ The implementation-coverage audit runs unconditionally inside every `validate`
 invocation. Three optional flags extend it:
 
 - `npm run validate -- --write-register` — regenerate `spec/audit/req-coverage.md`.
-- `--write-linkage-corpus <path>` — write the full REQ evidence-linkage
-  finding list (one row per finding) instead of only the first ten printed lines;
-  the committed list is `docs/plans/2026-11-15-req-evidence-linkage/corpus.md`.
+- `--write-linkage-baseline` — regenerate
+  `spec/audit/evidence-linkage-baseline.json`, the reviewed per-row dispositions
+  for evidence-linkage rows that no committed artifact can assert. New keys are
+  written as `class: "unclassified"` with empty evidence, so an unclassified
+  regeneration fails the gate until a maintainer assigns a disposition class and
+  an evidence string. The linkage check is error-mode: any unbaselined finding, a
+  stale entry, or an entry whose class is outside `LINKAGE_CLASSES` fails
+  `validate`.
 - `HOLONOVEL_IMPL_STRICT=1` — promote bucket-A (gap) REQs to errors. The push
   pipeline exports it before build-order, so the single `check` pass is strict;
   `.githooks/pre-push` runs the same strict check for a direct push and skips it

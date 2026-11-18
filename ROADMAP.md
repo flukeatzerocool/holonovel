@@ -33,29 +33,6 @@ and its `DISPUTED` adjudications are recorded.
 **Trigger:** the next Holosuite lens change; closes when the derived sample is
 large enough to report a catch rate with a useful confidence interval.
 
-## REQ evidence linkage (P1)
-
-- 47 findings remain — all class (b), rows with no asserting site. Chunk 9 added the
-  cross-artifact agreement checks on 2026-11-17 (`T205` DECISIONS token table ↔ runtime registry,
-  `T297` witness tables ↔ generator ↔ transcript dice, `T106` CalVer shape), so the residue is
-  runtime assertions with no in-repo site. The chunk dispositions live in
-  `docs/plans/2026-11-16-roadmap-drain-5/dispositions.md` through
-  `docs/plans/2026-11-17-roadmap-drain-10/dispositions.md` (chunks 4–9).
-- Class (b) is real, not bookkeeping: chunk 7 authored the `T420`/`T425`/`T439` archetype
-  assertions (`scripts/validate.ts`, `checkCouplingCompleteness`), chunk 8 the committed-artifact
-  assertions (`T186`/`T187` handoff documents, `T298` phase-map hash, `T538` coverage map), and
-  chunk 9 two registry/table comparisons plus a generator re-derivation; each closed a row that
-  had no asserting site.
-- Chunk 9 also pinned its parse predicates rather than inferring them: the briefing check fails
-  loud when the registry markers or `narrative_threads` are absent, and the witness check pins d6
-  for transcript arrays and d20 for the B.4/N.4 columns, so a future die type is a parse error
-  rather than a silent skip. Chunk 7 kept the property parse's empty cell observable; chunk 6
-  created Manual procedures for the class (c) rows. The block closes as a unit because the
-  linkage predicate is T-ID-scoped (`scripts/lib/req-checks.ts:881-887`).
-
-**Trigger:** every remaining row dispositioned and class (a) at zero; closes when the check is
-error-mode in `validate`.
-
 ## Split `index.ts` (P2)
 
 - Add `--repath` to `refresh-predicates`, then extract leaf-first: tool registry,

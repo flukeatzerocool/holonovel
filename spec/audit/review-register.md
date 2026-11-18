@@ -3119,6 +3119,14 @@ disposition, not an evidence one, so nothing is suppressed and triage splits
 them across chunks 2–3. The duplicated `T553` identifier this pass also surfaced
 is resolved below (2026-11-16).
 
+**Closed 2026-11-17** (`docs/plans/2026-11-17-roadmap-drain-11`): the residue was
+ratified row by row rather than drained further. `T253` gained an asserting site
+(`checkEvidenceRecordContract`), `T87`'s Appendix F row was reconciled with
+REQ-100a, and the remaining 46 rows carry a reviewed disposition class and an
+evidence string in `spec/audit/evidence-linkage-baseline.json`, which the check
+now enforces in error mode. ROADMAP item 3 is retired; see the Resolved entry at
+the end of this register.
+
 ### 2026-11-16 — REQ evidence linkage chunk 3 (partial, split recorded)
 
 Chunk 3 (`docs/plans/2026-11-16-roadmap-drain-4`) closed **six** citations and
@@ -3882,3 +3890,25 @@ Closed by `docs/plans/2026-11-16-release-hardening/` (P1 and P2 executed).
   uncomputed lanes are judgment lanes (`JUDGMENT_GM_LANES`).
 - **F10 — §10 independent verification never run. Scheduled-roadmap.** Operator
   step; first post-publish action.
+
+## Resolved — 2026-11-17 REQ evidence linkage closed
+
+- **F-EL-1 — the linkage queue could not converge row by row. Resolved 2026-11-17.**
+  Predicate that failed: the residue predicate is T-ID-scoped
+  (`scripts/lib/req-checks.ts:886-889`), and after nine chunks the remaining 47 rows were
+  live-server drills, builder build-time procedures, Pattern Buffer coverage rows, operator
+  obligations, and one specification contradiction — none assertable from a committed artifact
+  except `T253`. A tenth chunk would have closed at most one row and left the item open on the
+  same terms. Resolved by asserting `T253` (REQ-211c's evidence-record field contract, now
+  `checkEvidenceRecordContract`), reconciling `T87`'s Appendix F row with REQ-100a's no-threshold
+  rule, and ratifying the other 46 rows in `spec/audit/evidence-linkage-baseline.json` — one
+  reviewed disposition class (`server-drill` 14, `build-time` 22, `pattern-buffer-gap` 6,
+  `operator` 4) and one evidence string per row, each produced by a P1 probe recorded in
+  `docs/plans/2026-11-17-roadmap-drain-11/dispositions.md`.
+- **F-EL-2 — the check is now a ratchet, not a waiver list. Resolved 2026-11-17.** Predicate:
+  `validate` counted every linkage finding into `warnings` rather than
+  `errors`, so a new gap never failed the build. The check now fails on any unbaselined finding,
+  any stale entry, any duplicate key, any unknown disposition class, an empty evidence string, a
+  `classes` header that drifts from `LINKAGE_CLASSES`, a missing baseline file, and any verdict
+  other than `automated-unexercised` (which no baseline may suppress). Negative probes for each
+  path are recorded in the increment's AAR.

@@ -4,7 +4,8 @@
 // Exercises checkEmptyReqBodies / checkTruncatedReqBodies against synthetic
 // fixtures, including the `---`-terminated empty-body case (the F1 finding).
 
-import { checkNewBucketB, CHECK_MARKERS, extractCheckCitations, checkReqEvidenceLinkage, labelsFromContent } from "./lib/req-checks.js";
+import type { LinkageFinding } from "./lib/req-checks.js";
+import { checkNewBucketB, CHECK_MARKERS, extractCheckCitations, checkReqEvidenceLinkage, checkEvidenceRecordContract, diffLinkageBaseline, LINKAGE_CLASSES, labelsFromContent } from "./lib/req-checks.js";
 import { checkEmptyReqBodies, checkTruncatedReqBodies, checkReqIdGrammar, checkDecisionsCitations, checkPropertyGroupCount, checkBuildPhaseMapCounts, checkFamilyCheckCoverage, checkReqProceduralContent, checkReqDefaultClauses, checkReqWorkedExamples, checkReqThresholds, checkBaseCapabilityDefaults, checkIndependentVerificationCoverage, checkLicenseSourceParity, checkToolTokenDrift, checkReqSentenceCount, checkHarnessTitleIds, checkHarnessCommentIds, unresolvedPatternRuleTokens } from "./lib/req-checks.js";
 import { extractReferenceProse, extractActionBindings, findDuplicateReqIds, extractReqBodiesWithSentences } from "./lib/parse-spec.js";
 import { extractAppendixM, decideGuardedRuleChange } from "./lib/guarded-rule.js";
@@ -813,6 +814,108 @@ test("labels: a regex literal containing quotes does not desync the scan", () =>
   const src = 'const RE = /["\'`]/;\ncheck(true, "T910: after the regex");';
   const got = labelsFromContent(src);
   if (!got.includes("T910")) throw new Error(`label after a regex literal missed: ${JSON.stringify(got)}`);
+});
+
+
+// ─── Evidence-linkage baseline diff (T253 sibling; REQ-158b family) ──────
+const base = (req: string, tid: string, cls = "server-drill", evidence = "probe → result") =>
+  ({ req, tid, class: cls, evidence });
+const finding = (reqId: string, tid: string, verdict: LinkageFinding["verdict"] = "automated-unexercised"): LinkageFinding =>
+  ({ reqId, tid, kind: "Automated", verdict });
+
+test("baseline: a matching automated-unexercised finding is suppressed", () => {
+  const d = diffLinkageBaseline([finding("REQ-901", "T900")], [base("REQ-901", "T900")]);
+  if (d.unbaselined.length !== 0 || d.stale.length !== 0 || d.invalid.length !== 0) throw new Error(JSON.stringify(d));
+});
+
+test("baseline: an unbaselined automated-unexercised finding is reported", () => {
+  const d = diffLinkageBaseline([finding("REQ-901", "T900")], []);
+  if (d.unbaselined.length !== 1) throw new Error(`expected one: ${JSON.stringify(d)}`);
+});
+
+test("baseline: a no-row verdict cannot be suppressed even with a matching key", () => {
+  const d = diffLinkageBaseline([finding("REQ-901", "T900", "no-row" as any)], [base("REQ-901", "T900")]);
+  if (d.unbaselined.length !== 1) throw new Error(`a no-row finding must stay unbaselined: ${JSON.stringify(d)}`);
+});
+
+test("baseline: a stale entry is reported", () => {
+  const d = diffLinkageBaseline([], [base("REQ-901", "T900")]);
+  if (d.stale.join(",") !== "REQ-901|T900") throw new Error(JSON.stringify(d));
+});
+
+test("baseline: an unknown disposition class is invalid", () => {
+  const d = diffLinkageBaseline([finding("REQ-901", "T900")], [base("REQ-901", "T900", "unclassified")]);
+  if (d.invalid.length !== 1) throw new Error(JSON.stringify(d));
+});
+
+test("baseline: an empty evidence string is invalid", () => {
+  const d = diffLinkageBaseline([finding("REQ-901", "T900")], [base("REQ-901", "T900", "operator", "  ")]);
+  if (d.invalid.length !== 1) throw new Error(JSON.stringify(d));
+});
+
+test("baseline: a duplicate key is invalid", () => {
+  const d = diffLinkageBaseline([finding("REQ-901", "T900")], [base("REQ-901", "T900"), base("REQ-901", "T900")]);
+  if (d.invalid.length !== 1) throw new Error(JSON.stringify(d));
+});
+
+test("baseline: the class set is closed and non-empty", () => {
+  if (LINKAGE_CLASSES.length < 2) throw new Error("class set collapsed");
+  if (!LINKAGE_CLASSES.includes("server-drill") || !LINKAGE_CLASSES.includes("operator")) throw new Error("expected classes missing");
+});
+
+test("baseline: a key is REQ+T-ID, so a second citing REQ is not waived", () => {
+  const d = diffLinkageBaseline([finding("REQ-901", "T900"), finding("REQ-902", "T900")], [base("REQ-901", "T900")]);
+  if (d.unbaselined.length !== 1 || d.unbaselined[0].reqId !== "REQ-902") throw new Error(JSON.stringify(d));
+});
+
+// ─── Evidence-record contract parser (T253) ─────────────────────────────
+const RECORD = [
+  "@section evidence",
+  "",
+  "- **Workflow** — G7 narrative-coherence attestation.",
+  "- **Timestamp** — 2026-11-15T08:55Z (session close).",
+  "- **Environment pins** — Node 24.x, Linux x86-64.",
+  "- **Commands and output** — `npm run check:fast` → 44 passed.",
+  "- **Pass/fail** — pass.",
+  "- **Findings** — no blocking finding.",
+  "- **(a) implementation status** — 82 of 82 bodies converged.",
+  "- **spec_health.narrative_coherence** — `pass`.",
+  "",
+].join("\n");
+
+test("T253: a well-formed record reports nothing", () => {
+  const issues = checkEvidenceRecordContract(RECORD);
+  if (issues.length !== 0) throw new Error(JSON.stringify(issues));
+});
+
+test("T253: a missing label is reported", () => {
+  const issues = checkEvidenceRecordContract(RECORD.replace("- **Timestamp** — 2026-11-15T08:55Z (session close).\n", ""));
+  if (!issues.some((i) => i.includes("T253") && i.includes("Timestamp"))) throw new Error(JSON.stringify(issues));
+});
+
+test("T253: a malformed timestamp is reported", () => {
+  const issues = checkEvidenceRecordContract(RECORD.replace("2026-11-15T08:55Z", "15 November"));
+  if (!issues.some((i) => i.includes("malformed 'Timestamp'"))) throw new Error(JSON.stringify(issues));
+});
+
+test("T253: a non-canonical workflow token is reported", () => {
+  const issues = checkEvidenceRecordContract(RECORD.replace("G7 narrative", "Gold narrative"));
+  if (!issues.some((i) => i.includes("canonical workflow token"))) throw new Error(JSON.stringify(issues));
+});
+
+test("T253: a non pass/fail value is reported", () => {
+  const issues = checkEvidenceRecordContract(RECORD.replace("— pass.", "— maybe."));
+  if (!issues.some((i) => i.includes("neither pass nor fail"))) throw new Error(JSON.stringify(issues));
+});
+
+test("T253: a missing sub-check enumeration is reported", () => {
+  const issues = checkEvidenceRecordContract(RECORD.replace("- **(a) implementation status** — 82 of 82 bodies converged.\n", ""));
+  if (!issues.some((i) => i.includes("no sub-check enumeration"))) throw new Error(JSON.stringify(issues));
+});
+
+test("T253: no marker is a failure, and a null text is skipped", () => {
+  if (checkEvidenceRecordContract("# nothing here").length !== 1) throw new Error("a missing marker must fail");
+  if (checkEvidenceRecordContract(null).length !== 0) throw new Error("a null text must skip");
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

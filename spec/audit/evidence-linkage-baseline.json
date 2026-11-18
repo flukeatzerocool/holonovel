@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "purpose": "Reviewed dispositions for REQ evidence-linkage rows that no committed artifact can assert.",
+  "classes": [
+    "server-drill",
+    "build-time",
+    "pattern-buffer-gap",
+    "operator",
+    "spec-conflict"
+  ],
+  "entries": [
+    {
+      "req": "REQ-011c",
+      "tid": "T182",
+      "class": "build-time",
+      "evidence": "Phase-1 `[category-confidence-block]` is a builder finding in DECISIONS (5); probe `category-confidence-block` → 0 hits"
+    },
+    {
+      "req": "REQ-012",
+      "tid": "T4",
+      "class": "server-drill",
+      "evidence": "exact/prefix/substring rank-3 requires live `manage_ruleset (action: search)`; probe `substring quer` → 0 hits"
+    },
+    {
+      "req": "REQ-088h2",
+      "tid": "T379",
+      "class": "server-drill",
+      "evidence": "codex→Novel bootstrap needs a live `manage_codex`/`manage_novel` call; probe `codex_adventure` → `test-narrative.ts:749` exercises the parameter, no title carries T379"
+    },
+    {
+      "req": "REQ-088h2",
+      "tid": "T72",
+      "class": "server-drill",
+      "evidence": "Novel state file/restart/end/resume needs a live server; probe `TTRPG_NOVEL` → 27 hits incl. `run_ruleset_pattern_buffer.ts:604`, no title carries T72"
+    },
+    {
+      "req": "REQ-088h2",
+      "tid": "T73",
+      "class": "server-drill",
+      "evidence": "Novel isolation across two Novels needs live calls; probe `novel isolation` → `run_ruleset_pattern_buffer.ts:235` (S13 scenario, not a test title)"
+    },
+    {
+      "req": "REQ-100b",
+      "tid": "T87",
+      "class": "operator",
+      "evidence": "a measurement run plus a DECISIONS (4) record; probe `query_latency_ms` → `check-performance-record.ts:30` asserts presence under T686, not the tier threshold"
+    },
+    {
+      "req": "REQ-100d",
+      "tid": "T87",
+      "class": "operator",
+      "evidence": "per-category latencies recorded by the builder; same probe as REQ-100b; no in-repo measurement record carries a tier"
+    },
+    {
+      "req": "REQ-108b",
+      "tid": "T107",
+      "class": "pattern-buffer-gap",
+      "evidence": "a DECISIONS (6) sub-workflow→REQ map over §5.5/§5.6/§5.7/REQ-002; probe `sub-workflow-to-REQ` → only the §6.6 map parser (`scripts/lib/subworkflow.ts:1`), no DECISIONS artifact"
+    },
+    {
+      "req": "REQ-110",
+      "tid": "T113",
+      "class": "server-drill",
+      "evidence": "schema-identity comparison needs `tools/list` on a live server; probe `category enum` → 0 hits"
+    },
+    {
+      "req": "REQ-111b",
+      "tid": "T114",
+      "class": "server-drill",
+      "evidence": "search ranking/limit/context needs live queries; probe `suppressed-result` → 0 hits"
+    },
+    {
+      "req": "REQ-114b",
+      "tid": "T117",
+      "class": "build-time",
+      "evidence": "a curated intent set in RULESET_MODEL.md and a coverage percentage; probe `suggest coverage` → 0; no `RULESET_MODEL.md` in the tree (`find . -name RULESET_MODEL.md` → none)"
+    },
+    {
+      "req": "REQ-131c",
+      "tid": "T145",
+      "class": "server-drill",
+      "evidence": "initialization-order briefing needs a live restart drill; probe `initialization order` → one comment (`scripts/validate.ts:2080`), no assertion"
+    },
+    {
+      "req": "REQ-141b",
+      "tid": "T163",
+      "class": "build-time",
+      "evidence": "S14a failure mapping, Phase 2 re-entry, DECISIONS (6) record; probe `input-validation` → 0 hits"
+    },
+    {
+      "req": "REQ-141k",
+      "tid": "T537",
+      "class": "pattern-buffer-gap",
+      "evidence": "harness coverage of every §6.6 sub-workflow; chunk 9 measured 29 `s_id` scenarios against 37 sub-workflows (`docs/plans/2026-11-17-roadmap-drain-9/plan.md:110-116`)"
+    },
+    {
+      "req": "REQ-141l",
+      "tid": "T539",
+      "class": "pattern-buffer-gap",
+      "evidence": "partial-run disposition record with a fingerprint reason or operator acceptance; probe `partial-run` → 0 hits"
+    },
+    {
+      "req": "REQ-142b",
+      "tid": "T164",
+      "class": "pattern-buffer-gap",
+      "evidence": "blocking/non-blocking classification record per sub-workflow; probe `blocking classification` → 0 hits"
+    },
+    {
+      "req": "REQ-146d",
+      "tid": "T174",
+      "class": "build-time",
+      "evidence": "reconciliation-authority criteria and `[authority-tie]` defects on a three-section build; probe `authority-tie` → 0 hits"
+    },
+    {
+      "req": "REQ-149",
+      "tid": "T184",
+      "class": "server-drill",
+      "evidence": "MCP conformance gate: launch a server, run every Appendix D check; probe `MCP conformance` → 0 hits"
+    },
+    {
+      "req": "REQ-150b",
+      "tid": "T185",
+      "class": "build-time",
+      "evidence": "G2 replay plus a per-contract coverage record in DECISIONS (6); no G2 record exists (`grep -n \"^G2\" holonovel/DECISIONS.md` → none)"
+    },
+    {
+      "req": "REQ-162c",
+      "tid": "T197",
+      "class": "build-time",
+      "evidence": "production/quick-build profiles and their DECISIONS annotations; probe `quick-build` → 0 hits"
+    },
+    {
+      "req": "REQ-207c",
+      "tid": "T251",
+      "class": "build-time",
+      "evidence": "core-mechanic identification on a fixture build with the §6.5 confidence threshold; probe `core resolution mechanic` → 0 hits"
+    },
+    {
+      "req": "REQ-208b",
+      "tid": "T250",
+      "class": "build-time",
+      "evidence": "Pattern Buffer failure→metric mapping recorded in DECISIONS (6); probe `mechanics-fidelity` → `run_ruleset_pattern_buffer.ts:8` (ruleset build scaffolding, no assertion of the mapping)"
+    },
+    {
+      "req": "REQ-210b",
+      "tid": "T173",
+      "class": "build-time",
+      "evidence": "per-chunk Concept resolution and deferred references in the build defect log; probe `deferred-reference` → 0 hits"
+    },
+    {
+      "req": "REQ-211c",
+      "tid": "T188",
+      "class": "operator",
+      "evidence": "H12 cold-checkout G2 replay record with command/exit_code/g2_result/env_pins; probe `H12` → 0 hits (`spec/06-artifacts.md:57` defines the record); same dependency as ROADMAP item 1"
+    },
+    {
+      "req": "REQ-212b",
+      "tid": "T46",
+      "class": "build-time",
+      "evidence": "cross-file extraction on the fixture files (anchor, entity collapse, inline mechanics); probe `Marshwise` → 0 hits (the fixture text lives in `spec/appendices-fixtures.md`)"
+    },
+    {
+      "req": "REQ-225b",
+      "tid": "T301",
+      "class": "build-time",
+      "evidence": "synthesis extraction ≥4-of-7 modules with `[ruleset]` tags on a build; probe `voice_examples` → runtime hits only, no extraction assertion"
+    },
+    {
+      "req": "REQ-228c",
+      "tid": "T304",
+      "class": "build-time",
+      "evidence": "synthesis consistency during a Minor spec-driven update; probe `removed surface` → 0 hits"
+    },
+    {
+      "req": "REQ-243d",
+      "tid": "T308",
+      "class": "build-time",
+      "evidence": "synthesis population for a newly added surface, per-module counts in DECISIONS; probe `synthesis_manifest` → 0 hits"
+    },
+    {
+      "req": "REQ-245e",
+      "tid": "T310",
+      "class": "build-time",
+      "evidence": "a populated `synthesis_manifest.json` from a provider-doc build; probe `synthesis_manifest` → 0 hits (no such file in the tree)"
+    },
+    {
+      "req": "REQ-245e",
+      "tid": "T495",
+      "class": "build-time",
+      "evidence": "host-owned metric disposition recorded in DECISIONS (5) against a pre-built host; probe `host-verified` → 0 hits"
+    },
+    {
+      "req": "REQ-273b",
+      "tid": "T293",
+      "class": "operator",
+      "evidence": "Phase 1 independent verification: seed-pinned dice, prose tolerance, discrepancy classes (§10); probe `Unclassifiable` → 0 hits"
+    },
+    {
+      "req": "REQ-302b",
+      "tid": "T346",
+      "class": "server-drill",
+      "evidence": "per-section re-extraction and `spec_health.section_hashes` on a live build; probe `section_hashes` → 0 hits"
+    },
+    {
+      "req": "REQ-315b",
+      "tid": "T360",
+      "class": "server-drill",
+      "evidence": "`manage_diagnostics (action: health)` coverage plus live searches; probe `search_index_coverage` → 0 hits"
+    },
+    {
+      "req": "REQ-327c",
+      "tid": "T371",
+      "class": "build-time",
+      "evidence": "constraint-override extraction with type/mechanic/anchor on a build; probe `constraint override` → `test-output-contracts.ts:2465` asserts T372 (the runtime catalog), not the extraction record"
+    },
+    {
+      "req": "REQ-369b",
+      "tid": "T436",
+      "class": "server-drill",
+      "evidence": "scene↔NPC advisory couplings on live calls; probe `P41` → 0 hits"
+    },
+    {
+      "req": "REQ-369b",
+      "tid": "T437",
+      "class": "server-drill",
+      "evidence": "countdown→scene coupling with undo-stack visibility; probe `world_effect` → model types only (`holonovel/scripts/lib/playability-model.ts:72`)"
+    },
+    {
+      "req": "REQ-369b",
+      "tid": "T438",
+      "class": "server-drill",
+      "evidence": "lore→scene surfacing and badge scope on live calls; probe `lore-relevant` → 0 hits"
+    },
+    {
+      "req": "REQ-371b",
+      "tid": "T422",
+      "class": "build-time",
+      "evidence": "vendor Ruleset Wisdom rendered into a Novel requires a host carrying vendor Wisdom; probe `wisdom` → `scripts/validate.ts:1058` (archetype token list), no enactment assertion"
+    },
+    {
+      "req": "REQ-371b",
+      "tid": "T428",
+      "class": "build-time",
+      "evidence": "Wisdom mechanical enactment (S33) under a vendor-Wisdom host; probe `P7` → unrelated fingerprints and S27; no T428 assertion"
+    },
+    {
+      "req": "REQ-371b",
+      "tid": "T496",
+      "class": "build-time",
+      "evidence": "enrichment artifact-scope: `[ruleset]` ratio on the artifact, `[vendor]` only at runtime; probe `vendor manifest` → the manifest gate (`check-vendor-manifest.ts:160`), a different contract"
+    },
+    {
+      "req": "REQ-375b",
+      "tid": "T426",
+      "class": "build-time",
+      "evidence": "≥30% Mechanical coupling nature over extracted Wisdom items; probe `mechanical coupling` → one comment (`scripts/validate.ts:2042`), no metric assertion"
+    },
+    {
+      "req": "REQ-376a3",
+      "tid": "T431",
+      "class": "pattern-buffer-gap",
+      "evidence": "a DECISIONS (6) Holonovel sub-workflow→REQ map over §5.10/§5.12/§5.13/§5.15/REQ-367; the map ships in `spec/03-build.md:1948-1974` (25 rows) and its prose calls a gap \"a review finding, not an assembly error\" (`:1945-1946`); probe `Holonovel Pattern Buffer` → harness files only"
+    },
+    {
+      "req": "REQ-376b",
+      "tid": "T431",
+      "class": "pattern-buffer-gap",
+      "evidence": "same row as REQ-376a3 (two REQs cite one T-ID)"
+    },
+    {
+      "req": "REQ-377d",
+      "tid": "T432",
+      "class": "build-time",
+      "evidence": "coupling extraction against D&D 5e (Fireball/Darkness/Light/Hold Person); probe `Hold Person` → 0 hits; no committed coupling table in the reference tree"
+    },
+    {
+      "req": "REQ-378b",
+      "tid": "T433",
+      "class": "build-time",
+      "evidence": "coupling density and Mechanical share on a D&D 5e build; probe `low-mechanical-coupling` → 0 hits"
+    },
+    {
+      "req": "REQ-416",
+      "tid": "T489",
+      "class": "server-drill",
+      "evidence": "config default inheritance rendered by `spec_health` on a live server; probe `defaults section` → 0 hits"
+    }
+  ]
+}

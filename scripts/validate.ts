@@ -43,6 +43,10 @@ import {
   CHECK_MARKERS,
   extractCheckCitations,
   checkReqEvidenceLinkage,
+  checkEvidenceRecordContract,
+  diffLinkageBaseline,
+  LINKAGE_CLASSES,
+  type LinkageBaselineEntry,
   labelsFromContent,
   unresolvedPatternRuleTokens,
   extractSection,
@@ -1815,6 +1819,41 @@ function applyRatchet(name: string, current: number, baseline: number | undefine
   return null;
 }
 
+// Reviewed per-row dispositions for the REQ evidence-linkage check. A missing or
+// malformed file fails closed: every finding is unbaselined, so the gate errors
+// rather than passing an empty set. The file's `classes` array must mirror
+// LINKAGE_CLASSES, so the taxonomy cannot drift silently.
+const LINKAGE_BASELINE_PATH = path.resolve(__dirname, "..", "spec", "audit", "evidence-linkage-baseline.json");
+
+function loadLinkageBaseline(file: string): { entries: LinkageBaselineEntry[]; issue: string | null } {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(fs.readFileSync(file, "utf-8"));
+  } catch {
+    return { entries: [], issue: `spec/audit/evidence-linkage-baseline.json is missing or unreadable — every linkage finding counts as unbaselined` };
+  }
+  if (typeof raw !== "object" || raw === null) return { entries: [], issue: "spec/audit/evidence-linkage-baseline.json is not an object" };
+  const record = raw as { classes?: unknown; entries?: unknown };
+  if (!Array.isArray(record.entries)) return { entries: [], issue: "spec/audit/evidence-linkage-baseline.json has no 'entries' array" };
+  const classes = Array.isArray(record.classes) ? record.classes.map(String) : [];
+  const drift = classes.length !== LINKAGE_CLASSES.length || LINKAGE_CLASSES.some((c) => !classes.includes(c));
+  const entries = record.entries
+    .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
+    .map((e) => ({ req: String(e.req ?? ""), tid: String(e.tid ?? ""), class: String(e.class ?? ""), evidence: String(e.evidence ?? "") }));
+  return { entries, issue: drift ? `spec/audit/evidence-linkage-baseline.json 'classes' array does not mirror LINKAGE_CLASSES (${LINKAGE_CLASSES.join(", ")})` : null };
+}
+
+function writeLinkageBaseline(file: string, entries: LinkageBaselineEntry[]): void {
+  const payload = {
+    schema_version: 1,
+    purpose: "Reviewed dispositions for REQ evidence-linkage rows that no committed artifact can assert.",
+    classes: [...LINKAGE_CLASSES],
+    entries,
+  };
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(payload, null, 2) + "\n");
+}
+
 // Placeholder-stub detection (REQ-090/091 guard). Returns the stub sentinel
 // strings still present in the server source. A registered tool body that
 // returns a sentinel string (e.g. "(Placeholder" or "no ruleset mechanics
@@ -2963,6 +3002,11 @@ function main(): void {
     // re-labelling every Manual citation as undocumented.
     decisionsText = null;
   }
+  const evidenceRecordIssues = checkEvidenceRecordContract(decisionsText);
+  if (evidenceRecordIssues.length > 0) {
+    for (const issue of evidenceRecordIssues) console.log(`ERROR: ${issue}`);
+    errors += evidenceRecordIssues.length;
+  } else console.log("PASS: Evidence record field contract (T253)");
   const linkage = checkReqEvidenceLinkage({
     citations: extractCheckCitations(getReqBodies(text)),
     rows: parseAppendixFTestText(text),
@@ -2971,18 +3015,27 @@ function main(): void {
   });
   const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
   const linkageSorted = [...linkage].sort((a, b) => cmp(a.reqId, b.reqId) || cmp(a.tid, b.tid));
-  const corpusAt = process.argv.indexOf("--write-linkage-corpus");
-  const corpusPath = corpusAt === -1 ? null : process.argv[corpusAt + 1];
-  if (corpusPath) {
-    const rows = ["| REQ | T-ID | kind | verdict |", "|---|---|---|---|"];
-    for (const f of linkageSorted) rows.push(`| ${f.reqId} | ${f.tid} | ${f.kind} | ${f.verdict} |`);
-    fs.writeFileSync(corpusPath, rows.join("\n") + "\n");
+  const writeLinkageBaselineFlag = process.argv.includes("--write-linkage-baseline");
+  if (writeLinkageBaselineFlag) {
+    const prior = loadLinkageBaseline(LINKAGE_BASELINE_PATH);
+    const priorByKey = new Map(prior.entries.map((e) => [`${e.req}|${e.tid}`, e]));
+    const next: LinkageBaselineEntry[] = linkageSorted.map((f) =>
+      priorByKey.get(`${f.reqId}|${f.tid}`) ?? { req: f.reqId, tid: f.tid, class: "unclassified", evidence: "" });
+    for (const key of priorByKey.keys()) {
+      if (!linkageSorted.some((f) => `${f.reqId}|${f.tid}` === key)) console.log(`Dropped baseline entry ${key} (no longer a finding)`);
+    }
+    writeLinkageBaseline(LINKAGE_BASELINE_PATH, next);
+    console.log(`Baseline written: ${next.length} entries`);
   }
-  for (const f of linkageSorted.slice(0, 10)) {
-    console.log(`WARNING: REQ-EVIDENCE ${f.reqId} — ${f.tid} — ${f.verdict}`);
-  }
-  console.log(`REQ evidence linkage: ${linkage.length} finding(s)`);
-  warnings += linkage.length;
+  const loadedBaseline = loadLinkageBaseline(LINKAGE_BASELINE_PATH);
+  const linkDiff = diffLinkageBaseline(linkage, loadedBaseline.entries);
+  if (loadedBaseline.issue) { console.log(`ERROR: ${loadedBaseline.issue}`); errors++; }
+  for (const issue of linkDiff.invalid) { console.log(`ERROR: REQ-EVIDENCE baseline ${issue}`); errors++; }
+  for (const key of linkDiff.stale) { console.log(`ERROR: REQ-EVIDENCE baseline ${key} — no matching finding; delete the entry`); errors++; }
+  for (const f of linkDiff.unbaselined.slice(0, 10)) console.log(`ERROR: REQ-EVIDENCE ${f.reqId} — ${f.tid} — ${f.verdict} (not in the reviewed baseline)`);
+  errors += linkDiff.unbaselined.length;
+  const baselinedCount = linkage.length - linkDiff.unbaselined.length;
+  console.log(`REQ evidence linkage: ${baselinedCount} baselined, ${linkDiff.unbaselined.length} unbaselined finding(s)`);
 
   const bucketCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, E: 0 };
   for (const r of implRows) bucketCounts[r.bucket]++;

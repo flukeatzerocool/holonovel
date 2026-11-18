@@ -869,8 +869,7 @@ export function labelsFromContent(text: string): string[] {
   return [...new Set(ids)].sort();
 }
 
-export function checkReqEvidenceLinkage(input: {
-  citations: ReadonlyMap<string, string[]>;
+export function checkReqEvidenceLinkage(input: {  citations: ReadonlyMap<string, string[]>;
   rows: ReadonlyMap<string, { kind: string }>;
   exercised: ReadonlySet<string>;
   decisionsText: string | null;
@@ -901,3 +900,146 @@ export function checkReqEvidenceLinkage(input: {
   }
   return findings;
 }
+
+// Reviewed dispositions for evidence-linkage rows that no committed artifact
+// can assert. The set is closed in code and mirrored in the baseline file's
+// `classes` array; a mismatch is a finding, so the file cannot quietly narrow
+// the taxonomy. A row leaves the baseline only by gaining an asserting site or
+// by a spec-side correction that removes it from the linkage report.
+export const LINKAGE_CLASSES = [
+  "server-drill",
+  "build-time",
+  "pattern-buffer-gap",
+  "operator",
+  "spec-conflict",
+] as const;
+
+export type LinkageClass = (typeof LINKAGE_CLASSES)[number];
+
+export interface LinkageBaselineEntry {
+  req: string;
+  tid: string;
+  class: string;
+  evidence: string;
+}
+
+export interface LinkageBaselineDiff {
+  unbaselined: LinkageFinding[];
+  stale: string[];
+  invalid: string[];
+}
+
+const linkageKey = (req: string, tid: string): string => `${req}|${tid}`;
+
+// Only `automated-unexercised` is suppressible: a row with no Appendix F entry,
+// an undocumented Manual row, or an unknown kind is a defect no baseline may
+// waive. Entries are keyed by REQ and T-ID, so a newly citing REQ cannot ride an
+// existing waiver.
+export function diffLinkageBaseline(
+  findings: readonly LinkageFinding[],
+  entries: readonly LinkageBaselineEntry[],
+): LinkageBaselineDiff {
+  const diff: LinkageBaselineDiff = { unbaselined: [], stale: [], invalid: [] };
+  const byKey = new Map<string, LinkageBaselineEntry>();
+  for (const entry of entries) {
+    const key = linkageKey(entry.req, entry.tid);
+    if (!entry.req || !entry.tid) {
+      diff.invalid.push(`${key} — entry must carry both 'req' and 'tid'`);
+      continue;
+    }
+    if (byKey.has(key)) {
+      diff.invalid.push(`${key} — duplicate baseline entry`);
+      continue;
+    }
+    byKey.set(key, entry);
+    if (!(LINKAGE_CLASSES as readonly string[]).includes(entry.class)) {
+      diff.invalid.push(`${key} — disposition class '${entry.class}' is not one of ${LINKAGE_CLASSES.join(", ")}`);
+    }
+    if (entry.evidence.trim() === "") diff.invalid.push(`${key} — evidence is empty`);
+  }
+  const findingKeys = new Set<string>();
+  for (const finding of findings) {
+    const key = linkageKey(finding.reqId, finding.tid);
+    findingKeys.add(key);
+    if (finding.verdict !== "automated-unexercised") {
+      diff.unbaselined.push(finding);
+      continue;
+    }
+    const entry = byKey.get(key);
+    // A present entry suppresses; an invalid entry errors on its own line, so
+    // the finding is not double-reported here.
+    if (!entry) diff.unbaselined.push(finding);
+  }
+  for (const key of byKey.keys()) if (!findingKeys.has(key)) diff.stale.push(key);
+  return diff;
+}
+
+// T253 (REQ-211c) — a DECISIONS.md (6) evidence record must parse to the minimum
+// field set without prose interpretation: workflow identifier, timestamp,
+// environment pins, pass/fail status, and a sub-check enumeration. The record is
+// the contiguous `- ` bullet run after each `@section evidence` marker (blank
+// lines before and inside the run are tolerated); the required labels are exact
+// bold labels, and bullets carrying other labels are ignored, so an extra bullet
+// cannot satisfy a missing field.
+const EVIDENCE_RECORD_LABELS = [
+  "Workflow",
+  "Timestamp",
+  "Environment pins",
+  "Commands and output",
+  "Pass/fail",
+  "Findings",
+] as const;
+const WORKFLOW_TOKEN_RE = /^(G0a|G0b|G[2-8]|H(?:1[0-8]|[1-9]))\b/;
+const EVIDENCE_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})/;
+
+export function checkEvidenceRecordContract(decisionsText: string | null): string[] {
+  // Absent in a scratch checkout: skip rather than re-label, the same rule the
+  // Manual-rule check follows (scripts/lib/req-checks.ts:891-892).
+  if (decisionsText === null) return [];
+  const issues: string[] = [];
+  const lines = decisionsText.split("\n");
+  const markers: number[] = [];
+  for (let i = 0; i < lines.length; i++) if (/^@section evidence\b/.test(lines[i].trim())) markers.push(i);
+  if (markers.length === 0) return ["T253 — holonovel/DECISIONS.md carries no `@section evidence` marker"];
+
+  for (const at of markers) {
+    let i = at + 1;
+    while (i < lines.length && lines[i].trim() === "") i++;
+    const run: string[] = [];
+    for (; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.trim() === "") continue;
+      if (/^- /.test(line)) { run.push(line); continue; }
+      break;
+    }
+    const where = `evidence record at line ${at + 1}`;
+    const fields = new Map<string, string>();
+    for (const line of run) {
+      const m = line.match(/^- \*\*([^*]+)\*\*\s+—\s+(.+)$/);
+      if (!m) continue;
+      const key = m[1].trim();
+      const value = m[2].trim();
+      if ((EVIDENCE_RECORD_LABELS as readonly string[]).includes(key) && !fields.has(key)) fields.set(key, value);
+    }
+    for (const label of EVIDENCE_RECORD_LABELS) {
+      const value = fields.get(label);
+      if (value === undefined || value === "") issues.push(`T253 — ${where} is missing a non-empty '${label}' field`);
+    }
+    const workflow = fields.get("Workflow");
+    if (workflow !== undefined && workflow !== "" && !WORKFLOW_TOKEN_RE.test(workflow)) {
+      issues.push(`T253 — ${where} has no canonical workflow token in 'Workflow' (${workflow.slice(0, 40)})`);
+    }
+    const timestamp = fields.get("Timestamp");
+    if (timestamp !== undefined && timestamp !== "" && !EVIDENCE_TIMESTAMP_RE.test(timestamp)) {
+      issues.push(`T253 — ${where} has a malformed 'Timestamp' (${timestamp.slice(0, 40)})`);
+    }
+    const passFail = fields.get("Pass/fail");
+    if (passFail !== undefined && passFail !== "" && !/^(pass|fail)\b/i.test(passFail)) {
+      issues.push(`T253 — ${where} has a 'Pass/fail' value that is neither pass nor fail (${passFail.slice(0, 40)})`);
+    }
+    const subChecks = run.filter((l) => /^- \*\*\([a-z]\) [^*]+\*\*\s+—\s+\S/.test(l));
+    if (subChecks.length === 0) issues.push(`T253 — ${where} has no sub-check enumeration bullet`);
+  }
+  return issues;
+}
+
