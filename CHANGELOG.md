@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-17 — index.ts split, stage 1: --repath and the knowledge-tool cluster
+
+The extraction that ROADMAP item 4 calls for starts with the prerequisite it names: anchors could not follow a symbol between files, so the tool that repairs them now can. `index.ts` sheds its largest closed block — belief, identity, knowledge, agent, perception, and subjective memory — which moves verbatim behind a destructured context; the file drops from 19,156 to 17,856 lines with no behavioural change (`test:all` 56/56).
+
+- `scripts/refresh-predicates.ts` + `scripts/lib/anchor-resolver.ts`: `--repath` searches the recorded path's own source root when the file no longer carries the symbol, and rewrites the path as well as the line only when exactly one file in that root carries it; two carriers refuse as ambiguous, a missing file stays unresolved, and the check without the flag fails naming the repair
+- `scripts/test-anchor-tooling.ts`: nine scratch-tree cases, including the live shape (a moved description line) and a caller in the other root that must not compete for the match
+- `package.json`: `fix-anchors` passes `--repath`, so the repair the `check-anchors` gate names can perform a move
+- `holonovel/src/tools/context.ts` (new): `ToolContext` carries the ten host services the moved handlers use — the state singleton, the OK/raw/error envelope builders, the audit writer, the behavioral config readers, the detail normalizer, the memory-scoring inputs, the window verdict, and the scoped-action merger
+- `holonovel/src/tools/knowledge.ts` (new): `index.ts:10323-11626` moved verbatim behind `registerKnowledgeTools(register, ctx)`, which returns the five helpers the rest of the server still calls (`identityFor`, `handleCausalActions`, `handleCorpusActions`, `gatherIndexSources`, `gatherGraphSources`); the registrations keep their original order, and the register argument is the patched `server.registerTool`, so annotation enforcement and every handler wrapper stay in force
+- 21 evidence anchors relocate with the code: one repaths into the new module (`knowledge_query` at the `manage_belief` description), the rest follow the block's 1,299-line net shift; the shift is past the resolver's ±40 window, so the relocation is applied by the block's exact offset and then verified, and ROADMAP item 4 gains the bullet that closes the gap
+- `AGENTS.md` and `holonovel/AGENTS.md` describe the new flag and the two modules; the review register records the anchor-window finding as scheduled work; `check:fast` 46/46
+
 ## 2026-11-17 — REQ evidence linkage closed: T253 asserted, T87 reconciled, 46 rows ratified
 
 The linkage queue closes on its own stated trigger instead of another three-row chunk. `T253` gains a real asserting site on the `@section evidence` field contract, `T87`'s Appendix F row is reconciled with REQ-100a's no-threshold rule, and the remaining 46 rows carry a reviewed disposition class and a measured evidence string in a new baseline the check now enforces in error mode. ROADMAP item 3 is retired.

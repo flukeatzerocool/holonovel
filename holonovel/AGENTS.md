@@ -43,7 +43,21 @@ src/tool-registry.ts    Tool registry: the single definition site. `ToolRegistry
                         `bindMcp` binds them to the MCP adapter. Dynamic
                         definitions register immediately once bound.
         ↓
+src/tools/context.ts    ToolContext — the host services a tool module destructures: the
+                        StateManager singleton, the OK/raw/error envelope builders, the
+                        audit writer, the behavioral `TTRPG_*` readers, the detail
+                        normalizer, the subjective-memory scoring inputs, the
+                        window-aware divergence verdict, and the scoped-action merger.
+src/tools/knowledge.ts  Knowledge, identity, and agency tools — manage_belief (evidence,
+                        stances, perception ledger, subjective memory), manage_identity,
+                        manage_knowledge (semantic index and knowledge graph), and
+                        manage_agent. Moved verbatim from index.ts (split stage 1) behind
+                        registerKnowledgeTools(register, ctx), which returns the five
+                        helpers index.ts still calls.
 src/index.ts            McpServer adapter: 37 action-discriminator tools, 47 resources and 23 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
+                        Registers tools through the registry, then binds MCP. Knowledge-family
+                        tools register from src/tools/knowledge.ts; index.ts is 17,856 lines
+                        after the stage-1 split (target: no file above 3,000).
                         Registers tools through the registry, then binds MCP.
                         Entry point for STDIO transport, guarded by
                         HOLONOVEL_NO_AUTOSTART. Badge gating via

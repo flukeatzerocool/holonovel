@@ -3085,6 +3085,19 @@ retired with the `Loop-gate fix-up rate re-measurement` section.
 
 ## Scheduled-roadmap
 
+### 2026-11-17 index.ts split (P2) — the anchor window cannot follow a block move
+
+Stage 1 (`docs/plans/2026-11-17-index-split-1`) found that `refresh-predicates`
+resolves only inside its ±40-line window (`scripts/lib/anchor-resolver.ts:56-68`) and
+otherwise refuses; `--repath` covers a symbol that left its file entirely, not one that
+moved 1,299 lines inside the same file. After the block move, 12 anchors were reported
+`ambiguous` and eight more resolved to a *nearby wrong* occurrence of the word —
+`--write` would have written those silently (`scripts/refresh-predicates.ts:85` accepts
+any recorded line that contains the symbol, so the wrong line then self-validates). The
+increment relocated all 21 anchors by the block's exact net offset and confirmed each
+line, and ROADMAP item 4 gains the closing bullet: a move repaths by a declared offset or
+verifies every rewritten line.
+
 ### 2026-11-15 REQ evidence linkage (P1)
 
 Chunk 2 of 3 landed 2026-11-16 (`docs/plans/2026-11-16-roadmap-drain-3`): the
