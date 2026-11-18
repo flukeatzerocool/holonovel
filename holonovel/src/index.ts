@@ -81,6 +81,7 @@ import {
   createEmptyWorldModel, convertSource, linkAnnotations, annotationName, worldMap, worldKinds, containmentChain, verbCatalog,
   BASE_PARSER_COMMANDS, oppositeDirection, PARSER_CATALOG, READONLY_VERBS, type ParserCategory, type AnnotationDirective,
 } from "./world/model.js";
+import type { WorldGenRole, GeneratedSecret, GeneratedWitness, WorldGenTable, WorldGenRoll } from "./world/generation-types.js";
 import { dispatchCommand, resolveGoMovement, ParserResult, roomIsLit, isVisibleFrom, visibleHere, isAudibleFrom, thingRoom, bareName } from "./world/parser.js";
 import {
   RulesetManager, rollDice, computeContentHash, APPENDIX_U_LICENSES,
@@ -466,7 +467,6 @@ function worldGenMaxRooms(): number { return configInt("TTRPG_WORLD_GEN_MAX_ROOM
 // options.roles override, else from documented name/title tokens. Unmatched
 // tables are ignored rather than repurposed, so generation never fabricates a
 // mechanic the ruleset did not define (REQ-431b).
-type WorldGenRole = "room" | "objects" | "persons" | "hazards" | "secrets";
 const WORLD_GEN_ROLES: WorldGenRole[] = ["room", "objects", "persons", "hazards", "secrets"];
 const WORLD_GEN_ROLE_TOKENS: Record<WorldGenRole, string[]> = {
   room: ["dungeon", "room", "chamber", "site", "location", "crypt", "hall"],
@@ -496,20 +496,7 @@ function generationObjectKind(result: string, title: string): WorldKind {
 
 // REQ-431d — a generated secret carries its discovery path and the room it
 // links to (REQ-363).
-interface GeneratedSecret {
-  key: string;
-  content: string;
-  triggers: string[];
-  badge_scope: "game_master" | "shared";
-  world_target: string;
-  clue: string;
-  container: string;
-}
 
-interface GeneratedWitness {
-  name: string;
-  room: string;
-}
 
 // REQ-431d — validate the batch before offering it: connectivity, reciprocal
 // exits, containment references, secret reachability/discovery, and witness
@@ -573,19 +560,7 @@ function validateGeneratedWorld(
   return failures;
 }
 
-interface WorldGenTable {
-  key: string;
-  title: string;
-  dice_expression: string;
-  ranges: { min: number; max: number; result: unknown }[];
-}
 
-interface WorldGenRoll {
-  table: string;
-  die: string;
-  range: string;
-  result: string;
-}
 
 function worldGenRoleOf(key: string, title: string): WorldGenRole | null {
   const hay = `${key} ${title}`.toLowerCase();
