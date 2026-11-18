@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-18 — Roadmap plan set: an executable plan for each open item, reviewed cold
+
+`ROADMAP.md`'s four remaining sections each get a plan an executing session can pick up: the operator-bound §10 verification (split into a builder-evidence increment and a verifier run), the mutation sample measured to a Wilson interval criterion, the next `index.ts` leaf measured for closure under use, and the `codex pack` kind with its admission rule. The set was cold-reviewed: the first pass failed on three Blockers and seven Majors, all fixed, and the diff re-review passed.
+
+- `item-1a-handoff-evidence.md` / `item-1b-verifier-run.md`: §10 is two increments, because
+- `item-2-mutation-sample-depth.md`: "a useful confidence interval" becomes a number (95% Wilson
+- `item-4-index-split-stage-2.md`: the next leaf is the World-Model CRUD block (`:6528-7154`, 627
+- `item-5-codex-pack.md`: a pack is the exporter's payload verbatim, so REQ-321o's byte-identity
+- Each draft carries its trigger status (three of four have not fired), a blast radius, a
+- The cold pass found a verification table that could not go green, an off-by-one verbatim slice,
+- `check:fast` 46/46 before and after; no `/spec`, `holonovel/src`, or register file changed
+
 ## 2026-11-17 — Anchor repair: identity resolution and a declared offset
 
 `fix-anchors` bound stale anchors to the nearest occurrence of their symbol, so after a block move it wrote eight wrong lines that then self-validated. Resolution is now by identity only, a move is repaired by a declared `--offset` that is verified before and after the write, and the cross-file fallback is refused while the recorded file still carries the symbol. ROADMAP's *Split `index.ts`* loses the bullet that recorded the defect.
