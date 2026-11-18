@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-11-18 — index.ts split, stage 2: the world-model CRUD surface leaves the entry point
+
+Stage 2 takes the largest remaining closed block out of the entry point. The `manage_world` surface — rooms, things, exits, converts, world generation, and causal proposals — moves verbatim into its own module behind one shared tool context, and the five world-generation types move to a module both sides can import. `index.ts` drops from 17,857 to 17,217 lines with no behavioural change and `test:all` 56/56.
+
+- `holonovel/src/world/generation-types.ts` (new): `WorldGenRole`, `GeneratedSecret`, `GeneratedWitness`, `WorldGenTable`, `WorldGenRoll`, moved verbatim; the module imports nothing, so the dependency stays acyclic
+- `holonovel/src/tools/world-crud.ts` (new): the 627-line block moved verbatim at column 0 behind `registerWorldCrudTools(register, ctx)`, which returns the schema `resolve_intent` still spreads; `server.registerTool("manage_world"` becomes `register("manage_world"` and the one knowledge-tool read goes through the context accessor
+- `holonovel/src/tools/context.ts`: +15 fields — the ruleset manager, the generation helper family, the adventure-annotation materializer, and a lazy `knowledgeTools()` accessor that defers the read past the declaration it would otherwise hit in its temporal dead zone
+- `holonovel/src/index.ts`: one `toolCtx` literal feeds both tool modules; stage 1's call site collapses to `registerKnowledgeTools(server.registerTool, toolCtx)`; 17,857 → 17,217 lines
+- 20 evidence anchors repaired across four holosuite files — 19 by a measured `+1`, 18 by `-26`, then 13 by `-615` and six by `+2`, each delta taken from the tool's own report
+- The `create_room` anchor is repointed by hand to `world-crud.ts:133`: the resolver would otherwise have bound it to a `manage_faction` description that carries the same word, and `--repath` refuses the module's four carriers as ambiguous
+- A red baseline was fixed first, as its own commit (`9bfaa96`): the CalVer lagged the previous entry, which `test:all` saw and `check:fast` could not
+- `holonovel/AGENTS.md` layer map and the ROADMAP bullet record stage 2 and name stage 3; `test:all` 56/56, `check:fast` 46/46
+
 ## 2026-11-18 — Roadmap plan set: an executable plan for each open item, reviewed cold
 
 `ROADMAP.md`'s four remaining sections each get a plan an executing session can pick up: the operator-bound §10 verification (split into a builder-evidence increment and a verifier run), the mutation sample measured to a Wilson interval criterion, the next `index.ts` leaf measured for closure under use, and the `codex pack` kind with its admission rule. The set was cold-reviewed: the first pass failed on three Blockers and seven Majors, all fixed, and the diff re-review passed.

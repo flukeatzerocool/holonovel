@@ -47,7 +47,19 @@ src/tools/context.ts    ToolContext — the host services a tool module destruct
                         StateManager singleton, the OK/raw/error envelope builders, the
                         audit writer, the behavioral `TTRPG_*` readers, the detail
                         normalizer, the subjective-memory scoring inputs, the
-                        window-aware divergence verdict, and the scoped-action merger.
+                        window-aware divergence verdict, the scoped-action merger, and
+                        (split stage 2) the ruleset manager, the world-generation helper
+                        family, the adventure-annotation materializer, and the lazy
+                        knowledge-tool accessor. One `toolCtx` literal in index.ts feeds
+                        every module.
+src/world/generation-types.ts
+                        World-generation types shared across the split: WorldGenRole,
+                        GeneratedSecret, GeneratedWitness, WorldGenTable, WorldGenRoll.
+                        Imports nothing, so both sides of the cut can use them.
+src/tools/world-crud.ts The `manage_world` surface — rooms, things, exits, converts, world
+                        generation, and causal proposals — moved verbatim from index.ts
+                        (split stage 2) behind registerWorldCrudTools(register, ctx),
+                        which returns the schema resolve_intent still spreads.
 src/tools/knowledge.ts  Knowledge, identity, and agency tools — manage_belief (evidence,
                         stances, perception ledger, subjective memory), manage_identity,
                         manage_knowledge (semantic index and knowledge graph), and
@@ -56,8 +68,9 @@ src/tools/knowledge.ts  Knowledge, identity, and agency tools — manage_belief 
                         helpers index.ts still calls.
 src/index.ts            McpServer adapter: 37 action-discriminator tools, 47 resources and 23 resource templates, 6 host prompts (five model-composed) plus installed package prompts.
                         Registers tools through the registry, then binds MCP. Knowledge-family
-                        tools register from src/tools/knowledge.ts; index.ts is 17,856 lines
-                        after the stage-1 split (target: no file above 3,000).
+                        tools register from src/tools/knowledge.ts and the world-model CRUD
+                        surface from src/tools/world-crud.ts; index.ts is 17,217 lines after
+                        the stage-2 split (target: no file above 3,000).
                         Registers tools through the registry, then binds MCP.
                         Entry point for STDIO transport, guarded by
                         HOLONOVEL_NO_AUTOSTART. Badge gating via
