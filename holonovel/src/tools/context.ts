@@ -20,6 +20,30 @@ import type { WorldGenRole, GeneratedSecret, GeneratedWitness, WorldGenTable, Wo
 import type { DivergenceResult } from "../core/divergence.js";
 import type { ReinforcementEntry, SubjectiveMemoryRecord, ValidityWindow } from "../core/subjective.js";
 
+/** Session-local command-parser state, shared by reference with the world-model module.
+ *
+ *  One object rather than five module-level `let`s: the module must mutate the same
+ *  state `index.ts` holds, and an object reference survives the module boundary where
+ *  a destructured `let` would be captured by value (REQ-197b, REQ-319, REQ-196e).
+ */
+export interface ParserState {
+  visitedRooms: Set<string>;
+  visitedRoomNovel: string;
+  lastCommand: string;
+  lastReferencedThing: string | null;
+  pendingAmbiguity: { command: string; target: string; matches: Array<{ name: string; location: string }> } | null;
+}
+
+export function createParserState(): ParserState {
+  return {
+    visitedRooms: new Set<string>(),
+    visitedRoomNovel: "",
+    lastCommand: "",
+    lastReferencedThing: null,
+    pendingAmbiguity: null,
+  };
+}
+
 /** MCP registration entry point, as `index.ts` exposes it. */
 export type RegisterTool = (name: string, config: any, handler: any) => void;
 
