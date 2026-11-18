@@ -1,4 +1,4 @@
-# AGENTS.md — holonovel engine (v2026.11.17)
+# AGENTS.md — holonovel engine (v2026.11.18)
 
 AI maintainer orientation for the holonovel engine and its reference MCP adapter.
 
