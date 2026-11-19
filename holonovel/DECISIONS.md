@@ -3338,7 +3338,7 @@ precondition, the procedure, and the record; the Appendix F row carries the dril
   the two rebuild notes in the build register (4).
 - **`T294` — verifier confidence score.** Actor: the independent verifier in Phase 2.
   Precondition: the comparison set is complete under REQ-273. Procedure: score three constructed
-  sets — 3 Discrepancies of 10 → 0.70 (FAIL); 1 Discrepancy, 2 operator-confirmed Pin drifts, 7
+  sets — 3 Discrepancies of 10 → 0.70 (FAIL); 0 Discrepancies, 2 operator-confirmed Pin drifts, 8
   matches → 0.84 (PARTIAL); 10 matches → 1.0 (PASS) — and confirm the per-workflow component
   weights are recorded. Record: the scored comparison in the verifier evidence.
 - **`T295` — evidence hash commitment.** Actor: the verifier across the Phase 1 / Phase 2

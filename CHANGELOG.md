@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-18 — T294 arithmetic corrected and the report-adjudication plan revised
+
+T294's PARTIAL case now matches REQ-274's formula, and the item-1c plan drops the branch that would have scheduled the corrected defect. The G7 attestation and build-phase-map hash were regenerated; the pre-existing item-1b revision is untouched.
+
+- T294's second case is now 0 Discrepancies + 2 Pin drifts + 8 matches = 0.84 (PARTIAL); the source, `DECISIONS.md`, and the assembled spec agree.
+- The item-1c plan no longer claims or schedules a T294 inconsistency; the correction is a committed P0 precondition, and the plan was re-reviewed and re-stamped.
+- `validate` 0 errors, `check:fast` 46/46; no server or spec requirement changed.
+
 ## 2026-11-18 — Builder-side handoff evidence: eleven records and a fifteen-finding matrix
 
 ROADMAP item 1 half A records the builder evidence §10 Phase 2 compares against. Eleven REQ-211a/211c records cover the workflows whose harnesses exercise their pass criteria — G0a, G4, G5, H5, H10, H13, H14, and H15-H18 — and fifteen workflows without a runner or a required section are named findings. The presence matrix resolves all eight G workflows and eighteen H steps, names the two redaction ranges, and records the absent §9 sections without inventing them.
