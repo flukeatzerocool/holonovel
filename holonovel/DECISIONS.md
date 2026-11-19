@@ -3384,3 +3384,149 @@ precondition, the procedure, and the record; the Appendix F row carries the dril
   confirm the audit covers at least two distinct archetype categories from §7.7.0, enumerates
   the categories compared, and records archetype disagreements as findings with both models'
   assignments and source anchors. Record: the audit report in the build register (6).
+
+## Verification workflow evidence
+
+### G0a — structural integrity
+
+@section evidence-g0a
+
+- **Workflow** — G0a structural integrity (ruleset-free build).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, MCP protocol 2024-11-05, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `test -e holonovel/RULESET_MODEL.md` → exit 1 (no model file); `ls -d holonovel/testdata/rulesets/*/` → `fixture/`.
+- **Pass/fail** — pass.
+- **Findings** — no ruleset source exists, so §8's Standing Rule 9 exemption applies and the pass basis is "no ruleset — skipped"; no structural checklist was run against a ruleset.
+- **(a) exemption basis** — ruleset-free build with no `<slug>_RULESET_MODEL.md`; the §8 G0a prose names this basis.
+
+### G4 — derived test catalogue
+
+@section evidence-g4
+
+- **Workflow** — G4 derived tests (Appendix F).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `npm --prefix holonovel run test:all` → exit 0; `56 passed, 0 failed (180.7s wall clock)`.
+- **Pass/fail** — pass.
+- **Findings** — the suite runner emits per-command PASS lines; individual T-ID assertions live inside each harness and are not enumerated here; no waiver is recorded.
+- **(a) suite result** — 56 of 56 commands passed, including `test:workflow`, `test:output-contracts`, `test:pattern-buffer`, `test:narrative`, and `test:g7`.
+- **(b) waivers** — none recorded for this run.
+
+### G5 — Holonovel Pattern Buffer
+
+@section evidence-g5
+
+- **Workflow** — G5 Holonovel Pattern Buffer (§6.6).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `npm --prefix holonovel run test:pattern-buffer` → exit 0; summary total 18, passed 18, failed 0, blocking failures 0; manifest timestamp `2026-11-19T01:45:25Z`.
+- **Pass/fail** — pass.
+- **Findings** — every blocking sub-workflow (I1-I6, I10, I14-I18) passed, as did the seven non-blocking ones; the manifest records 18 verdicts.
+- **(a) blocking set** — I1-I6, I10, I14-I18 all passed.
+- **(b) manifest freshness** — timestamp later than every `holonovel/src` modification; verdict count 18.
+
+### H5 — no generic combat resolver
+
+@section evidence
+
+- **Workflow** — H5 (tools/list exposes no generic combat resolver).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `grep -rn "roll_attack" holonovel/src` → no match (exit 1); `npm run check-tool-surface` → PASS, 300 actions, ~29,922 catalog tokens.
+- **Pass/fail** — pass.
+- **Findings** — no tool named `roll_attack` or an equivalent generic combat resolver is registered.
+- **(a) registry scan** — zero matches in `holonovel/src`.
+
+### H10 — health confidence and performance record
+
+@section evidence
+
+- **Workflow** — H10 (manage_diagnostics health, MUST coverage, performance record).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `npm run check-performance-record` → `PASS: performance record conforms (REQ-586, scope reference-host)`; `test -e holonovel/RULESET_MODEL.md` → exit 1.
+- **Pass/fail** — fail.
+- **Findings** — the performance record conforms, but the §6.5 confidence check is skipped under Standing Rule 9 ("ruleset-free") and MUST-action coverage against the REQ-020 categories was not measured, so the overall H10 criterion is not met.
+- **(a) performance record** — every required term present or waived; scope `reference-host`.
+- **(b) confidence** — skipped, ruleset-free basis.
+- **(c) MUST coverage** — not measured in this run.
+
+### H13 — artifact freshness
+
+@section evidence
+
+- **Workflow** — H13 (artifact version comments and Pattern Buffer freshness).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `grep -n "built against" holonovel/README.md holonovel/AGENTS.md holonovel/DECISIONS.md` → no version-comment line; G5 manifest timestamp `2026-11-19T01:45:25Z` with 18 verdicts; `find holonovel/src -newer <manifest>` → empty.
+- **Pass/fail** — fail.
+- **Findings** — the Pattern Buffer conjunct holds, but no handoff artifact carries `<!-- built against Holonovel spec vX.Y.Z -->`, so the version-comment conjunct fails.
+- **(a) artifact version** — absent from README.md, AGENTS.md, and DECISIONS.md.
+- **(b) Pattern Buffer freshness** — manifest later than the last source modification; verdict count 18.
+
+### H14 — four-artifact diet
+
+@section evidence
+
+- **Workflow** — H14 (four-artifact diet).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `test -e holonovel/RULESET_MODEL.md` → exit 1; `ls -l holonovel/{DECISIONS,README,AGENTS,LICENSE}.md` → all four present.
+- **Pass/fail** — fail.
+- **Findings** — the diet requires `RULESET_MODEL.md`, `DECISIONS.md`, `README.md`, `AGENTS.md`, and `LICENSE.md`; `RULESET_MODEL.md` is absent, so the diet is incomplete.
+- **(a) present** — `DECISIONS.md`, `README.md`, `AGENTS.md`, `LICENSE.md`.
+- **(b) missing** — `RULESET_MODEL.md`.
+
+### H15 — packaged tool surface
+
+@section evidence
+
+- **Workflow** — H15 (tools/list with packages loaded).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `npm run check-tool-surface` → PASS, 300 actions; `ls -d holonovel/testdata/rulesets/*/` → `fixture/` only.
+- **Pass/fail** — fail.
+- **Findings** — the surface gate confirms counts, but per-tool `ruleset` annotations, prefixes, and the B1 prefix map are multi-package checks this single-package ruleset-free build did not exercise.
+- **(a) surface counts** — PASS (300 actions).
+- **(b) prefix and annotation** — not exercised (single package, no ruleset).
+
+### H16 — Novel per ruleset
+
+@section evidence
+
+- **Workflow** — H16 (create a Novel per ruleset).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `ls -d holonovel/testdata/rulesets/*/` → `fixture/`; no ruleset package is installed for this build.
+- **Pass/fail** — fail.
+- **Findings** — creating a Novel per ruleset requires a ruleset; the reference build has none, so the `ruleset` binding check is not exercised.
+- **(a) packages** — one fixture, not a ruleset.
+- **(b) binding** — not exercised.
+
+### H17 — cross-ruleset rejection
+
+@section evidence
+
+- **Workflow** — H17 (cross-ruleset tool call rejection).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `ls -d holonovel/testdata/rulesets/*/` → `fixture/` only.
+- **Pass/fail** — fail.
+- **Findings** — the check needs two rulesets; this single-package ruleset-free build cannot exercise a cross-ruleset rejection.
+- **(a) rulesets available** — none.
+- **(b) rejection path** — not exercised.
+
+### H18 — per-ruleset isolation
+
+@section evidence
+
+- **Workflow** — H18 (per-ruleset search and lookup isolation).
+- **Timestamp** — 2026-11-19T01:48Z.
+- **Environment pins** — Node v24.18.0, Linux x86_64, spec hash d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672.
+- **Commands and output** — `ls -d holonovel/testdata/rulesets/*/` → `fixture/` only.
+- **Pass/fail** — fail.
+- **Findings** — the check needs rulesets to isolate; this single-package ruleset-free build cannot exercise per-ruleset search or lookup isolation.
+- **(a) rulesets available** — none.
+- **(b) isolation path** — not exercised.
+
+<!-- evidence:end -->

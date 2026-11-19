@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-11-18 — Builder-side handoff evidence: eleven records and a fifteen-finding matrix
+
+ROADMAP item 1 half A records the builder evidence §10 Phase 2 compares against. Eleven REQ-211a/211c records cover the workflows whose harnesses exercise their pass criteria — G0a, G4, G5, H5, H10, H13, H14, and H15-H18 — and fifteen workflows without a runner or a required section are named findings. The presence matrix resolves all eight G workflows and eighteen H steps, names the two redaction ranges, and records the absent §9 sections without inventing them.
+
+- `holonovel/DECISIONS.md`: new `## Verification workflow evidence` section, eleven records, G7 block byte-identical
+- G4 `test:all` 56/56 and G5 Pattern Buffer 18/18 recorded; G0a records the ruleset-free skip
+- H5 passes; H10, H13, H14, and H15-H18 record `fail` with their measured reasons
+- `presence-matrix.md`: eight G rows, eighteen H rows, redaction ranges A and B
+- Findings: G0b, G2, G3, G6, G8 and H1-H4, H6-H9, H11-H12 have no runnable evidence
+- `npm run validate` 0 errors; the T253 probe fires and restores
+- `npm run check:fast` 46/46
+
 ## 2026-11-18 — Codex packs: the exported library becomes a fourth artifact kind
 
 `manage_codex (action: export)` no longer ships one-way. The `holonovel.codex/1` payload installs through `manage_artifact (action: install, kind: codex)` into `<DATA_DIR>/codex/`, is listed and counted by the scan-derived registry, and is refused when it traverses, carries the wrong schema, has no entries, duplicates a slug, or declares a mismatched hash. Hash is over `{schema, entries}` sorted by id; integrity is verified, unverified, or absent by the pack's own declaration.
