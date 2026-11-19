@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-11-19 — Verifier-kit plan reaches revision 4, with its two done bars separated
+
+The draft that assembles the §10 verifier kit is rewritten against the tree that exists after
+the handoff-evidence increment. Four cold passes took it from two Blockers and seven Majors to
+no remaining hard blocker, and the plan now separates what "done" means when the verifier's
+verdict is attributable to the kit from what it means when the same pin fails for another
+reason.
+
+- Re-measured at HEAD `0dfcfba`, consuming increment A's eleven evidence records and its two
+  named redaction ranges instead of predicting them, with the §10 prompt block verified
+  byte-equal to its source.
+- The trigger becomes a hard precondition with a defined stop: the kit freezes only after a
+  publish lands, because the verifier installs whatever version the registry serves, and a
+  failed precondition ends the session before the first write rather than leaving a plan that
+  can be "failed" by an unmet trigger.
+- A verdict that flips on a pinned record is separated from a same-pin failure; the latter ends
+  `LOOP OPEN` with a dated roadmap section instead of hiding behind `LOOP PAUSED`.
+- The draft stays in its closed increment, because an AAR-less directory under `docs/plans/`
+  would fail `check-loop-artifacts` and block the very publish it waits on.
+- The executing session re-homes the draft as Revision 5, re-measures every line reference, and
+  runs its own cold pass; this draft's review covers the design, not the re-homed bytes.
+
 ## 2026-11-18 — T294 arithmetic corrected and the report-adjudication plan revised
 
 T294's PARTIAL case now matches REQ-274's formula, and the item-1c plan drops the branch that would have scheduled the corrected defect. The G7 attestation and build-phase-map hash were regenerated; the pre-existing item-1b revision is untouched.

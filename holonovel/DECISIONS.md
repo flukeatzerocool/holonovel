@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** d2d550023f9af8a7738808c7d12334b5ea51328621e273cbc8cd5097e9418672
+**Spec hash:** 40a0bae36952a73b4a9cb4c8f7736bd929ab7db6ed15492afdc4c8886a104174
 
 **Recorded tool budget:** 37 listed (246 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
@@ -1235,6 +1235,150 @@ that carries it.
   it. Registered slugs with a committed or recorded emitter are invoked
   directly.
 
+### Holonovel Spec Update — 2026-11-19 (Verifier-kit plan reaches revision 4, with its two done bars separated)
+
+- **Delta class:** major. Changed surfaces: Verifier-kit plan reaches revision 4, with its two done bars separated; T294 arithmetic corrected and the report-adjudication plan revised; Builder-side handoff evidence: eleven records and a fifteen-finding matrix; Codex packs: the exported library becomes a fourth artifact kind; Mutation-sample depth: a stratified 35-case catch rate with its interval.
+- **Fingerprint delta:** full — changed: source, config, lockfile, extraction, surfaces; unchanged: none; reused: none; evidence: reconciliation record (123 changed REQ). Prior spec d2d55002 → current 40a0bae3.
+
+- **Scoping advice:** typecheck then Pattern Buffer sub-workflows for the changed surfaces; dependency reinstall and typecheck only; re-index generation data only, reusing prior extraction output; Pattern Buffer sub-workflows for the changed tools, resources, or prompts
+
+| REQ | Disposition | Evidence |
+|---|---|---|
+| REQ-001 | implemented | bucket C (cited, exercised) |
+| REQ-002a1 | implemented | bucket C (cited, exercised) |
+| REQ-002a2 | implemented | bucket C (cited, exercised) |
+| REQ-002b1 | implemented | bucket C (cited, exercised) |
+| REQ-002c1 | implemented | bucket C (cited, exercised) |
+| REQ-004 | implemented | bucket C (cited, exercised) |
+| REQ-022a | implemented | bucket C (cited, exercised) |
+| REQ-024a | implemented | bucket C (cited, exercised) |
+| REQ-025c | implemented | bucket C (cited, exercised) |
+| REQ-030 | implemented | bucket C (cited, exercised) |
+| REQ-032c | implemented | bucket C (cited, exercised) |
+| REQ-041a | implemented | bucket C (cited, exercised) |
+| REQ-043f | implemented | bucket C (cited, exercised) |
+| REQ-050a | implemented | bucket C (cited, exercised) |
+| REQ-050c | implemented | bucket C (cited, exercised) |
+| REQ-052 | implemented | bucket C (cited, exercised) |
+| REQ-055 | implemented | bucket C (cited, exercised) |
+| REQ-055a | implemented | bucket C (cited, exercised) |
+| REQ-057b | implemented | bucket C (cited, exercised) |
+| REQ-065f | implemented | bucket C (cited, exercised) |
+| REQ-066b | implemented | bucket C (cited, exercised) |
+| REQ-071b | implemented | bucket C (cited, exercised) |
+| REQ-072c1 | implemented | bucket C (cited, exercised) |
+| REQ-075j | implemented | bucket C (cited, exercised) |
+| REQ-078c2 | implemented | bucket C (cited, exercised) |
+| REQ-082a | implemented | bucket C (cited, exercised) |
+| REQ-082b | implemented | bucket C (cited, exercised) |
+| REQ-082c | implemented | bucket C (cited, exercised) |
+| REQ-088a | implemented | bucket C (cited, exercised) |
+| REQ-088c | implemented | bucket C (cited, exercised) |
+| REQ-088d | implemented | bucket C (cited, exercised) |
+| REQ-095a | implemented | bucket C (cited, exercised) |
+| REQ-095b | implemented | bucket C (cited, exercised) |
+| REQ-096d1 | implemented | bucket C (cited, exercised) |
+| REQ-109c2 | implemented | bucket C (cited, exercised) |
+| REQ-109d | implemented | bucket C (cited, exercised) |
+| REQ-124a | implemented | bucket C (cited, exercised) |
+| REQ-124b | implemented | bucket C (cited, exercised) |
+| REQ-138b | implemented | bucket C (cited, exercised) |
+| REQ-139 | implemented | bucket C (cited, exercised) |
+| REQ-175a | implemented | bucket C (cited, exercised) |
+| REQ-175b | implemented | bucket C (cited, exercised) |
+| REQ-179c | implemented | bucket C (cited, exercised) |
+| REQ-180c | implemented | bucket E with exercised tests on record |
+| REQ-196a | implemented | bucket C (cited, exercised) |
+| REQ-196c | implemented | bucket C (cited, exercised) |
+| REQ-196d | implemented | bucket C (cited, exercised) |
+| REQ-197a | implemented | bucket C (cited, exercised) |
+| REQ-197b | implemented | bucket C (cited, exercised) |
+| REQ-197c | implemented | bucket C (cited, exercised) |
+| REQ-200 | implemented | bucket C (cited, exercised) |
+| REQ-210c | implemented | bucket E with exercised tests on record |
+| REQ-210d | implemented | bucket E with exercised tests on record |
+| REQ-221b | implemented | bucket C (cited, exercised) |
+| REQ-232a | implemented | bucket C (cited, exercised) |
+| REQ-234e | implemented | bucket C (cited, exercised) |
+| REQ-240a | implemented | bucket C (cited, exercised) |
+| REQ-240b | implemented | bucket C (cited, exercised) |
+| REQ-246b1 | implemented | bucket C (cited, exercised) |
+| REQ-256a | implemented | bucket C (cited, exercised) |
+| REQ-283b | implemented | bucket C (cited, exercised) |
+| REQ-284b | implemented | bucket C (cited, exercised) |
+| REQ-284d | implemented | bucket C (cited, exercised) |
+| REQ-284f | implemented | bucket C (cited, exercised) |
+| REQ-309b | implemented | bucket C (cited, exercised) |
+| REQ-309c | implemented | bucket C (cited, exercised) |
+| REQ-309d | implemented | bucket C (cited, exercised) |
+| REQ-309e | implemented | bucket C (cited, exercised) |
+| REQ-309f | implemented | bucket C (cited, exercised) |
+| REQ-309g | implemented | bucket C (cited, exercised) |
+| REQ-309h | implemented | bucket C (cited, exercised) |
+| REQ-316a | implemented | bucket C (cited, exercised) |
+| REQ-317a | implemented | bucket C (cited, exercised) |
+| REQ-317b | implemented | bucket C (cited, exercised) |
+| REQ-317c | implemented | bucket C (cited, exercised) |
+| REQ-317d | implemented | bucket C (cited, exercised) |
+| REQ-318a | implemented | bucket C (cited, exercised) |
+| REQ-319d | implemented | bucket C (cited, exercised) |
+| REQ-320c | implemented | bucket C (cited, exercised) |
+| REQ-321o | implemented | bucket C (cited, exercised) |
+| REQ-325c | implemented | bucket C (cited, exercised) |
+| REQ-326d | implemented | bucket C (cited, exercised) |
+| REQ-327a | implemented | bucket C (cited, exercised) |
+| REQ-330a | implemented | bucket C (cited, exercised) |
+| REQ-334a | implemented | bucket C (cited, exercised) |
+| REQ-334b | implemented | bucket C (cited, exercised) |
+| REQ-334c | implemented | bucket C (cited, exercised) |
+| REQ-336a | implemented | bucket C (cited, exercised) |
+| REQ-366b | implemented | bucket C (cited, exercised) |
+| REQ-367b1 | implemented | bucket C (cited, exercised) |
+| REQ-367b2 | implemented | bucket C (cited, exercised) |
+| REQ-369a | implemented | bucket E with exercised tests on record |
+| REQ-370a | implemented | bucket E with exercised tests on record |
+| REQ-385a | implemented | bucket C (cited, exercised) |
+| REQ-387b | implemented | bucket C (cited, exercised) |
+| REQ-393 | implemented | bucket C (cited, exercised) |
+| REQ-394a | implemented | bucket E with exercised tests on record |
+| REQ-398 | implemented | bucket E with exercised tests on record |
+| REQ-403a | implemented | bucket C (cited, exercised) |
+| REQ-403b | implemented | bucket C (cited, exercised) |
+| REQ-419 | implemented | bucket E with exercised tests on record |
+| REQ-442 | implemented | bucket C (cited, exercised) |
+| REQ-447 | implemented | bucket C (cited, exercised) |
+| REQ-448 | implemented | bucket C (cited, exercised) |
+| REQ-451 | implemented | bucket E with exercised tests on record |
+| REQ-451a | implemented | bucket E with exercised tests on record |
+| REQ-463 | implemented | bucket C (cited, exercised) |
+| REQ-548a | implemented | bucket C (cited, exercised) |
+| REQ-548c | implemented | bucket C (cited, exercised) |
+| REQ-598a | implemented | bucket C (cited, exercised) |
+| REQ-611 | implemented | bucket C (cited, exercised) |
+| REQ-612 | implemented | bucket C (cited, exercised) |
+| REQ-620 | implemented | bucket C (cited, exercised) |
+| REQ-621 | implemented | bucket C (cited, exercised) |
+| REQ-631 | implemented | bucket C (cited, exercised) |
+| REQ-644 | implemented | bucket C (cited, exercised) |
+| REQ-653 | implemented | bucket C (cited, exercised) |
+| REQ-654 | implemented | bucket C (cited, exercised) |
+| REQ-655 | implemented | bucket C (cited, exercised) |
+| REQ-656 | implemented | bucket C (cited, exercised) |
+| REQ-658 | implemented | bucket E with exercised tests on record |
+| REQ-659 | implemented | bucket C (cited, exercised) |
+| REQ-660 | implemented | bucket C (cited, exercised) |
+
+| Component | Prior | Current |
+|---|---|---|
+| source | `a1874d9f4947400d…` | `5838ab4c5f6f6803…` |
+| config | `c346ef171e7e685a…` | `c94cd544834a0594…` |
+| lockfile | `c2a3bce5cb10cf8f…` | `bbfe070457f4c31b…` |
+| extraction | `2654c3f6bee4135f…` | `620042ec6eaad553…` |
+| surfaces | `efde11a296fb8ad9…` | `6e22b1524cc99fa3…` |
+- **Verification:** Gates: fast check suite passed; server harness suite ran; spec SHA 40a0bae36952a73b4a9cb4c8f7736bd929ab7db6ed15492afdc4c8886a104174; deploy verification is the deploy stage (REQ-418).
+
+<!-- @spec-update:40a0bae36952a73b4a9cb4c8f7736bd929ab7db6ed15492afdc4c8886a104174 -->
+
 ### Holonovel Spec Update — 2026-11-08 (Holosuite evidence anchor repoint)
 
 - **Delta class:** minor. Changed surfaces: Holosuite evidence anchor repoint; Server coherence remediation; Self-service update path for packaged installs; Faction clocks: real mechanism, descriptive Survivor race; Torre knowledge depth: three player-facing pages.
@@ -1819,7 +1963,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.11.18 |
+| Spec version | 2026.11.19 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |
