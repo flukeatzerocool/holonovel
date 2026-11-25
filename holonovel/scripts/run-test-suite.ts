@@ -77,6 +77,7 @@ const TESTS = [
   "test:playability",
   "test:help",
   "test:update-workflow",
+  "test:context",
   "check:vendor",
   "check:conversion-evidence",
 ];

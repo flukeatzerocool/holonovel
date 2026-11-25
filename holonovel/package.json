@@ -98,6 +98,7 @@
     "test:ironsworn": "tsx scripts/test-ironsworn.ts",
     "test:forged": "tsx scripts/test-forged.ts",
     "test:security": "tsx scripts/test-security.ts",
+    "test:context": "tsx scripts/test-context.ts",
     "test:surface-guards": "tsx scripts/test-surface-guards.ts",
     "test:tool-surface": "tsx scripts/test-tool-surface.ts",
     "test:event-log": "tsx scripts/test-event-log.ts",

@@ -977,6 +977,10 @@ export interface RosterEntity extends NovelEntity {
   // REQ-386a — the ruleset scope the character was staged under. Additive and
   // loader-compatible: an older roster entry reads as null (untagged).
   ruleset?: string | null;
+  // REQ-661 — a campaign-less creation has no Novel audit chain, so the entry
+  // records its own provenance. Additive and loader-compatible.
+  created_at?: string;
+  created_by?: Badge | null;
 }
 
 const VALID_SCENE_TYPES = ["combat", "social", "exploration", "neutral"] as const;
@@ -3094,6 +3098,10 @@ ${turnOrder}`;
         condition_rounds: entity.condition_rounds,
         stats: entity.stats,
         identity: entity.identity,
+        // REQ-386a / REQ-661 — the scope and provenance the loader reads.
+        ruleset: entity.ruleset ?? null,
+        created_at: entity.created_at ?? null,
+        created_by: entity.created_by ?? null,
       };
     }
     rosterData[META_KEY] = { data_format: DATA_FORMAT, spec_version: SPEC_VERSION };
@@ -3123,6 +3131,8 @@ ${turnOrder}`;
         stats: e.stats,
         identity: e.identity ?? { character_id: e.id || id, candidates: [], facets: [], version: 0 },
         ruleset: e.ruleset ?? null,
+        created_at: e.created_at ?? undefined,
+        created_by: e.created_by ?? null,
       });
     }
   }
@@ -3144,7 +3154,7 @@ ${turnOrder}`;
 
   // Stage an entity into the roster (REQ-219 roster staging). Persists the
   // roster. The entity keeps its stats, personality, and inventory baseline.
-  addToRoster(entity: NovelEntity, ruleset: string | null = null): string {
+  addToRoster(entity: NovelEntity, ruleset: string | null = null, meta?: { createdAt?: string; createdBy?: Badge | null }): string {
     const id = entity.id;
     this.roster.set(id, {
       id: entity.id,
@@ -3159,9 +3169,40 @@ ${turnOrder}`;
       identity: { character_id: entity.id, candidates: [], facets: [], version: 0 },
       // REQ-386a — the roster entry records the staging Novel's ruleset scope.
       ruleset,
+      // REQ-661 — provenance for a creation with no Novel audit chain.
+      ...(meta?.createdAt ? { created_at: meta.createdAt } : {}),
+      ...(meta?.createdBy !== undefined ? { created_by: meta.createdBy } : {}),
     });
     this.saveRoster();
     return id;
+  }
+
+  // REQ-661 — create a roster entry with no Novel: allocate the next free
+  // `character_NN` from the roster itself, then reuse addToRoster so identity
+  // and the ruleset scope are seeded exactly as staging seeds them.
+  createRosterEntity(
+    name: string,
+    personality: { description?: string; voice?: string; background?: string; goals?: string } | undefined,
+    stats: Record<string, any> | undefined,
+    ruleset: string | null,
+    createdBy: Badge | null = null,
+  ): string {
+    let next = 0;
+    for (const id of this.roster.keys()) {
+      const m = /^character_(\d+)$/.exec(id);
+      if (m) next = Math.max(next, Number(m[1]));
+    }
+    const entity: NovelEntity = {
+      id: `character_${String(next + 1).padStart(2, "0")}`,
+      name,
+      personality,
+      inventory: [],
+      current_room: null,
+      conditions: [],
+      condition_rounds: {},
+      stats,
+    };
+    return this.addToRoster(entity, ruleset, { createdAt: new Date().toISOString(), createdBy });
   }
 
   loadServerNotes(): void {

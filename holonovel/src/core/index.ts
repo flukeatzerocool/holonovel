@@ -53,3 +53,18 @@ export type { ArtifactEntry, ArtifactKind, ArtifactIntegrity, RegistrySources } 
 export { parseAdventureProvenance, verifyAdventureProvenance, provenanceSummary } from "./adventure-provenance.js";
 export type { AdventureProvenance } from "./adventure-provenance.js";
 export { resolveInboxDir } from "./data-dir.js";
+export {
+  resolveContext,
+  withContext,
+  contextLine,
+} from "./context.js";
+export type {
+  ContextKind,
+  ContextScope,
+  ContextSource,
+  ContextRequest,
+  ResolvedContext,
+  ContextCarrier,
+} from "./context.js";
+export { CONTEXT_AUDIT, descriptorFor } from "./context-audit.js";
+export type { AuditRow, AuditClass, AuditDisposition, ContextDescriptor } from "./context-audit.js";

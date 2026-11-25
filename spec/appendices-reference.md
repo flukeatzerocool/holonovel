@@ -811,6 +811,7 @@ date-stamps matching CHANGELOG entries.
 | REQ-088f | Novel lifecycle (Part f) | 2026-09-04 |
 | REQ-088g | Novel lifecycle (Part g) | 2026-08-11 |
 | REQ-088h1 | Novel lifecycle (Part h1) | 2026-08-11 |
+| REQ-661 | Context resolution | 2026-11-25 |
 | REQ-088h2 | Novel lifecycle (Part h2) | 2026-09-04 |
 | REQ-117 | Novel retention period | 2026-08-11 |
 | REQ-095a | Novel switching (Part a) | 2026-08-11 |
@@ -1984,6 +1985,11 @@ diet.
 | T551 | Automated | Evidence acquisition record: admitting evidence appends a record naming its subject, predicate, object, polarity, weight, and source. | REQ-461 |
 | T552 | Automated | Evidence provenance: evidence admitted after a recorded observation lists that observation's event-log ordinal. | REQ-462 |
 | T793 | Automated | Question identity: opposite polarities about the same subject, predicate, and object contest one question carrying both supports; a differing field yields a separate question. | REQ-463 |
+| T794 | Automated | Context precedence and the unresolved case: with no Novel active, `manage_character (action: create, name)` writes a roster entry and reports `context: roster`; an explicit `context: "novel"` returns `[STATE_CONFLICT]`; a ruleset lookup reports `context: reference`; and a play-scoped novel-capable action with no Novel resolves nothing (the resolver returns null). Unit harness `test-context.ts` covers explicit-over-Novel, the subject rule for a named roster id and a PC create, `target: both` as `novel+codex` with no id, and the descriptor fallback. | REQ-661 |
+| T795 | Automated | Response carrier: a codex `list` with no Novel returns its JSON body byte-verbatim, a second text block `context: codex (…)`, and `structuredContent.context` as `{kind, id, source}`; a second wrap is a no-op; an error envelope is never wrapped; `novel+codex` prints without a parenthetical. | REQ-661 |
+| T796 | Automated | Character creation with no active Novel writes `roster.json` with `identity`, `ruleset`, and `created_at`, reports `context: roster`, and creates no Novel file; create, save, restart returns the same entry; an unnamed create returns `[INVALID_INPUT]`; a Novel-active create is unchanged. | REQ-088e |
+| T797 | Automated | NPC creation with no active Novel writes a Codex entry of kind `npc`, reports `context: codex`, leaves `npcs://` empty, and `manage_codex (action: get)` returns the entry; with a Novel active the NPC is created in the Novel. | REQ-075a, REQ-075b |
+| T798 | Automated | Context audit gate: `check-context-audit` reports zero unclassified call sites and zero count mismatches against a complete table, and exits 1 when one row is removed (`unclassified call site`) or the generated page is stale. | REQ-661 |
 | T554 | Automated | Admission states: suppressed evidence creates no stance and remains listable; unresolved evidence is excluded from the stance. | REQ-464 |
 | T555 | Automated | Stance materialization: support at the acceptance threshold with the required margin is accepted; strong opposition yields an unresolved stance. | REQ-465 |
 | T556 | Automated | Independent corroboration: correlated evidence from one source does not compound while independent sources accumulate; a repeated reconciliation returns identical stances. | REQ-466 |

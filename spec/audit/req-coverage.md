@@ -55,7 +55,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-072 | Session recap (Part a1) (11 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T53, T90, T212, T213, T214, T215, T261, T272, T518, T699 | — |
 | REQ-073 | Countdowns (Part c1) (5 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T54, T90, T136, T139, T261, T271, T312, T404, T406, T409, T410, T411 | — |
 | REQ-074 | Multi-entity support (Part a) (3 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T55, T216, T218, T220, S17 | — |
-| REQ-075 | Named-NPC state (Part a) (10 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T129, T409, T513, T722, T723, T724, T725, T782 | — |
+| REQ-075 | Named-NPC state (Part a) (10 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T56, T129, T409, T797, T513, T722, T723, T724, T725, T782 | — |
 | REQ-076 | Scene-state ledger (Part b1) (9 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T57, T112, T132, T137, T331, S17 | — |
 | REQ-077 | Entity personality fields (Part a) (6 sub-parts) | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T58, T63, T65, T200, T140, T260, T412 | — |
 | REQ-078 | Session zero prompt (Part a) (7 sub-parts) | 5.3 Tools, Resources, and Lookups | C | T124, T141 | — |
@@ -68,7 +68,7 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-085 | Macro system (Part a) (2 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T69 | — |
 | REQ-086 | Audit compression (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T70 | — |
 | REQ-087 | Scene type tagging (Part a) (3 sub-parts) | 5.8 Synthesis, Lore, and Macros | C | T476, T71, T135 | — |
-| REQ-088 | Novel lifecycle (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T98, T122, T159, T402 | — |
+| REQ-088 | Novel lifecycle (Part a) (9 sub-parts) | 5.9 Novel Persistence and Transport | C | T98, T122, T159, T402, T796 | — |
 | REQ-089 | Novel setup (Part a) (6 sub-parts) | 5.9 Novel Persistence and Transport | C | T74, T74a, T219 | — |
 | REQ-090 | Adventure generation (Part a) (5 sub-parts) | 5.9 Novel Persistence and Transport | C | T75, T146, T367 | — |
 | REQ-091 | Enhanced encounter generation (Part a) (2 sub-parts) | 5.9 Novel Persistence and Transport | C | T76 | — |
@@ -615,4 +615,5 @@ Bucket legend: A = certain gap (no source citation) · B = needs review (cited, 
 | REQ-658 | Comparable recall benchmark | 5.35 Subjective Memory | E | T781 | — |
 | REQ-659 | Slug derivation | 5.1 Output and Error Contracts | C | T787 | — |
 | REQ-660 | Preparation parity | 5.6 State, Lifecycle, Entities, and Adventure Content | C | T792, S17 | — |
+| REQ-661 | Context resolution | 5.9 Novel Persistence and Transport | C | T794, T795, T798 | — |
 

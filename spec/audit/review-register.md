@@ -3099,6 +3099,18 @@ retired with the `Loop-gate fix-up rate re-measurement` section.
   was one hit before the fix and zero after.
 
 ## Scheduled-roadmap
+### 2026-11-25 context resolver (A1 + A2) — campaign-less mutations write no audit entry
+
+- **F-CTX-1 — a roster-only or codex-only creation leaves no audit record. Scheduled-roadmap.**
+  Predicate: `audit()` (`holonovel/src/index.ts:2972`) writes only through
+  `state.activeNovel`, and `state.audit` appends to the Novel's chain
+  (`holonovel/src/core/state.ts:2358`), so with no active Novel the call is a
+  no-op while `manage_character (action: create)` and `manage_npc (action: create)`
+  still mutate `roster.json` and `codex.json`. The roster entry carries
+  `created_at` and `created_by` as a partial guard. Tracked by the ROADMAP
+  "Campaign-less audit record (P1)" section; REQ-040a's wording does not yet
+  distinguish the non-Novel stores.
+
 
 ### 2026-11-17 index.ts split (P2) — the anchor window cannot follow a block move
 

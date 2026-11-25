@@ -64,6 +64,7 @@
     "check": "npm run gates -- --full --timing",
     "check:fast": "npm run gates -- --fast --timing",
     "test:validators": "npx tsx scripts/test-req-checks.ts",
+    "check-context-audit": "npx tsx holonovel/scripts/check-context-audit.ts --check",
     "test:spec-tooling": "npx tsx scripts/test-spec-tooling.ts",
     "check:full": "npm run check && npm run detect-dupes",
     "assemble": "npx tsx scripts/assemble.ts",

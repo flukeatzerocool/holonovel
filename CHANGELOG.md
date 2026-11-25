@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-25 — Context resolution, a checked requireNovel audit, and no-Novel creation
+
+A pure context resolver decides which store an operation acts on and reports it; a generated gate enforces a classification of every `requireNovel()` call site; a character can be created on the roster and an NPC in the codex with no campaign open.
+
+- Added `REQ-661` and the pure `resolveContext()` precedence (explicit, open Novel, subject,
+- Added `check-context-audit`, a typed 192-row table over 186 `requireNovel()` call sites across
+- `manage_character (action: create)` with no active Novel writes a roster entry (profile-only
+- Fixed `saveRoster` dropping `ruleset` that `loadRoster` reads; added `created_at`/`created_by`.
+- Amended `REQ-088e`, `REQ-075a`, `REQ-075b`; added `T794`–`T798`; corrected the authoring roadmap
+
 ## 2026-11-19 — Verifier-kit plan reaches revision 4, with its two done bars separated
 
 The draft that assembles the §10 verifier kit is rewritten against the tree that exists after

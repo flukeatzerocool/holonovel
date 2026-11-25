@@ -21,6 +21,19 @@
 
 **Trigger:** the first publish after 2026-11-16; closes when the verifier report
 and its `DISPUTED` adjudications are recorded.
+## Campaign-less audit record (P1)
+
+- `manage_character (action: create)` and `manage_npc (action: create)` with no
+  active Novel now mutate the roster or the codex, and the audit chain lives in
+  the Novel (REQ-040a), so neither writes an audit entry. Codex-only mutations
+  share the gap.
+- Close it with a bounded server-level audit ring persisted beside the flat-map
+  artifacts, or with a REQ-040a carve-out naming the non-Novel stores.
+
+**Trigger:** the next increment that touches roster or codex persistence; closes
+when a campaign-less mutation leaves a retrievable audit record or the REQ names
+the carve-out.
+
 ## Deterministic lens breadth
 
 - The aggregate catch rate is 35 of 35, but its lens stratum is only 5 of 35, so

@@ -66,6 +66,11 @@ import {
   initServer, getBadge, requireGM, requirePlayer, requireNotObserver, requireNovel, novelSnapshot,
   withForbiddenAudit, ToolCtx, ToolHandler,
 } from "./core/server.js";
+// REQ-661 — context resolution: pure precedence, the audit descriptor, and the
+// raw-safe response carrier.
+import { resolveContext, withContext } from "./core/context.js";
+import type { ContextRequest, ResolvedContext } from "./core/context.js";
+import { descriptorFor } from "./core/context-audit.js";
 import { DEFAULT_WISDOM, verifyCitation, withWisdomKeys } from "./core/wisdom.js";
 import {
   SYNTHESIS_MODULES,
@@ -3342,6 +3347,19 @@ function groundingSet(): Record<string, any> | undefined {
     things: novel.world.things.size,
   };
 }
+// REQ-661 — resolve the store for one tool action from the audit descriptor.
+// Play-scoped actions with no Novel return null, and the handler keeps its own
+// refusal; nothing is silently redirected.
+function contextFor(tool: string, action: string, extra: Partial<ContextRequest> = {}): ResolvedContext | null {
+  const descriptor = descriptorFor(tool, action);
+  return resolveContext({
+    activeNovelSlug: state.activeNovelId ?? null,
+    scope: descriptor.scope,
+    novelCapable: descriptor.novelCapable,
+    ...extra,
+  });
+}
+
 function structured(status: string, text: string, extra?: Record<string, any>) {
   const fields: Record<string, any> = { status, text, ...(extra ?? {}) };
   const g = groundingSet();
@@ -4848,15 +4866,19 @@ function parseAbilityScores(raw: string | number[], rules?: CharacterRules): Rec
 // Resolve the active Novel's character-creation rules, or null if the Novel is
 // ruleset-free or the bound package carries no character-creation data
 // (REQ-219, REQ-399c).
-function getCharacterRules(novel: NovelState | null): CharacterRules | null {
-  if (!novel?.ruleset) return null;
+function getCharacterRulesForSlug(slug: string | null): CharacterRules | null {
+  if (!slug) return null;
   try {
-    const model = rulesets.hydrate(novel.ruleset).model;
+    const model = rulesets.hydrate(slug).model;
     const rules = (model as any)?.character_creation;
     return rules && typeof rules === "object" ? (rules as CharacterRules) : null;
   } catch {
     return null;
   }
+}
+
+function getCharacterRules(novel: NovelState | null): CharacterRules | null {
+  return getCharacterRulesForSlug(novel?.ruleset ?? null);
 }
 
 // REQ-399b — a failing declared formula is a named creation error, not an
@@ -5035,14 +5057,16 @@ function entityHp(entity: NovelEntity): { hp?: number; max_hp?: number } {
 // remove/roster_remove/roster_list surface.
 server.registerTool("manage_character", {
   title: "Player Character Management (create/import, sheet, update)",
-  description: "Manage player characters: create, import, stage, activate, edit, signal, remove, or list roster characters. stage adds an existing entity to the roster; set_active chooses which Novel entity play acts through and optionally sets pov; import requires roster_id and copies that roster character into the Novel. sheet and roster_list are read-only; Novel mutations persist, are audited, and are undoable via manage_history (action: undo). update merges provided fields (stats shallow-merge; omitted fields preserved), personality{} aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. stage and roster_remove are exact inverses on the roster; remove deletes the Novel entity and is undoable. Use when: creating or importing a PC, staging or activating one for play, editing its sheet or voice, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
+  description: "Manage player characters (PCs): create, import, stage, activate, edit, signal, remove, or list the roster. stage adds an existing entity to the roster; set_active chooses which Novel entity play acts through and optionally sets pov; import requires roster_id and copies that roster character into the Novel. sheet and roster_list are read-only; Novel mutations persist, are audited, and are undoable via manage_history (action: undo). update merges provided fields (stats shallow-merge; omitted preserved); personality{} aliases description/voice/background/goals; details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its alias. stage and roster_remove are inverses. With no active Novel, create writes the roster (profile-only unless `ruleset` is named); an explicit `context` wins over an active Novel. Use when: creating, importing, staging, activating, or editing a PC, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
   inputSchema: {
     action: z.enum(["create", "stage", "import", "sheet", "set_active", "personality", "voice", "signal", "update", "remove", "roster_remove", "roster_list"]).describe("create, stage, import, sheet, set_active, personality, voice, signal, update, remove, roster_remove, or roster_list."),
-    name: z.string().optional().describe("Character name; omit (create) to begin step-by-step."),
+    name: z.string().optional().describe("Character name; omit (create) to begin step-by-step while a Novel is active."),
     species: z.string().optional().describe("Species (create)."),
     classes: z.union([z.string(), z.array(z.object({ className: z.string(), levels: z.number().optional() }))]).optional().describe("Class levels (create)."),
     stat_method: z.string().optional().describe("Stat-generation method (create)."),
     seed: z.string().optional().describe("Deterministic seed (create)."),
+    context: z.enum(["novel", "codex", "roster", "reference"]).optional().describe("Which store to act on: novel, codex, roster, or reference. Explicit wins over the active Novel; with no value, an open Novel answers novel-capable actions and a create with no Novel goes to the roster."),
+    ruleset: z.string().optional().describe("Installed ruleset slug for a create with no active Novel (profile-only when omitted and several are installed)."),
     stage_to_roster: z.boolean().optional().describe("Also stage into the roster (create)."),
     personality: z.object({ description: z.string().optional(), voice: z.string().optional(), background: z.string().optional(), goals: z.string().optional(), persona: z.string().optional() }).optional().describe("Grouped personality fields (create)."),
     persona: z.string().optional().describe("Values, traits, and mannerisms (create/personality)."),
@@ -5084,6 +5108,105 @@ server.registerTool("manage_character", {
       const effTalents = talents ?? d.talents;
       const effEquipment = equipment ?? d.equipment;
       requireNotObserver();
+
+      // REQ-088e / REQ-661 — with no Novel the roster is the store. The
+      // step-by-step workflow lives on a Novel, so a name is required here;
+      // profile-only unless a ruleset is named (or exactly one is installed).
+      const requestedContext = typeof args.context === "string" ? args.context : null;
+      if (requestedContext === "novel" && !state.activeNovel) {
+        return err("STATE_CONFLICT", "No active Novel to create into.", "resume or create a Novel, pass context: 'roster' to author on the roster, or omit context to default to the roster");
+      }
+      if (requestedContext === "codex") {
+        return err("INVALID_INPUT", "Player characters live on the roster or in a Novel.", "pass context: 'roster', or store a reusable character template with manage_codex (action: set, kind: character)");
+      }
+      const forceRoster = requestedContext === "roster";
+      if (!state.activeNovel || forceRoster) {
+        const personality = { description: effDescription, voice: effVoice, background: effBackground, goals: effGoals, persona: effPersona };
+        const hasPersonality = effDescription || effVoice || effBackground || effGoals || effPersona;
+        if (!name) {
+          return err(
+            "INVALID_INPUT",
+            "name is required when no Novel is active — the step-by-step creation workflow lives on a Novel.",
+            "pass name, and species/classes or a ruleset for a mechanical build; omit the mechanical fields for a profile-only roster character",
+          );
+        }
+        const namedRuleset = typeof args.ruleset === "string" && args.ruleset.length > 0 ? args.ruleset : null;
+        const installed = rulesets.installedSlugs();
+        if (namedRuleset && !rulesets.isInstalled(namedRuleset)) {
+          return err("NOT_FOUND", `Ruleset '${namedRuleset}' is not installed.`, `use one of: ${installed.join(", ") || "(none installed)"}`);
+        }
+        if (!namedRuleset && installed.length > 1 && (classes || effAbilityScores || stat_method)) {
+          return err(
+            "INVALID_INPUT",
+            `Several rulesets are installed (${installed.join(", ")}).`,
+            "pass ruleset to choose one, or omit classes and stats for a profile-only roster character",
+          );
+        }
+        const slug = namedRuleset ?? (installed.length === 1 ? installed[0] : null);
+        const rosterRefusal = capGuard("roster", state.roster.size);
+        if (rosterRefusal) return rosterRefusal;
+        const rosterRules = getCharacterRulesForSlug(slug);
+        if (!rosterRules) {
+          if (classes || effAbilityScores || stat_method) {
+            return err(
+              "INVALID_INPUT",
+              "No character-creation rules are available for this roster character.",
+              "pass ruleset naming an installed package, or omit classes and stats for a profile-only character",
+            );
+          }
+          const profileStats = species && !hasPersonality ? { species } : undefined;
+          const id = state.createRosterEntity(name, hasPersonality ? personality : undefined, profileStats, slug, getBadge());
+          audit("create_character", { entity_id: id, name, store: "roster" });
+          return withContext(
+            ok(`Character '${name}' created on the roster as ${id} (profile-only — no mechanical stats).`),
+            { kind: "roster", id, source: "subject" },
+          );
+        }
+        if (!species || !classes) {
+          return err("INVALID_INPUT", "Quick-create requires 'species' and 'classes'. Supply both, or omit the mechanical fields for a profile-only roster character.");
+        }
+        const classLevels = parseClassLevels(classes);
+        if (classLevels.length === 0) return err("INVALID_INPUT", "Could not parse 'classes'. Use format 'Class 5 / Other 2'.");
+        for (const cl of classLevels) {
+          if (!getClassData(rosterRules, cl.className)) return err("INVALID_INPUT", `Unknown class '${cl.className}'.`);
+        }
+        const speciesData = rosterRules.species?.[species.trim().toLowerCase()];
+        if (rosterRules.species && !speciesData) return err("INVALID_INPUT", `Unknown species '${species}'.`);
+        const method: StatMethod = stat_method ?? Object.keys(rosterRules.stat_methods ?? {})[0] ?? "planned";
+        const rawScores = effAbilityScores
+          ? parseAbilityScores(effAbilityScores, rosterRules)
+          : (() => {
+              const gen = generateAbilityScores(method, rosterRules, seed);
+              const names = abilityNames(rosterRules);
+              const out: Record<string, number> = {};
+              for (let i = 0; i < names.length; i++) out[names[i]] = gen[i] ?? 10;
+              return out;
+            })();
+        const abilityScores = applySpeciesAdjustments(rawScores, species, rosterRules);
+        const toList = (v: any): string[] => {
+          if (!v) return [];
+          if (Array.isArray(v)) return v.map(String);
+          return String(v).split(/[\s,]+/).map((s: string) => s.trim()).filter(Boolean);
+        };
+        const build: CharacterBuildInput = {
+          name, species, classLevels, abilityScores,
+          trainedSkills: toList(effSkills), feats: toList(effFeats), talents: toList(effTalents),
+          statMethod: method, seed, equipment: toList(effEquipment),
+        };
+        let stats: Record<string, any>;
+        try {
+          stats = buildCharacterStats(build, rosterRules, slug!);
+        } catch (e: any) {
+          return creationError(e, slug);
+        }
+        const id = state.createRosterEntity(name, hasPersonality ? personality : undefined, stats, slug, getBadge());
+        audit("create_character", { entity_id: id, name, store: "roster" });
+        return withContext(
+          ok(`Character '${name}' created on the roster as ${id} (ruleset: ${slug}).`),
+          { kind: "roster", id, source: "subject" },
+        );
+      }
+
       const novel = requireNovel();
       const rules = getCharacterRules(novel);
       const personality = { description: effDescription, voice: effVoice, background: effBackground, goals: effGoals, persona: effPersona };
@@ -5118,9 +5241,9 @@ server.registerTool("manage_character", {
         // REQ-040a / REQ-072c2 — roster_changes derives created rows from here.
         audit("create_character", { entity_id: entity.id, name: entity.name });
         state.saveNovel(novel);
-        return ok(`${fmtEntitySheet(entity)}
+        return withContext(ok(`${fmtEntitySheet(entity)}
 
-Character '${name}' created (profile-only — no mechanical stats).${stage_to_roster ? ` Staged to roster as ${entity.id}.` : ` Entity id ${entity.id}.`}`);
+Character '${name}' created (profile-only — no mechanical stats).${stage_to_roster ? ` Staged to roster as ${entity.id}.` : ` Entity id ${entity.id}.`}`), contextFor("manage_character", "create"));
       }
 
       if (!species || !classes) {
@@ -5175,11 +5298,11 @@ Character '${name}' created (profile-only — no mechanical stats).${stage_to_ro
       const derived = Object.entries(stats)
         .filter(([k, v]) => k !== "class" && k !== "species" && k !== "abilityScores" && k !== "statMethod" && k !== "trainedSkills" && k !== "feats" && k !== "talents" && k !== "equipment" && k !== "level" && !k.startsWith("_") && typeof v === "number")
         .map(([k, v]) => `${k}=${v}`);
-      return ok(`${fmtEntitySheet(entity)}
+      return withContext(ok(`${fmtEntitySheet(entity)}
 
 Created (inputs): ${inputs.join(" · ")}
 Derived: ${derived.join(" · ")}
-${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' created as ${entity.id}.`}${seedWarningSuffix(effAbilityScores ? undefined : seed)}`);
+${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' created as ${entity.id}.`}${seedWarningSuffix(effAbilityScores ? undefined : seed)}`), contextFor("manage_character", "create"));
     }
     case "stage": {
       requireNotObserver();
@@ -5404,12 +5527,12 @@ ${stage_to_roster ? `Staged to roster as ${entity.id}.` : `Character '${name}' c
       // REQ-040a — roster mutations are audited. With no active Novel the audit
       // helper is a no-op, which is expected for a Novel-independent roster.
       audit("roster_remove", { roster_id: args.roster_id, name });
-      return ok(`Roster character '${args.roster_id}' removed.`);
+      return withContext(ok(`Roster character '${args.roster_id}' removed.`), contextFor("manage_character", "roster_remove"));
     }
     case "roster_list": {
       const chars = [...state.roster.entries()].map(([id, e]) => ({ id, name: e.name, ...rosterListingFields(e) }));
-      if (chars.length === 0) return ok("Roster is empty — no characters staged yet.");
-      return raw(JSON.stringify(chars, null, 2));
+      if (chars.length === 0) return withContext(ok("Roster is empty — no characters staged yet."), contextFor("manage_character", "roster_list"), { textBlock: false });
+      return withContext(raw(JSON.stringify(chars, null, 2)), contextFor("manage_character", "roster_list"), { textBlock: false });
     }
     default:
       return err("INVALID_INPUT", `Unknown character action '${args.action}'.`);
@@ -6704,9 +6827,10 @@ server.registerTool("manage_scene", {
 // REQ-075g/075h/075i — talkativeness, card import, and card export.
 server.registerTool("manage_npc", {
   title: "NPC Management",
-  description: "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. get returns the record plus a GM-only compiled identity summary when the NPC has accepted facets. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
+  description: "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. get returns the record plus a GM-only compiled identity summary when the NPC has accepted facets. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. With no Novel active, create writes a Codex entry of kind npc and `npcs://` lists Novel NPCs only. An explicit `context` wins over the active Novel. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
   inputSchema: {
     action: z.enum(["create", "update", "remove", "list", "get", "import_card", "export_card", "import_cof"]).describe("create, update, remove, list, get, import_card, export_card, or import_cof."),
+    context: z.enum(["novel", "codex", "roster", "reference"]).optional().describe("Which store to act on. An open Novel answers a create; with no Novel, create writes a Codex entry of kind npc."),
     detail: z.boolean().optional().describe("Return full NPC records instead of summary entries (list)."),
     name: z.string().optional().describe("NPC name (create)."),
     npc_id: z.string().optional().describe("NPC identifier (update/remove/get/export_card)."),
@@ -6736,6 +6860,67 @@ server.registerTool("manage_npc", {
   switch (args.action) {
     case "create": {
       requireGM();
+
+      // REQ-088e / REQ-661 — with no Novel the NPC is authored into the Codex
+      // as an entry of kind `npc`; the Novel is untouched and `npcs://` stays empty.
+      const requestedContext = typeof args.context === "string" ? args.context : null;
+      if (requestedContext === "novel" && !state.activeNovel) {
+        return err("STATE_CONFLICT", "No active Novel to create into.", "resume or create a Novel, pass context: 'codex' to author into the Codex, or omit context to default to the Codex");
+      }
+      if (requestedContext === "roster") {
+        return err("INVALID_INPUT", "NPCs have no roster.", "pass context: 'novel' with a Novel active, or context: 'codex'");
+      }
+      const forceCodex = requestedContext === "codex";
+      if (!state.activeNovel || forceCodex) {
+        const { name, description, disposition, location, goals, ruleset_reference } = args;
+        if (!name) return err("INVALID_INPUT", "name is required (create).");
+        const npc: any = { name, disposition, location, conditions: [], condition_rounds: {} };
+        if (description !== undefined) setNpcDescription(npc, description);
+        if (args.persona !== undefined) npc.persona = args.persona;
+        if (args.talkativeness !== undefined) npc.talkativeness = args.talkativeness;
+        if (args.scope !== undefined) npc.scope = args.scope;
+        if (args.role !== undefined) npc.role = args.role;
+        if (goals) npc.personality = { goals };
+        if (args.mind) npc.mind = args.mind;
+        if (ruleset_reference) {
+          const installed = rulesets.installedSlugs();
+          if (installed.length !== 1) {
+            return err(
+              "INVALID_INPUT",
+              `ruleset_reference needs exactly one installed ruleset with no active Novel; installed: ${installed.join(", ") || "(none)"}.`,
+              "install or name a single ruleset, or omit ruleset_reference",
+            );
+          }
+          const model = rulesets.hydrate(installed[0]).model as any;
+          const pools = { ...(model.monsters ?? {}), ...(model.npcs ?? {}), ...(model.concepts ?? {}) };
+          const hit = Object.values(pools).find((e: any) => (e.name ?? "").toLowerCase() === String(ruleset_reference).toLowerCase())
+            ?? Object.values(pools).find((e: any) => e.id === String(ruleset_reference).toLowerCase());
+          if (!hit) {
+            const valid = Object.keys(pools);
+            return err("NOT_FOUND", `Ruleset reference '${ruleset_reference}' not found. Valid references: ${valid.slice(0, 25).join(", ") || "(none)"}.`);
+          }
+          const { name: _n, ...stats } = hit as any;
+          npc.stats = { ...stats };
+          npc.ruleset_reference = ruleset_reference;
+        }
+        const now = new Date().toISOString();
+        const id = putCodexEntry({
+          id: codexEntryId("npc", String(name)),
+          kind: "npc",
+          name,
+          content: npc,
+          description,
+          tags: [],
+          imported_at: now,
+          codex_modified_at: now,
+          ruleset: null,
+        });
+        return withContext(
+          ok(`NPC '${name}' created in the Codex as ${id} (no active Novel — read it with manage_codex (action: get); npcs:// lists Novel NPCs only).`),
+          { kind: "codex", id, source: "authoring" },
+        );
+      }
+
       const novel = requireNovel();
       novelSnapshot();
       const { name, description, disposition, location, goals, ruleset_reference } = args;
@@ -9649,7 +9834,7 @@ function assessGenerationGuard(input: string): string | null {
 // Adventure (REQ-090, REQ-091, REQ-132, REQ-229, REQ-247, REQ-251, REQ-292, REQ-295) — consolidated generate/generate_encounter/load/list surface.
 server.registerTool("manage_adventure", {
   title: "Adventure Management",
-  description: "Generate, load, or list adventure content. generate writes a scaffold to target — novel, codex, or both (default novel when one is active, else codex) — using premise; a !force prefix overrides the generation guard. generate_encounter writes one encounter to the Novel using context. Both persist, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load activates an indexed module in the Novel, or stores its scaffold in the Codex with target: codex (no Novel required); list is read-only and accepts an optional genre filter. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
+  description: "Generate, load, or list adventure content. generate writes a scaffold to target — novel, codex, or both (default novel when one is active, else codex) — using premise; a !force prefix overrides the generation guard. generate_encounter writes one encounter to the Novel using context. Both persist, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load activates an indexed module in the Novel, or stores its scaffold in the Codex with target: codex (no Novel required); list is read-only and accepts an optional genre filter. `target` is this tool's explicit destination selector; `context` is free-text scene context for generate_encounter only. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
   inputSchema: {
     action: z.enum(["generate", "generate_encounter", "load", "list"]).describe("generate, generate_encounter, load, or list."),
     premise: z.string().optional().describe("Adventure premise (generate)."),
@@ -9752,7 +9937,7 @@ server.registerTool("manage_adventure", {
         results.push(`Novel adventure scaffold stored (adventure://generated/${slug})`);
       }
       const worldNote = scaffold.world_section ? `\n\n**World:** ${scaffold.materialized_rooms?.length ?? 0} room(s) materialized from the generated \`## World\` section.` : "";
-      return ok(`Adventure "${args.premise.trim()}" generated:\n\n${scaffold.overview}\n\n**Hook:** ${scaffold.hook}\n\n${locations.map(l => `- ${l.heading}: ${l.flavor}`).join("\n")}\n\n**NPC suggestions:** ${npcSuggestions.join(", ")}\n\n**Encounter seed:** ${encounterSeed}${worldNote}\n\n${results.join("\n")}`);
+      return withContext(ok(`Adventure "${args.premise.trim()}" generated:\n\n${scaffold.overview}\n\n**Hook:** ${scaffold.hook}\n\n${locations.map(l => `- ${l.heading}: ${l.flavor}`).join("\n")}\n\n**NPC suggestions:** ${npcSuggestions.join(", ")}\n\n**Encounter seed:** ${encounterSeed}${worldNote}\n\n${results.join("\n")}`), contextFor("manage_adventure", "generate"));
     }
     case "generate_encounter": {
       requireGM();
@@ -9850,7 +10035,7 @@ server.registerTool("manage_adventure", {
         } as any);
         state.saveCodex();
         audit("load_adventure", { slug, target: "codex", creator: provenance?.creator ?? null });
-        return ok(`Codex adventure '${id}' stored (source: loaded:${slug}). Structural extraction: ${structure.locations.length} locations, ${structure.npcs.length} NPC references, ${structure.factions.length} factions. Novel state untouched.${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+        return withContext(ok(`Codex adventure '${id}' stored (source: loaded:${slug}). Structural extraction: ${structure.locations.length} locations, ${structure.npcs.length} NPC references, ${structure.factions.length} factions. Novel state untouched.${provenanceSummary(provenance)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`), contextFor("manage_adventure", "load", { explicit: { kind: "codex" } }));
       }
       if (!novel) return err("INVALID_INPUT", "No active Novel — load with target:'codex', or create a Novel first.");
       novelSnapshot();
@@ -9905,7 +10090,7 @@ server.registerTool("manage_adventure", {
           const pre = prepopulate();
           state.saveNovel(novel);
           audit("load_adventure", { slug, rooms: 0, things: 0, preserved: true, creator: provenance?.creator ?? null, npcs: materialized.counts.npcs, lore: materialized.counts.lore });
-          return ok(`Adventure '${slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms). ${pre.line}${pre.notes}${adventureAugmentation(structure)}${provenanceSummary(provenance)}${hazardNote(linked, materialized)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`);
+          return withContext(ok(`Adventure '${slug}' loaded; its World section yielded no rooms, so the existing world model was kept (${novel.world.rooms.size} rooms). ${pre.line}${pre.notes}${adventureAugmentation(structure)}${provenanceSummary(provenance)}${hazardNote(linked, materialized)}\n\nWarnings: [WARNING] [world-preserved] module World section produced no rooms; existing world preserved.${provenanceNotes.length ? `; ${provenanceNotes.join("; ")}` : ""}`), contextFor("manage_adventure", "load"));
         }
         novel.world = world;
         // REQ-132b — loading an indexed adventure does not affect the
@@ -9919,18 +10104,18 @@ server.registerTool("manage_adventure", {
         const pre = prepopulate();
         state.saveNovel(novel);
         audit("load_adventure", { slug, rooms: result.rooms, things: result.things, creator: provenance?.creator ?? null, npcs: materialized.counts.npcs, lore: materialized.counts.lore });
-        return ok(`Adventure '${slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits. ${pre.line}${pre.notes}${adventureAugmentation(structure)}${provenanceSummary(provenance)}${hazardNote(linked, materialized)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+        return withContext(ok(`Adventure '${slug}' loaded. World model: ${result.rooms} rooms, ${result.things} things, ${result.exits} exits. ${pre.line}${pre.notes}${adventureAugmentation(structure)}${provenanceSummary(provenance)}${hazardNote(linked, materialized)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`), contextFor("manage_adventure", "load"));
       }
       const linkedNoWorld = linkAnnotations(content, novel.world);
       const materializedNoWorld = materializeAnnotations(novel, linkedNoWorld.directives, slug);
       const pre = prepopulate();
       state.saveNovel(novel);
       audit("load_adventure", { slug, rooms: 0, things: 0, creator: provenance?.creator ?? null, npcs: materializedNoWorld.counts.npcs, lore: materializedNoWorld.counts.lore });
-      return ok(`Adventure '${slug}' loaded (no world-model section found — flat prose only). ${pre.line}${pre.notes}${adventureAugmentation(structure)}${provenanceSummary(provenance)}${hazardNote(linkedNoWorld, materializedNoWorld)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`);
+      return withContext(ok(`Adventure '${slug}' loaded (no world-model section found — flat prose only). ${pre.line}${pre.notes}${adventureAugmentation(structure)}${provenanceSummary(provenance)}${hazardNote(linkedNoWorld, materializedNoWorld)}${provenanceNotes.length ? `\n\nWarnings: ${provenanceNotes.join("; ")}` : ""}`), contextFor("manage_adventure", "load"));
     }
     case "list": {
       const files = adventureFiles().filter((f) => !skippedAdventureSlugs().has(f.slug));
-      if (files.length === 0) return ok("[No adventure modules found.]");
+      if (files.length === 0) return withContext(ok("[No adventure modules found.]"), contextFor("manage_adventure", "list"));
       const badge = getBadge();
       const isGM = badge === "game_master" || badge === "none";
       const entries = files.map(({ slug, file, dir }) => {
@@ -9955,7 +10140,7 @@ server.registerTool("manage_adventure", {
       const visible = isGM
         ? entries.map(({ player_visible: _pv, ...rest }) => rest)
         : entries.filter((e) => e.player_visible).map(({ player_visible: _pv, ...rest }) => rest);
-      return raw(JSON.stringify(visible, null, 2));
+      return withContext(raw(JSON.stringify(visible, null, 2)), contextFor("manage_adventure", "list"), { textBlock: false });
     }
     default:
       return err("INVALID_INPUT", `Unknown adventure action '${args.action}'. Valid actions: generate, generate_encounter, load, list.`);
@@ -11058,6 +11243,7 @@ server.registerTool("manage_ruleset", {
   description: "Manage ruleset packages: search an installed ruleset's index, install or remove a package, list installed packages, bind a Novel to a ruleset, or import/remove supplementary Wisdom. search accepts an optional slug, works with no active Novel, and is read-only; install, remove, import_supplementary, and remove_supplementary mutate state, are audited, and are reversible via the paired action. install of an existing slug conflicts, and remove refuses while a Novel is bound to that slug. binding scopes only Novel-dependent features; import_supplementary uses inline wisdom when present and reads source only when absent. Table rolls are resolve_mechanic (action: roll). Use when: searching rules content, managing packages, binding a Novel, or adding/removing supplementary Wisdom. Do NOT use when: the ruleset name is unknown — use manage_context (action: discover).",
   inputSchema: {
     action: z.enum(["search", "install", "remove", "list", "bind", "roll", "import_supplementary", "remove_supplementary"]).describe("search, install, remove, list, bind, import_supplementary, or remove_supplementary."),
+    context: z.enum(["novel", "codex", "roster", "reference"]).optional().describe("Which store to act on: a ruleset lookup resolves to reference; an explicit value wins over the active Novel."),
     query: z.string().optional().describe("Search query (search)."),
     max_results: z.number().optional().describe("Maximum results (search)."),
     slug: z.string().optional().describe("Ruleset slug (install/remove/bind/import_supplementary/remove_supplementary)."),
@@ -11111,14 +11297,14 @@ server.registerTool("manage_ruleset", {
         const suppressed = Math.max(0, total - rendered.length);
         searchBudgetStats = { max_tokens: budget, last_returned: rendered.length + adventureRendered.length, last_suppressed: suppressed };
         const body = rendered.join("\n");
-        return raw(mergeAdventure(body, rendered.length, total));
+        return withContext(raw(mergeAdventure(body, rendered.length, total)), contextFor("manage_ruleset", "search"), { textBlock: false });
       }
       if (rulesets.installedSlugs().length > 0) {
-        if (adventureRendered.length > 0) return raw(mergeAdventure("", 0, 0));
-        return ok(`No ruleset selected. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Pass slug to search one directly (no Novel required), or bind one via manage_ruleset (action: bind).`);
+        if (adventureRendered.length > 0) return withContext(raw(mergeAdventure("", 0, 0)), contextFor("manage_ruleset", "search"), { textBlock: false });
+        return withContext(ok(`No ruleset selected. Installed rulesets: ${rulesets.installedSlugs().join(", ")}. Pass slug to search one directly (no Novel required), or bind one via manage_ruleset (action: bind).`), contextFor("manage_ruleset", "search"), { textBlock: false });
       }
-      if (adventureRendered.length > 0) return raw(mergeAdventure("", 0, 0));
-      return ok(`No ruleset indexed — this is a world-model-only server. Query was: "${args.query}". To add a ruleset, install a package with manage_artifact (action: install, kind: ruleset); builders working from the repository can emit one with build-ruleset (spec Appendix V).`);
+      if (adventureRendered.length > 0) return withContext(raw(mergeAdventure("", 0, 0)), contextFor("manage_ruleset", "search"), { textBlock: false });
+      return withContext(ok(`No ruleset indexed — this is a world-model-only server. Query was: "${args.query}". To add a ruleset, install a package with manage_artifact (action: install, kind: ruleset); builders working from the repository can emit one with build-ruleset (spec Appendix V).`), contextFor("manage_ruleset", "search"), { textBlock: false });
     }
     case "install": {
       requireGM();
@@ -11147,7 +11333,7 @@ server.registerTool("manage_ruleset", {
           return err("STATE_CONFLICT", `Ruleset '${pkg.slug}' installed but could not be registered: ${e?.message ?? e}. The package was removed.`);
         }
         reloadPackagePrompts();
-        return ok(`Ruleset '${pkg.slug}' installed and hydrated: ${pkg.index.length} index entries, ${pkg.tools.length} tools.`);
+        return withContext(ok(`Ruleset '${pkg.slug}' installed and hydrated: ${pkg.index.length} index entries, ${pkg.tools.length} tools.`), contextFor("manage_ruleset", "install"));
       } catch (e: any) {
         return err("STATE_CONFLICT", e.message);
       }
@@ -11167,7 +11353,7 @@ server.registerTool("manage_ruleset", {
         (server as any).sendPromptListChanged?.();
         (server as any).sendToolListChanged?.();
         audit("remove_ruleset", { slug: args.slug });
-        return ok(`Ruleset '${args.slug}' removed.`);
+        return withContext(ok(`Ruleset '${args.slug}' removed.`), contextFor("manage_ruleset", "remove"));
       } catch (e: any) {
         return err("STATE_CONFLICT", e.message);
       }
@@ -11188,7 +11374,7 @@ server.registerTool("manage_ruleset", {
         creator: manifest.creator ?? null,
         attribution: manifest.attribution ?? null,
       }));
-      return raw(JSON.stringify(list, null, 2));
+      return withContext(raw(JSON.stringify(list, null, 2)), contextFor("manage_ruleset", "list"), { textBlock: false });
     }
     case "bind": {
       requireGM();
@@ -11198,7 +11384,7 @@ server.registerTool("manage_ruleset", {
       try {
         const novel = state.bindNovelRuleset(args.slug);
         rulesets.hydrate(args.slug);
-        return ok(`Novel '${novel.slug}' bound to ruleset '${args.slug}'.`);
+        return withContext(ok(`Novel '${novel.slug}' bound to ruleset '${args.slug}'.`), contextFor("manage_ruleset", "bind"));
       } catch (e: any) {
         return err("STATE_CONFLICT", e.message);
       }
@@ -11268,7 +11454,7 @@ server.registerTool("manage_ruleset", {
       novel.supplementary_rulesets.push({ slug: args.slug, source, hash, wisdom, imported_at: new Date().toISOString() });
       state.saveNovel(novel);
       audit("import_supplementary", { slug: args.slug, wisdom_items: wisdom.length, waiver: true });
-      return ok(`Imported supplementary ruleset '${args.slug}' — ${wisdom.length} Wisdom item(s), Wisdom-only under the REQ-373 waiver; no new tools registered.`);
+      return withContext(ok(`Imported supplementary ruleset '${args.slug}' — ${wisdom.length} Wisdom item(s), Wisdom-only under the REQ-373 waiver; no new tools registered.`), contextFor("manage_ruleset", "import_supplementary"));
     }
     case "remove_supplementary": {
       requireGM();
@@ -11279,7 +11465,7 @@ server.registerTool("manage_ruleset", {
       if (novel.supplementary_rulesets.length === before) return err("NOT_FOUND", `Supplementary ruleset '${args.slug}' is not imported.`);
       state.saveNovel(novel);
       audit("remove_supplementary", { slug: args.slug });
-      return ok(`Removed supplementary ruleset '${args.slug}'. State derived from it (NPCs, lore) persists.`);
+      return withContext(ok(`Removed supplementary ruleset '${args.slug}'. State derived from it (NPCs, lore) persists.`), contextFor("manage_ruleset", "remove_supplementary"));
     }
     default:
       return err("INVALID_INPUT", `Unknown ruleset action '${args.action}'. Valid actions: search, install, remove, list, bind, roll, import_supplementary, remove_supplementary.`);
@@ -13991,11 +14177,25 @@ function codexImportPrecheck(novel: any, entry: any): string | null {
 // import, and delete. Replaces the former codex_set/codex_list/codex_capture/
 // codex_import tools and adds the spec-required codex_info/codex_delete surface
 // (REQ-321 completeness; previously a gap flagged by the coverage audit).
+// REQ-661 — one codex writer. manage_codex (action: set) and a campaign-less
+// manage_npc (action: create) both go through it, so id derivation, scope
+// defaulting, and persistence cannot drift apart.
+function codexEntryId(kind: string, name: string): string {
+  return `${kind.toLowerCase()}_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+}
+
+function putCodexEntry(entry: any): string {
+  state.codex.set(entry.id, entry);
+  state.saveCodex();
+  return entry.id;
+}
+
 server.registerTool("manage_codex", {
   title: "Codex Library Management",
   description: "Manage the server-level library of reusable, cross-Novel content — stored entries, not generated synthesis or Novel-scoped lore. Entries cover NPCs, characters, scenes, encounters, lore, factions, rooms, things, templates, voice profiles, and adventures; they persist to `.holonovel-state/codex.json`, survive restarts, and mutations are audited. Requires the Editor or Game Master badge; reads are not badge-filtered. With no Novel active, the codex is the default store; `import`/`capture` need an active Novel. `set` needs `kind` + `name` (the id derives from them); merge=true shallow-merges content. `export` emits the library, or a `kind`/`id` selection, as one deterministic payload. Revert the most recent mutation with manage_history (action: undo). Use when: storing reusable content, enumerating/reading/deleting it, or taking the library with you. Do NOT use when: storing Novel-scoped content — use manage_lore (action: set) or manage_note (action: set).",
   inputSchema: {
     action: z.enum(["set", "list", "get", "capture", "import", "export", "delete"]).describe("set (create/update), list, get, capture (Novel artifact per kind), import (into active Novel), export (the library as one interchange payload), or delete."),
+    context: z.enum(["novel", "codex", "roster", "reference"]).optional().describe("Which store to act on: the codex answers set/list/get/export/delete; capture and import need an active Novel."),
     kind: z.string().optional().describe("Entry kind (for set/list/capture)."),
     name: z.string().optional().describe("Entry name (for set)."),
     entry_id: z.string().optional().describe("Entry identifier (for get/import/delete); alias of `id`."),
@@ -14015,7 +14215,7 @@ server.registerTool("manage_codex", {
       requireGM();
       const { kind, name, content, description, tags, merge } = args;
       if (!kind || !name) return err("INVALID_INPUT", "manage_codex (action: set) requires kind and name; the entry id derives from them. Corrective action: supply both, or use action: get/import with an existing id.");
-      const id = `${String(kind).toLowerCase()}_${String(name).toLowerCase().replace(/[^a-z0-9]+/g, "_")}`;
+      const id = codexEntryId(String(kind), String(name));
       const now = new Date().toISOString();
       const existing = state.codex.get(id);
       const mergedContent = (merge && content && typeof content === "object" && existing?.content && typeof existing.content === "object")
@@ -14037,9 +14237,8 @@ server.registerTool("manage_codex", {
         codex_modified_at: now,
         ruleset: entryRuleset,
       };
-      state.codex.set(id, entry);
-      state.saveCodex();
-      return ok(`Codex entry '${id}' stored.`);
+      putCodexEntry(entry);
+      return withContext(ok(`Codex entry '${id}' stored.`), contextFor("manage_codex", "set"));
     }
     case "list": {
       requireGM();
@@ -14048,14 +14247,14 @@ server.registerTool("manage_codex", {
       // REQ-387a — a ruleset filter returns matching entries plus untagged
       // (null) ones, so shared library content stays visible.
       if (args.ruleset) entries = entries.filter((e: any) => !e.ruleset || e.ruleset === args.ruleset);
-      return raw(JSON.stringify(entries.map((e: any) => ({ id: e.id, kind: e.kind, name: e.name, tags: e.tags, ruleset: e.ruleset ?? null })), null, 2));
+      return withContext(raw(JSON.stringify(entries.map((e: any) => ({ id: e.id, kind: e.kind, name: e.name, tags: e.tags, ruleset: e.ruleset ?? null })), null, 2)), contextFor("manage_codex", "list"), { textBlock: false });
     }
     case "get": {
       requireGM();
       const entryId = args.id ?? args.entry_id;
       const entry = state.codex.get(entryId);
       if (!entry) return err("NOT_FOUND", `Codex entry '${entryId}' not found.`);
-      return raw(JSON.stringify(entry, null, 2));
+      return withContext(raw(JSON.stringify(entry, null, 2)), contextFor("manage_codex", "get"), { textBlock: false });
     }
     case "export": {
       // REQ-321o / REQ-660 — preparation leaves the server: the codex exports
@@ -14072,7 +14271,7 @@ server.registerTool("manage_codex", {
       if (args.kind) entries = entries.filter((e: any) => e.kind === args.kind);
       if (ids) entries = entries.filter((e: any) => ids.includes(e.id));
       entries.sort((a: any, b: any) => String(a.id).localeCompare(String(b.id)));
-      return raw(JSON.stringify({ schema: "holonovel.codex/1", entries }, null, 2));
+      return withContext(raw(JSON.stringify({ schema: "holonovel.codex/1", entries }, null, 2)), contextFor("manage_codex", "export"), { textBlock: false });
     }
     case "capture": {
       // REQ-321n — general capture: pull a Novel artifact into the Codex as an
@@ -14243,7 +14442,7 @@ server.registerTool("manage_codex", {
       if (!state.codex.has(delId)) return err("NOT_FOUND", `Codex entry '${delId}' not found.`);
       state.codex.delete(delId);
       state.saveCodex();
-      return ok(`Codex entry '${delId}' deleted.`);
+      return withContext(ok(`Codex entry '${delId}' deleted.`), contextFor("manage_codex", "delete"));
     }
     default:
       return err("INVALID_INPUT", `Unknown codex action '${args.action}'. Valid actions: set, list, get, capture, import, delete.`);

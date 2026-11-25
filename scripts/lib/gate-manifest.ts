@@ -51,6 +51,12 @@ const RAW_GATES: Gate[] = [
     full: npm("test:validators"),
   },
   {
+    name: "check-context-audit",
+    description: "Context audit table and generated page match the requireNovel() call sites (REQ-661)",
+    fast: npm("check-context-audit"),
+    full: npm("check-context-audit"),
+  },
+  {
     name: "test:spec-tooling",
     description: "Self-tests for spec-delta and assembly tooling",
     fast: npm("test:spec-tooling"),
@@ -248,13 +254,13 @@ const RAW_GATES: Gate[] = [
     fast: npm("check-fixture-emitter"),
     full: npm("check-fixture-emitter"),
   },
-  // Full-gate only: runs the whole server harness suite (56 commands, ~3 min at
+  // Full-gate only: runs the whole server harness suite (57 commands, ~3 min at
   // 4-way concurrency). Subsumes the former playability gate via
   // test:playability and the CI server steps. Protected: §8 G5 makes the
   // Pattern Buffer blocking, so the retirement policy must not downgrade it.
   {
     name: "test:all",
-    description: "Server harness suite: 56 commands incl. the Pattern Buffer and harness guard",
+    description: "Server harness suite: 57 commands incl. the Pattern Buffer and harness guard",
     fast: null,
     full: npm("test:all"),
     protected: true,

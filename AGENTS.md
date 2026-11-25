@@ -319,6 +319,7 @@ This runs (the table is generated from the gate manifest):
 | `lint` | yes | yes | Markdown style rules on the assembled spec and README |
 | `validate` | yes | yes | REQ integrity, shape, ambiguity, cross-references, coverage audit |
 | `test:validators` | yes | yes | Self-tests for the REQ validator checks |
+| `check-context-audit` | yes | yes | Context audit table and generated page match the requireNovel() call sites (REQ-661) |
 | `test:spec-tooling` | yes | yes | Self-tests for spec-delta and assembly tooling |
 | `test:script-tooling` | yes | yes | Self-tests for the script discipline and quality detectors |
 | `test:workflows` | yes | yes | Self-tests for the CI workflow pin and job-hygiene detectors |
@@ -352,7 +353,7 @@ This runs (the table is generated from the gate manifest):
 | `check-vendor-manifest` | yes | yes | Vendored content hashes match the manifest |
 | `check-starter-freshness` | yes | yes | Starter Novel artifacts are current |
 | `check-fixture-emitter` | yes | yes | Covered reference package re-emits byte-identically |
-| `test:all` | no | yes | Server harness suite: 56 commands incl. the Pattern Buffer and harness guard |
+| `test:all` | no | yes | Server harness suite: 57 commands incl. the Pattern Buffer and harness guard |
 | `test:loop-artifacts` | yes | yes | Self-tests for the increment artifact contract |
 | `test:holosuite-mutation` (advisory) | yes | yes | Holosuite mutation-audit catch rate (report-only) |
 | `check-package-manifest` | yes | yes | Published package manifest assertions |

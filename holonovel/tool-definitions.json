@@ -1,19 +1,19 @@
 {
   "schema_version": 4,
   "tool_count": 37,
-  "tools_list_bytes": 119686,
+  "tools_list_bytes": 121044,
   "surface_footprint": {
     "estimator": "utf8-bytes-div-4-ceil",
     "profiles": {
       "full": {
         "tools": 37,
-        "bytes": 119686,
-        "tokens": 29922
+        "bytes": 121044,
+        "tokens": 30261
       },
       "standard": {
         "tools": 37,
-        "bytes": 103739,
-        "tokens": 25935
+        "bytes": 105097,
+        "tokens": 26275
       },
       "small": {
         "tools": 6,
@@ -42,18 +42,18 @@
           },
           "lookup": {
             "tools": 6,
-            "bytes": 3949,
-            "tokens": 988
+            "bytes": 4023,
+            "tokens": 1006
           },
           "referee": {
             "tools": 6,
-            "bytes": 4058,
-            "tokens": 1015
+            "bytes": 4132,
+            "tokens": 1033
           },
           "author": {
             "tools": 6,
-            "bytes": 3903,
-            "tokens": 976
+            "bytes": 3977,
+            "tokens": 995
           },
           "maintain": {
             "tools": 6,
@@ -110,8 +110,8 @@
     {
       "name": "manage_adventure",
       "title": "Adventure Management",
-      "description": "Generate, load, or list adventure content. generate writes a scaffold to target — novel, codex, or both (default novel when one is active, else codex) — using premise; a !force prefix overrides the generation guard. generate_encounter writes one encounter to the Novel using context. Both persist, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load activates an indexed module in the Novel, or stores its scaffold in the Codex with target: codex (no Novel required); list is read-only and accepts an optional genre filter. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
-      "description_bytes": 756,
+      "description": "Generate, load, or list adventure content. generate writes a scaffold to target — novel, codex, or both (default novel when one is active, else codex) — using premise; a !force prefix overrides the generation guard. generate_encounter writes one encounter to the Novel using context. Both persist, appear in the audit log, and the most recent write is undoable via manage_history (action: undo). load activates an indexed module in the Novel, or stores its scaffold in the Codex with target: codex (no Novel required); list is read-only and accepts an optional genre filter. `target` is this tool's explicit destination selector; `context` is free-text scene context for generate_encounter only. Use when: the GM wants a new adventure scaffold, a single encounter, or to load a prepared module. Do NOT use when: recording a story beat — use manage_story (action: record).",
+      "description_bytes": 877,
       "action_enum": [
         "generate",
         "generate_encounter",
@@ -156,8 +156,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 2094,
-        "descriptionBytes": 756
+        "definitionBytes": 2215,
+        "descriptionBytes": 877
       },
       "category": "",
       "gate": ""
@@ -508,8 +508,8 @@
     {
       "name": "manage_character",
       "title": "Player Character Management (create/import, sheet, update)",
-      "description": "Manage player characters: create, import, stage, activate, edit, signal, remove, or list roster characters. stage adds an existing entity to the roster; set_active chooses which Novel entity play acts through and optionally sets pov; import requires roster_id and copies that roster character into the Novel. sheet and roster_list are read-only; Novel mutations persist, are audited, and are undoable via manage_history (action: undo). update merges provided fields (stats shallow-merge; omitted fields preserved), personality{} aliases description/voice/background/goals, and details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its grouped alias. stage and roster_remove are exact inverses on the roster; remove deletes the Novel entity and is undoable. Use when: creating or importing a PC, staging or activating one for play, editing its sheet or voice, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
-      "description_bytes": 979,
+      "description": "Manage player characters (PCs): create, import, stage, activate, edit, signal, remove, or list the roster. stage adds an existing entity to the roster; set_active chooses which Novel entity play acts through and optionally sets pov; import requires roster_id and copies that roster character into the Novel. sheet and roster_list are read-only; Novel mutations persist, are audited, and are undoable via manage_history (action: undo). update merges provided fields (stats shallow-merge; omitted preserved); personality{} aliases description/voice/background/goals; details{} aliases ability_scores/skills/feats/talents/equipment; a top-level value overrides its alias. stage and roster_remove are inverses. With no active Novel, create writes the roster (profile-only unless `ruleset` is named); an explicit `context` wins over an active Novel. Use when: creating, importing, staging, activating, or editing a PC, or handling player feedback. Do NOT use when: managing an NPC — use manage_npc.",
+      "description_bytes": 995,
       "action_enum": [
         "create",
         "stage",
@@ -524,7 +524,7 @@
         "roster_remove",
         "roster_list"
       ],
-      "param_count": 28,
+      "param_count": 30,
       "required": [
         "action"
       ],
@@ -532,6 +532,7 @@
         "ability_scores": "Ability scores (create).",
         "background": "Backstory (create/personality).",
         "classes": "Class levels (create).",
+        "context": "Which store to act on: novel, codex, roster, or reference. Explicit wins over the active Novel; with no value, an open Novel answers novel-capable actions and a create with no Novel goes to the roster.",
         "description": "Narrative description (create/personality).",
         "details": "Grouped mechanical details (create).",
         "entity_id": "Entity identifier (stage/sheet/set_active/personality/voice/remove).",
@@ -541,11 +542,12 @@
         "format": "Output format (sheet).",
         "goals": "Character goals (create/personality).",
         "inventory": "Replace the entity's inventory (update).",
-        "name": "Character name; omit (create) to begin step-by-step.",
+        "name": "Character name; omit (create) to begin step-by-step while a Novel is active.",
         "persona": "Values, traits, and mannerisms (create/personality).",
         "personality": "Grouped personality fields (create).",
         "pov": "Point-of-view mode (set_active).",
         "roster_id": "Roster identifier (import/roster_remove).",
+        "ruleset": "Installed ruleset slug for a create with no active Novel (profile-only when omitted and several are installed).",
         "seed": "Deterministic seed (create).",
         "signal": "Feedback category (signal); detail carries terse|normal|rich; register carries character|meta.",
         "skills": "Trained skills (create).",
@@ -572,10 +574,10 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 29,
+        "paramCount": 31,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 29,
-        "paramsWithEnums": 3,
+        "paramsWithDescriptions": 31,
+        "paramsWithEnums": 4,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
         "requiredFieldCount": 1,
@@ -585,8 +587,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 6129,
-        "descriptionBytes": 979
+        "definitionBytes": 6617,
+        "descriptionBytes": 995
       },
       "category": "",
       "gate": ""
@@ -605,12 +607,13 @@
         "export",
         "delete"
       ],
-      "param_count": 12,
+      "param_count": 13,
       "required": [
         "action"
       ],
       "params": {
         "content": "Entry content (for set); when omitted on an existing entry, the stored content is preserved.",
+        "context": "Which store to act on: the codex answers set/list/get/export/delete; capture and import need an active Novel.",
         "description": "Optional description (for set).",
         "entity_id": "Entity whose voice to capture (for capture, voice_profile kind).",
         "entry_id": "Entry identifier (for get/import/delete); alias of `id`.",
@@ -637,10 +640,10 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 13,
+        "paramCount": 14,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 13,
-        "paramsWithEnums": 1,
+        "paramsWithDescriptions": 14,
+        "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": false,
         "requiredFieldCount": 1,
@@ -650,7 +653,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3372,
+        "definitionBytes": 3572,
         "descriptionBytes": 971
       },
       "category": "",
@@ -1503,8 +1506,8 @@
     {
       "name": "manage_npc",
       "title": "NPC Management",
-      "description": "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. get returns the record plus a GM-only compiled identity summary when the NPC has accepted facets. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
-      "description_bytes": 663,
+      "description": "Manage non-player characters in the active Novel. create requires a name; ruleset_reference links a stat block without copying it; mind is GM-only and never returned to the Player badge; remove deletes the NPC permanently. get returns the record plus a GM-only compiled identity summary when the NPC has accepted facets. create, update, and remove require the GM or Editor badge, persist to the Novel, are audited, and are undoable via manage_history (action: undo); list and get are read-only. With no Novel active, create writes a Codex entry of kind npc and `npcs://` lists Novel NPCs only. An explicit `context` wins over the active Novel. Use when: introducing, revising, removing, listing, or reading NPCs. Do NOT use when: managing player characters — use manage_character (action: create/import/sheet).",
+      "description_bytes": 812,
       "action_enum": [
         "create",
         "update",
@@ -1515,7 +1518,7 @@
         "export_card",
         "import_cof"
       ],
-      "param_count": 18,
+      "param_count": 19,
       "required": [
         "action"
       ],
@@ -1523,6 +1526,7 @@
         "card": "Character Card V3 JSON object or string (import_card).",
         "cof_path": "Local path to a .cof container (import_cof).",
         "confirm_lore": "Import the card's character_book as lore entries (import_card).",
+        "context": "Which store to act on. An open Novel answers a create; with no Novel, create writes a Codex entry of kind npc.",
         "description": "Optional description.",
         "detail": "Return full NPC records instead of summary entries (list).",
         "disposition": "Optional disposition.",
@@ -1553,10 +1557,10 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 19,
+        "paramCount": 20,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 19,
-        "paramsWithEnums": 2,
+        "paramsWithDescriptions": 20,
+        "paramsWithEnums": 3,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
         "requiredFieldCount": 1,
@@ -1566,8 +1570,8 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 4061,
-        "descriptionBytes": 663
+        "definitionBytes": 4411,
+        "descriptionBytes": 812
       },
       "category": "",
       "gate": ""
@@ -1640,11 +1644,12 @@
         "import_supplementary",
         "remove_supplementary"
       ],
-      "param_count": 13,
+      "param_count": 14,
       "required": [
         "action"
       ],
       "params": {
+        "context": "Which store to act on: a ruleset lookup resolves to reference; an explicit value wins over the active Novel.",
         "index": "Search index (install).",
         "manifest": "Package manifest (install).",
         "max_results": "Maximum results (search).",
@@ -1673,10 +1678,10 @@
         "ruleset": null
       },
       "context_signals": {
-        "paramCount": 14,
+        "paramCount": 15,
         "requiredParamCount": 1,
-        "paramsWithDescriptions": 14,
-        "paramsWithEnums": 1,
+        "paramsWithDescriptions": 15,
+        "paramsWithEnums": 2,
         "schemaDescriptionCoverage": 100,
         "hasNestedObjects": true,
         "requiredFieldCount": 1,
@@ -1686,7 +1691,7 @@
         "hasOutputSchema": true,
         "hasAnnotations": true,
         "titleIsMeaningful": true,
-        "definitionBytes": 3035,
+        "definitionBytes": 3234,
         "descriptionBytes": 871
       },
       "category": "",
