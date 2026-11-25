@@ -1,6 +1,6 @@
 # DECISIONS.md — holonovel MCP Server
 
-**Spec hash:** 40a0bae36952a73b4a9cb4c8f7736bd929ab7db6ed15492afdc4c8886a104174
+**Spec hash:** bcf83c507c5ab19391f36ea8821fefa6435041e0fbd50e0fd3769c2259c408f2
 
 **Recorded tool budget:** 37 listed (246 canonical actions; 4 retired hidden tools + 1 retired hidden action carrying 54 tombstone declarations) (REQ-429, REQ-581)
 
@@ -1235,6 +1235,31 @@ that carries it.
   it. Registered slugs with a committed or recorded emitter are invoked
   directly.
 
+### Holonovel Spec Update — 2026-11-25 (Context resolution, a checked requireNovel audit, and no-Novel creation)
+
+- **Delta class:** major. Changed surfaces: Context resolution, a checked requireNovel audit, and no-Novel creation; Verifier-kit plan reaches revision 4, with its two done bars separated.
+- **Fingerprint delta:** full — changed: source, config, lockfile, extraction; unchanged: surfaces; reused: surfaces; evidence: reconciliation record (4 changed REQ). Prior spec 40a0bae3 → current bcf83c50.
+
+- **Scoping advice:** typecheck then Pattern Buffer sub-workflows for the changed surfaces; dependency reinstall and typecheck only; re-index generation data only, reusing prior extraction output
+
+| REQ | Disposition | Evidence |
+|---|---|---|
+| REQ-075a | implemented | bucket C (cited, exercised) |
+| REQ-075b | implemented | bucket C (cited, exercised) |
+| REQ-088e | implemented | bucket C (cited, exercised) |
+| REQ-661 | implemented | bucket C (cited, exercised) |
+
+| Component | Prior | Current |
+|---|---|---|
+| source | `5838ab4c5f6f6803…` | `cc089aa1047c32c2…` |
+| config | `c94cd544834a0594…` | `7a33d1535164e89b…` |
+| lockfile | `bbfe070457f4c31b…` | `2131d95c030e7f97…` |
+| extraction | `620042ec6eaad553…` | `749155b153677546…` |
+| surfaces | `6e22b1524cc99fa3…` | `6e22b1524cc99fa3…` |
+- **Verification:** Gates: fast check suite passed; server harness suite ran; spec SHA bcf83c507c5ab19391f36ea8821fefa6435041e0fbd50e0fd3769c2259c408f2; deploy verification is the deploy stage (REQ-418).
+
+<!-- @spec-update:bcf83c507c5ab19391f36ea8821fefa6435041e0fbd50e0fd3769c2259c408f2 -->
+
 ### Holonovel Spec Update — 2026-11-19 (Verifier-kit plan reaches revision 4, with its two done bars separated)
 
 - **Delta class:** major. Changed surfaces: Verifier-kit plan reaches revision 4, with its two done bars separated; T294 arithmetic corrected and the report-adjudication plan revised; Builder-side handoff evidence: eleven records and a fifteen-finding matrix; Codex packs: the exported library becomes a fourth artifact kind; Mutation-sample depth: a stratified 35-case catch rate with its interval.
@@ -1963,7 +1988,7 @@ row). All other `TTRPG_*` variables are system or presentation.
 | Field | Value |
 |-------|-------|
 | Delta class | major |
-| Spec version | 2026.11.19 |
+| Spec version | 2026.11.25 |
 | Prior baseline | 2026-09-11 at spec hash `7effb44f…` |
 | Changed | spec + implementation + tooling — the §6.7 Update workflow run in full to reconcile the deployed server with the M1–M3/N1–N3 feature-parity program delivered after the prior baseline. State model changed (§7.7 gained the Event Log, Evidence, Belief State, Causal State, Transition Ledger, Knowledge Corpus, Agent Tasks, and Perception Ledger property groups) and the tool surface advanced 26 → 34 (`manage_belief`, `manage_identity`, `manage_causal`, `manage_corpus`, `manage_index`, `manage_graph`, `manage_agent`, `manage_perception`), so the delta classifies **major** and no fingerprint component was reusable. Also folded in the conformance-remediation work (REQ-129 cardinality, REQ-239 audit compaction, REQ-097 health fields, REQ-546 corpus bounds, REQ-388 `holodeck_config`, REQ-450 tool annotations). |
 | Reused | none — all five implementation-fingerprint components changed |
